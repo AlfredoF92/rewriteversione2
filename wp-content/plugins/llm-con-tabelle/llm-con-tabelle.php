@@ -1,0 +1,131 @@
+<?php
+/**
+ * Plugin Name:       LLM CON TABELLE
+ * Description:       Storie, utenti e community in tabelle MySQL (no JSON strutturato). Parallelo a LLS, senza migrazione.
+ * Version:           2.0.0
+ * Requires at least: 6.0
+ * Requires PHP:      7.4
+ * Author:            LLM CON TABELLE
+ * Text Domain:       llm-con-tabelle
+ *
+ * @package LLM_Tabelle
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+define( 'LLM_TABELLE_VERSION', '2.0.0' );
+define( 'LLM_TABELLE_FILE', __FILE__ );
+define( 'LLM_TABELLE_DIR', plugin_dir_path( __FILE__ ) );
+define( 'LLM_TABELLE_URL', plugin_dir_url( __FILE__ ) );
+define( 'LLM_STORY_CPT', 'llm_story' );
+define( 'LLM_ACTIVITY_CPT', 'llm_activity' );
+
+require_once LLM_TABELLE_DIR . 'includes/class-llm-tabelle-database.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-languages.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-story-meta.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-post-type.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-activity-cpt.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-user-meta.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-story-repository.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-community.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-user-stats.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-story.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-users.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-community.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-demo-stories.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-demo-users.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-demo-community.php';
+
+/**
+ * Aggiorna schema DB se la versione salvata è inferiore (es. da 1.1 → 2.0).
+ */
+function llm_tabelle_maybe_upgrade_db() {
+	if ( version_compare( (string) get_option( LLM_Tabelle_Database::OPT_VERSION, '0' ), LLM_Tabelle_Database::DB_VERSION, '<' ) ) {
+		LLM_Tabelle_Database::install();
+	}
+}
+add_action( 'plugins_loaded', 'llm_tabelle_maybe_upgrade_db', 2 );
+
+/**
+ * Avvio.
+ */
+function llm_tabelle_boot() {
+	load_plugin_textdomain( 'llm-con-tabelle', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+
+	LLM_Post_Type::init();
+	LLM_Activity_CPT::init();
+	LLM_Story_Meta::init();
+	LLM_User_Meta::init();
+	LLM_Community::init();
+	LLM_User_Stats::init();
+	LLM_Admin_Story::init();
+	LLM_Admin_Users::init();
+	LLM_Admin_Community::init();
+	LLM_Demo_Stories::init();
+	LLM_Demo_Users::init();
+	LLM_Demo_Community::init();
+}
+add_action( 'plugins_loaded', 'llm_tabelle_boot', 5 );
+
+/**
+ * Attivazione: CPT + tabelle + storie demo + rewrite.
+ */
+function llm_tabelle_activate() {
+	LLM_Post_Type::register();
+	LLM_Activity_CPT::register();
+	LLM_Tabelle_Database::install();
+	LLM_Demo_Stories::seed_on_activate();
+	flush_rewrite_rules();
+}
+register_activation_hook( __FILE__, 'llm_tabelle_activate' );
+
+/**
+ * Elimina tutti i post attività LLM (pulisce relazioni in tabelle via hook).
+ */
+function llm_tabelle_delete_all_activities() {
+	$ids = get_posts(
+		array(
+			'post_type'      => LLM_ACTIVITY_CPT,
+			'post_status'    => 'any',
+			'posts_per_page' => -1,
+			'fields'         => 'ids',
+		)
+	);
+	foreach ( $ids as $id ) {
+		wp_delete_post( (int) $id, true );
+	}
+}
+
+/**
+ * Reset opzioni demo per poter ripopolare al riavvio.
+ */
+function llm_tabelle_reset_demo_options() {
+	delete_option( 'llm_demo_wp_users_v1' );
+	delete_option( 'llm_demo_wp_users_v2' );
+	delete_option( 'llm_demo_wp_users_v3' );
+	delete_option( 'llm_demo_community_v1' );
+	delete_option( 'llm_demo_community_v2' );
+	$users = get_users(
+		array(
+			'login__in' => array( 'llm_learn_1', 'llm_learn_2', 'llm_learn_3' ),
+			'fields'    => 'ID',
+		)
+	);
+	foreach ( $users as $uid ) {
+		delete_user_meta( (int) $uid, LLM_Demo_Users::USER_SEEDED );
+	}
+}
+
+/**
+ * Disattivazione: attività, post demo storie, DROP tabelle, reset demo.
+ */
+function llm_tabelle_deactivate() {
+	llm_tabelle_delete_all_activities();
+	LLM_Demo_Stories::delete_demo_posts();
+	llm_tabelle_reset_demo_options();
+	LLM_Tabelle_Database::uninstall();
+	flush_rewrite_rules();
+}
+register_deactivation_hook( __FILE__, 'llm_tabelle_deactivate' );
