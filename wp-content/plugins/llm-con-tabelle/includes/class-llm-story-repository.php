@@ -40,6 +40,41 @@ class LLM_Story_Repository {
 	}
 
 	/**
+	 * Una sola frase per indice (stesso ordinamento di get_phrases).
+	 *
+	 * @param int $story_id ID storia.
+	 * @param int $index    Indice 0-based.
+	 * @return array{interface:string,target:string,grammar:string,alt:string}|null
+	 */
+	public static function get_phrase_at( $story_id, $index ) {
+		global $wpdb;
+		$story_id = absint( $story_id );
+		$index    = absint( $index );
+		if ( ! $story_id ) {
+			return null;
+		}
+		$table = LLM_Tabelle_Database::table( 'llm_story_phrases' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT phrase_interface, phrase_target, phrase_grammar, phrase_alt FROM {$table} WHERE story_id = %d ORDER BY sort_order ASC, id ASC LIMIT 1 OFFSET %d",
+				$story_id,
+				$index
+			),
+			ARRAY_A
+		);
+		if ( ! is_array( $row ) ) {
+			return null;
+		}
+		return array(
+			'interface' => isset( $row['phrase_interface'] ) ? (string) $row['phrase_interface'] : '',
+			'target'    => isset( $row['phrase_target'] ) ? (string) $row['phrase_target'] : '',
+			'grammar'   => isset( $row['phrase_grammar'] ) ? (string) $row['phrase_grammar'] : '',
+			'alt'       => isset( $row['phrase_alt'] ) ? (string) $row['phrase_alt'] : '',
+		);
+	}
+
+	/**
 	 * @param int   $story_id ID post.
 	 * @param array $phrases  Array di righe con chiavi interface, target, grammar, alt.
 	 */

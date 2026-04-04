@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class LLM_Tabelle_Database {
 
-	const DB_VERSION = '2.0.0';
+	const DB_VERSION = '2.1.0';
 
 	const OPT_VERSION = 'llm_tabelle_db_version';
 
@@ -25,6 +25,7 @@ class LLM_Tabelle_Database {
 			'llm_activity_kudos',
 			'llm_user_bravo_given',
 			'llm_user_coin_ledger',
+			'llm_user_story_game_progress',
 			'llm_user_story_completed',
 			'llm_user_unlocked_story',
 			'llm_user_phrase_done',
@@ -98,6 +99,16 @@ class LLM_Tabelle_Database {
 			KEY story_id (story_id)
 		) $charset_collate;";
 
+		$sql_game_progress = "CREATE TABLE {$p}llm_user_story_game_progress (
+			user_id bigint(20) unsigned NOT NULL,
+			story_id bigint(20) unsigned NOT NULL,
+			phrase_index int(11) NOT NULL DEFAULT 0,
+			step tinyint(4) unsigned NOT NULL DEFAULT 1,
+			updated_gmt datetime NOT NULL,
+			PRIMARY KEY  (user_id, story_id),
+			KEY story_id (story_id)
+		) $charset_collate;";
+
 		$sql_ledger = "CREATE TABLE {$p}llm_user_coin_ledger (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			user_id bigint(20) unsigned NOT NULL,
@@ -139,6 +150,7 @@ class LLM_Tabelle_Database {
 		dbDelta( $sql_phrase_done );
 		dbDelta( $sql_unlocked );
 		dbDelta( $sql_completed );
+		dbDelta( $sql_game_progress );
 		dbDelta( $sql_ledger );
 		dbDelta( $sql_kudos );
 		dbDelta( $sql_bravo );

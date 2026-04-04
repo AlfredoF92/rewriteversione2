@@ -491,6 +491,7 @@ class LLM_User_Stats {
 				'llm_user_phrase_done',
 				'llm_user_unlocked_story',
 				'llm_user_story_completed',
+				'llm_user_story_game_progress',
 				'llm_user_coin_ledger',
 				'llm_user_bravo_given',
 				'llm_user_coin_balance',

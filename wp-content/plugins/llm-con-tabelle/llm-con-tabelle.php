@@ -37,6 +37,11 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-community.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-demo-stories.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-demo-users.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-demo-community.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-story-template-vars.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-elementor-dynamic-tags.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-phrase-game-i18n.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-story-game-progress.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-story-phrase-game.php';
 
 /**
  * Aggiorna schema DB se la versione salvata è inferiore (es. da 1.1 → 2.0).
@@ -66,8 +71,25 @@ function llm_tabelle_boot() {
 	LLM_Demo_Stories::init();
 	LLM_Demo_Users::init();
 	LLM_Demo_Community::init();
+
+	add_shortcode( 'llm_story_field', array( 'LLM_Story_Template_Vars', 'shortcode_field' ) );
+	LLM_Story_Phrase_Game::init();
 }
 add_action( 'plugins_loaded', 'llm_tabelle_boot', 5 );
+
+/**
+ * Elementor carica prima (ordine alfabetico): l’hook elementor/loaded è già scattato
+ * quando questo file viene letto. Registriamo i Dynamic Tag su plugins_loaded.
+ */
+add_action(
+	'plugins_loaded',
+	static function () {
+		if ( class_exists( '\Elementor\Plugin' ) ) {
+			LLM_Elementor_Dynamic_Tags::init();
+		}
+	},
+	20
+);
 
 /**
  * Attivazione: CPT + tabelle + storie demo + rewrite.
