@@ -1,0 +1,166 @@
+/* Header utente + statistiche — niente bordi/sfondi, icone SVG minimal */
+
+.llm-header-icon {
+	display: block;
+	flex-shrink: 0;
+	width: 1.05em;
+	height: 1.05em;
+	opacity: 0.72;
+}
+
+/* [llm_header_user] */
+.llm-header-user {
+	display: inline-flex;
+	align-items: center;
+	font-family: inherit;
+	font-size: inherit;
+	line-height: 1.35;
+}
+
+.llm-header-user__account,
+.llm-header-user__login {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0;
+	margin: 0;
+	text-decoration: none;
+	color: inherit !important;
+	background: none !important;
+	border: none !important;
+	border-radius: 0;
+	box-shadow: none !important;
+	font-family: inherit;
+	font-size: inherit;
+	font-weight: 600;
+	line-height: inherit;
+	transition: opacity 0.15s ease;
+}
+
+.llm-header-user__account:hover,
+.llm-header-user__account:focus-visible,
+.llm-header-user__login:hover,
+.llm-header-user__login:focus-visible {
+	opacity: 0.78;
+	outline: none;
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+	text-decoration-thickness: 1px;
+}
+
+.llm-header-user__icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	line-height: 0;
+}
+
+.llm-header-user:hover .llm-header-icon,
+.llm-header-user:focus-within .llm-header-icon {
+	opacity: 0.95;
+}
+
+/* Statistiche — [llm_user_coins] [llm_user_phrases] [llm_user_bravi] [llm_user_learning_lang] */
+.llm-stat-chip-wrap {
+	display: inline-flex;
+	align-items: center;
+	font-family: inherit;
+	font-size: inherit;
+	line-height: 1.35;
+}
+
+.llm-stat-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0;
+	margin: 0;
+	font-family: inherit;
+	font-size: inherit;
+	font-weight: 500;
+	text-decoration: none;
+	color: inherit !important;
+	background: none !important;
+	border: none !important;
+	border-radius: 0;
+	box-shadow: none !important;
+	transition: opacity 0.15s ease;
+}
+
+.llm-stat-chip--kv {
+	flex-wrap: wrap;
+}
+
+.llm-stat-chip:hover,
+.llm-stat-chip:focus-visible {
+	opacity: 0.8;
+	outline: none;
+	text-decoration: underline;
+	text-underline-offset: 0.12em;
+	text-decoration-thickness: 1px;
+}
+
+.llm-stat-chip__icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	line-height: 0;
+}
+
+.llm-stat-chip:hover .llm-header-icon,
+.llm-stat-chip:focus-visible .llm-header-icon {
+	opacity: 0.9;
+}
+
+.llm-stat-chip__body {
+	display: inline-flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: 0.3rem;
+}
+
+.llm-stat-chip__label {
+	font-size: 0.8125em;
+	font-weight: 500;
+	opacity: 0.82;
+}
+
+.llm-stat-chip__value {
+	font-size: 0.9375em;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	font-variant-numeric: tabular-nums;
+}
+
+.llm-stat-chip__text {
+	font-size: inherit;
+	font-weight: 600;
+}
+
+.llm-stat-chip--lang {
+	white-space: normal;
+}
+
+.llm-stat-chip--lang .llm-stat-chip__value {
+	font-size: 0.875em;
+	font-weight: 600;
+	font-variant-numeric: normal;
+}
+
+.llm-stat-chip--static {
+	cursor: default;
+}
+
+.llm-stat-chip--static:hover,
+.llm-stat-chip--static:focus-visible {
+	opacity: 1;
+	text-decoration: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.llm-header-user__account,
+	.llm-header-user__login,
+	.llm-stat-chip {
+		transition-duration: 0.01ms;
+	}
+}
