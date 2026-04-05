@@ -34,6 +34,7 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-user-stats.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-story.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-users.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-community.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-design-system.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-demo-stories.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-demo-users.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-demo-community.php';
@@ -77,6 +78,7 @@ function llm_tabelle_boot() {
 	LLM_Admin_Story::init();
 	LLM_Admin_Users::init();
 	LLM_Admin_Community::init();
+	LLM_Admin_Design_System::init();
 	LLM_Demo_Stories::init();
 	LLM_Demo_Users::init();
 	LLM_Demo_Community::init();
@@ -94,17 +96,25 @@ function llm_tabelle_boot() {
 add_action( 'plugins_loaded', 'llm_tabelle_boot', 5 );
 
 /**
- * Stili condivisi (form bar, campi compatti). Altri shortcode: wp_enqueue_style( 'llm-ui' ).
+ * Registra llm-ui + font Manrope (frontend e admin).
+ * Altri shortcode: wp_enqueue_style( 'llm-ui' ).
  */
-function llm_tabelle_register_shared_assets() {
+function llm_tabelle_register_shared_style_handles() {
+	wp_register_style(
+		'llm-font-manrope',
+		'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap',
+		array(),
+		null
+	);
 	wp_register_style(
 		'llm-ui',
 		LLM_TABELLE_URL . 'assets/llm-ui.css',
-		array(),
+		array( 'llm-font-manrope' ),
 		LLM_TABELLE_VERSION
 	);
 }
-add_action( 'wp_enqueue_scripts', 'llm_tabelle_register_shared_assets', 1 );
+add_action( 'wp_enqueue_scripts', 'llm_tabelle_register_shared_style_handles', 1 );
+add_action( 'admin_init', 'llm_tabelle_register_shared_style_handles', 1 );
 
 /**
  * Elementor carica prima (ordine alfabetico): l’hook elementor/loaded è già scattato

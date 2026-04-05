@@ -1,53 +1,330 @@
 /**
- * LLM UI — token e componenti riutilizzabili (form compatti, barre orizzontali).
- * Avvolgi una sezione in .llm-ui-scope per ereditare le variabili, oppure usa i blocchi dove servono.
+ * LLM UI — Design system (default dark + Manrope).
+ * Avvolgi in .llm-ui-scope. Tema chiaro: aggiungi .llm-ui-scope--light
  */
 
 /* -------------------------------------------------------------------------
-   Scope variabili (tema neutro, adattabile)
+   Scope variabili — default dark
    ------------------------------------------------------------------------- */
 .llm-ui-scope,
 .llm-ap-loop-filters {
 	--llm-ui-radius: 6px;
 	--llm-ui-radius-sm: 4px;
-	--llm-ui-font: inherit;
-	--llm-ui-text: #0f172a;
-	--llm-ui-muted: #64748b;
-	--llm-ui-border: rgba(15, 23, 42, 0.14);
-	--llm-ui-border-strong: rgba(15, 23, 42, 0.22);
-	--llm-ui-surface: #ffffff;
-	--llm-ui-surface-muted: #f1f5f9;
-	--llm-ui-accent: #2563eb;
-	--llm-ui-accent-hover: #1d4ed8;
-	--llm-ui-accent-soft: rgba(37, 99, 235, 0.1);
-	--llm-ui-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+	--llm-ui-font: "Manrope", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	--llm-ui-font-heading: "Manrope", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	--llm-ui-body-size: 0.9375rem;
+	--llm-ui-line-body: 1.55;
+	--llm-ui-text: #f1f5f9;
+	--llm-ui-muted: #94a3b8;
+	--llm-ui-border: rgba(248, 250, 252, 0.12);
+	--llm-ui-border-strong: rgba(248, 250, 252, 0.22);
+	--llm-ui-surface: #1e293b;
+	--llm-ui-surface-muted: #0f172a;
+	--llm-ui-accent: #38bdf8;
+	--llm-ui-accent-hover: #7dd3fc;
+	--llm-ui-accent-soft: rgba(56, 189, 248, 0.2);
+	--llm-ui-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+	--llm-ui-danger: #f87171;
+	--llm-ui-danger-hover: #fca5a5;
+	--llm-ui-danger-soft: rgba(248, 113, 113, 0.14);
 	--llm-ui-gap-xs: 0.25rem;
-	--llm-ui-gap-sm: 0.4rem;
-	--llm-ui-gap-md: 0.55rem;
-	--llm-ui-gap-lg: 0.75rem;
-	--llm-ui-pad-x: 0.55rem;
-	--llm-ui-pad-y: 0.38rem;
+	--llm-ui-gap-sm: 0.35rem;
+	--llm-ui-gap-md: 0.5rem;
+	--llm-ui-gap-lg: 0.65rem;
+	--llm-ui-pad-x: 0.5rem;
+	--llm-ui-pad-y: 0.34rem;
 	--llm-ui-label-size: 0.6875rem;
 	--llm-ui-control-size: 0.8125rem;
 	--llm-ui-line: 1.25;
+	--llm-ui-btn-pad-y: 0.26rem;
+	--llm-ui-btn-pad-x: 0.48rem;
+	--llm-ui-btn-size: 0.75rem;
+	--llm-ui-btn-line: 1.2;
 	color: var(--llm-ui-text);
 	font-family: var(--llm-ui-font);
 }
 
-@media (prefers-color-scheme: dark) {
-	.llm-ui-scope.llm-ui-scope--auto-dark,
-	.llm-ap-loop-filters.llm-ap-loop-filters--auto-dark {
-		--llm-ui-text: #f1f5f9;
-		--llm-ui-muted: #94a3b8;
-		--llm-ui-border: rgba(248, 250, 252, 0.14);
-		--llm-ui-border-strong: rgba(248, 250, 252, 0.22);
-		--llm-ui-surface: #1e293b;
-		--llm-ui-surface-muted: #0f172a;
-		--llm-ui-accent: #60a5fa;
-		--llm-ui-accent-hover: #93c5fd;
-		--llm-ui-accent-soft: rgba(96, 165, 250, 0.15);
-		--llm-ui-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-	}
+/* Tema chiaro (opzionale) */
+.llm-ui-scope.llm-ui-scope--light {
+	--llm-ui-text: #0f172a;
+	--llm-ui-muted: #64748b;
+	--llm-ui-border: rgba(15, 23, 42, 0.14);
+	--llm-ui-border-strong: rgba(15, 23, 42, 0.24);
+	--llm-ui-surface: #ffffff;
+	--llm-ui-surface-muted: #f1f5f9;
+	--llm-ui-accent: #2563eb;
+	--llm-ui-accent-hover: #1d4ed8;
+	--llm-ui-accent-soft: rgba(37, 99, 235, 0.12);
+	--llm-ui-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+	--llm-ui-danger: #b91c1c;
+	--llm-ui-danger-hover: #991b1b;
+	--llm-ui-danger-soft: rgba(185, 28, 28, 0.1);
+}
+
+/* -------------------------------------------------------------------------
+   Tipografia (corpo, titoli, link)
+   ------------------------------------------------------------------------- */
+.llm-ui-body {
+	margin: 0;
+	font-family: var(--llm-ui-font);
+	font-size: var(--llm-ui-body-size);
+	line-height: var(--llm-ui-line-body);
+	color: var(--llm-ui-text);
+}
+
+.llm-ui-heading {
+	margin: 0 0 0.5em;
+	font-family: var(--llm-ui-font-heading);
+	font-weight: 700;
+	line-height: 1.2;
+	color: var(--llm-ui-text);
+}
+
+.llm-ui-heading--page {
+	font-size: clamp(1.5rem, 2.5vw, 1.875rem);
+	letter-spacing: -0.02em;
+}
+
+.llm-ui-heading--section {
+	font-size: 1.25rem;
+	letter-spacing: -0.01em;
+}
+
+.llm-ui-heading--subsection {
+	font-size: 1.0625rem;
+	font-weight: 600;
+}
+
+.llm-ui-heading--card {
+	font-size: 1rem;
+	font-weight: 600;
+}
+
+.llm-ui-text {
+	margin: 0;
+	font-family: inherit;
+	font-size: inherit;
+	line-height: var(--llm-ui-line-body);
+	color: var(--llm-ui-text);
+}
+
+.llm-ui-text--small {
+	font-size: var(--llm-ui-control-size);
+	line-height: var(--llm-ui-line);
+}
+
+.llm-ui-text--muted {
+	color: var(--llm-ui-muted);
+}
+
+.llm-ui-lead {
+	margin: 0;
+	font-size: 1.0625rem;
+	line-height: 1.45;
+	color: var(--llm-ui-muted);
+}
+
+.llm-ui-link {
+	color: var(--llm-ui-accent);
+	text-decoration: underline;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 0.18em;
+	font-weight: 500;
+	transition: color 0.15s ease;
+}
+
+.llm-ui-link:hover,
+.llm-ui-link:focus-visible {
+	color: var(--llm-ui-accent-hover);
+}
+
+.llm-ui-help {
+	margin: 0;
+	font-size: var(--llm-ui-label-size);
+	line-height: var(--llm-ui-line);
+	color: var(--llm-ui-muted);
+}
+
+/* -------------------------------------------------------------------------
+   Layout utility
+   ------------------------------------------------------------------------- */
+.llm-ui-stack {
+	display: flex;
+	flex-direction: column;
+	gap: var(--llm-ui-gap-md);
+}
+
+.llm-ui-stack--lg {
+	gap: var(--llm-ui-gap-lg);
+}
+
+.llm-ui-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--llm-ui-gap-sm) var(--llm-ui-gap-md);
+}
+
+/* -------------------------------------------------------------------------
+   Card / pannello
+   ------------------------------------------------------------------------- */
+.llm-ui-card {
+	box-sizing: border-box;
+	background: var(--llm-ui-surface);
+	border: 1px solid var(--llm-ui-border);
+	border-radius: var(--llm-ui-radius);
+	box-shadow: var(--llm-ui-shadow);
+	overflow: hidden;
+}
+
+.llm-ui-card__head {
+	padding: var(--llm-ui-gap-md) var(--llm-ui-gap-lg);
+	border-bottom: 1px solid var(--llm-ui-border);
+	background: var(--llm-ui-surface-muted);
+}
+
+.llm-ui-card__body {
+	padding: var(--llm-ui-gap-lg);
+}
+
+/* -------------------------------------------------------------------------
+   Badge / tag
+   ------------------------------------------------------------------------- */
+.llm-ui-badge {
+	display: inline-flex;
+	align-items: center;
+	box-sizing: border-box;
+	padding: 0.12em 0.5em;
+	font-size: var(--llm-ui-label-size);
+	font-weight: 600;
+	line-height: var(--llm-ui-line);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	border-radius: var(--llm-ui-radius-sm);
+	background: var(--llm-ui-surface-muted);
+	border: 1px solid var(--llm-ui-border);
+	color: var(--llm-ui-muted);
+}
+
+.llm-ui-badge--accent {
+	background: var(--llm-ui-accent-soft);
+	border-color: transparent;
+	color: var(--llm-ui-accent);
+}
+
+.llm-ui-badge--outline {
+	background: transparent;
+}
+
+/* -------------------------------------------------------------------------
+   Separatore
+   ------------------------------------------------------------------------- */
+.llm-ui-hr {
+	margin: var(--llm-ui-gap-lg) 0;
+	border: 0;
+	border-top: 1px solid var(--llm-ui-border);
+}
+
+/* -------------------------------------------------------------------------
+   Tabella
+   ------------------------------------------------------------------------- */
+.llm-ui-table-wrap {
+	overflow-x: auto;
+	border: 1px solid var(--llm-ui-border);
+	border-radius: var(--llm-ui-radius-sm);
+	background: var(--llm-ui-surface);
+}
+
+.llm-ui-table {
+	width: 100%;
+	margin: 0;
+	border-collapse: collapse;
+	font-size: var(--llm-ui-control-size);
+	line-height: var(--llm-ui-line);
+}
+
+.llm-ui-table th,
+.llm-ui-table td {
+	padding: 0.5rem 0.65rem;
+	text-align: left;
+	vertical-align: top;
+	border-bottom: 1px solid var(--llm-ui-border);
+}
+
+.llm-ui-table th {
+	font-weight: 600;
+	background: var(--llm-ui-surface-muted);
+	color: var(--llm-ui-text);
+}
+
+.llm-ui-table tr:last-child td {
+	border-bottom: 0;
+}
+
+/* -------------------------------------------------------------------------
+   Pulsanti aggiuntivi
+   ------------------------------------------------------------------------- */
+.llm-ui-btn--secondary {
+	color: var(--llm-ui-text);
+	background: var(--llm-ui-surface-muted);
+	border-color: var(--llm-ui-border-strong);
+	box-shadow: none;
+}
+
+.llm-ui-btn--secondary:hover,
+.llm-ui-btn--secondary:focus-visible {
+	background: var(--llm-ui-surface);
+	border-color: var(--llm-ui-border-strong);
+	color: var(--llm-ui-text);
+}
+
+.llm-ui-btn--danger {
+	color: var(--llm-ui-danger);
+	background: transparent;
+	border-color: rgba(248, 113, 113, 0.45);
+	box-shadow: none;
+}
+
+.llm-ui-btn--danger:hover,
+.llm-ui-btn--danger:focus-visible {
+	color: var(--llm-ui-danger-hover);
+	background: var(--llm-ui-danger-soft);
+	border-color: rgba(248, 113, 113, 0.6);
+}
+
+.llm-ui-scope--light .llm-ui-btn--danger {
+	border-color: rgba(185, 28, 28, 0.35);
+}
+
+.llm-ui-scope--light .llm-ui-btn--danger:hover,
+.llm-ui-scope--light .llm-ui-btn--danger:focus-visible {
+	border-color: rgba(185, 28, 28, 0.55);
+}
+
+.llm-ui-btn--link {
+	padding: 0.12em 0.3em;
+	color: var(--llm-ui-accent);
+	background: transparent;
+	border-color: transparent;
+	box-shadow: none;
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+}
+
+.llm-ui-btn--link:hover,
+.llm-ui-btn--link:focus-visible {
+	color: var(--llm-ui-accent-hover);
+	background: var(--llm-ui-accent-soft);
+	border-color: transparent;
+}
+
+/* -------------------------------------------------------------------------
+   Textarea (stessi token di .llm-ui-input; opz. classe .llm-ui-textarea)
+   ------------------------------------------------------------------------- */
+textarea.llm-ui-input,
+.llm-ui-input.llm-ui-textarea {
+	min-height: 5rem;
+	resize: vertical;
 }
 
 /* -------------------------------------------------------------------------
@@ -156,10 +433,14 @@
 .llm-ui-select {
 	cursor: pointer;
 	appearance: none;
-	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M3 4.5L6 7.5L9 4.5'/%3E%3C/svg%3E");
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M3 4.5L6 7.5L9 4.5'/%3E%3C/svg%3E");
 	background-repeat: no-repeat;
-	background-position: right 0.45rem center;
-	padding-right: 1.65rem;
+	background-position: right 0.4rem center;
+	padding-right: 1.5rem;
+}
+
+.llm-ui-scope--light .llm-ui-select {
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M3 4.5L6 7.5L9 4.5'/%3E%3C/svg%3E");
 }
 
 /* -------------------------------------------------------------------------
@@ -169,7 +450,7 @@
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: var(--llm-ui-gap-sm);
+	gap: var(--llm-ui-gap-xs);
 	flex: 0 0 auto;
 	margin-left: auto;
 }
@@ -180,11 +461,11 @@
 	justify-content: center;
 	box-sizing: border-box;
 	margin: 0;
-	padding: var(--llm-ui-pad-y) 0.65rem;
-	font-family: inherit;
-	font-size: var(--llm-ui-control-size);
+	padding: var(--llm-ui-btn-pad-y) var(--llm-ui-btn-pad-x);
+	font-family: var(--llm-ui-font);
+	font-size: var(--llm-ui-btn-size);
 	font-weight: 600;
-	line-height: var(--llm-ui-line);
+	line-height: var(--llm-ui-btn-line);
 	text-decoration: none;
 	text-align: center;
 	white-space: nowrap;
@@ -195,17 +476,27 @@
 }
 
 .llm-ui-btn--primary {
-	color: #fff;
+	color: #0f172a;
 	background: var(--llm-ui-accent);
 	border-color: var(--llm-ui-accent);
-	box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08);
+	box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+}
+
+.llm-ui-scope--light .llm-ui-btn--primary {
+	color: #fff;
+	box-shadow: 0 1px 0 rgba(15, 23, 42, 0.1);
 }
 
 .llm-ui-btn--primary:hover,
 .llm-ui-btn--primary:focus-visible {
-	color: #fff;
+	color: #0f172a;
 	background: var(--llm-ui-accent-hover);
 	border-color: var(--llm-ui-accent-hover);
+}
+
+.llm-ui-scope--light .llm-ui-btn--primary:hover,
+.llm-ui-scope--light .llm-ui-btn--primary:focus-visible {
+	color: #fff;
 }
 
 .llm-ui-btn--primary:focus-visible {
