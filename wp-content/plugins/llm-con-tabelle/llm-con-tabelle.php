@@ -45,6 +45,8 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-story-phrase-game.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-header-ui-icons.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-header-user-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-stat-shortcodes.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-user-profile-shortcode.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-learning-lang-shortcode.php';
 
 /**
  * Aggiorna schema DB se la versione salvata è inferiore (es. da 1.1 → 2.0).
@@ -78,6 +80,8 @@ function llm_tabelle_boot() {
 	add_shortcode( 'llm_story_field', array( 'LLM_Story_Template_Vars', 'shortcode_field' ) );
 	LLM_Header_User_Shortcode::init();
 	LLM_User_Stat_Shortcodes::init();
+	LLM_User_Profile_Shortcode::init();
+	LLM_Learning_Lang_Shortcode::init();
 	LLM_Story_Phrase_Game::init();
 }
 add_action( 'plugins_loaded', 'llm_tabelle_boot', 5 );
