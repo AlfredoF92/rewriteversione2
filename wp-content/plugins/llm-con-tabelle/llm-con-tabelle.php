@@ -47,6 +47,10 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-header-user-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-stat-shortcodes.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-profile-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-learning-lang-shortcode.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-elementor-group-control-related-unlocked.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-elementor-unlocked-stories-loop.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-area-personale-loop-filters-shortcode.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-user-activity-feed-shortcode.php';
 
 /**
  * Aggiorna schema DB se la versione salvata è inferiore (es. da 1.1 → 2.0).
@@ -82,9 +86,25 @@ function llm_tabelle_boot() {
 	LLM_User_Stat_Shortcodes::init();
 	LLM_User_Profile_Shortcode::init();
 	LLM_Learning_Lang_Shortcode::init();
+	LLM_Elementor_Unlocked_Stories_Loop::init();
+	LLM_Area_Personale_Loop_Filters_Shortcode::init();
+	LLM_User_Activity_Feed_Shortcode::init();
 	LLM_Story_Phrase_Game::init();
 }
 add_action( 'plugins_loaded', 'llm_tabelle_boot', 5 );
+
+/**
+ * Stili condivisi (form bar, campi compatti). Altri shortcode: wp_enqueue_style( 'llm-ui' ).
+ */
+function llm_tabelle_register_shared_assets() {
+	wp_register_style(
+		'llm-ui',
+		LLM_TABELLE_URL . 'assets/llm-ui.css',
+		array(),
+		LLM_TABELLE_VERSION
+	);
+}
+add_action( 'wp_enqueue_scripts', 'llm_tabelle_register_shared_assets', 1 );
 
 /**
  * Elementor carica prima (ordine alfabetico): l’hook elementor/loaded è già scattato

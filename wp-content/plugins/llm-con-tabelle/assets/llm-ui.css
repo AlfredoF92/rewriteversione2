@@ -1,0 +1,276 @@
+/**
+ * LLM UI — token e componenti riutilizzabili (form compatti, barre orizzontali).
+ * Avvolgi una sezione in .llm-ui-scope per ereditare le variabili, oppure usa i blocchi dove servono.
+ */
+
+/* -------------------------------------------------------------------------
+   Scope variabili (tema neutro, adattabile)
+   ------------------------------------------------------------------------- */
+.llm-ui-scope,
+.llm-ap-loop-filters {
+	--llm-ui-radius: 6px;
+	--llm-ui-radius-sm: 4px;
+	--llm-ui-font: inherit;
+	--llm-ui-text: #0f172a;
+	--llm-ui-muted: #64748b;
+	--llm-ui-border: rgba(15, 23, 42, 0.14);
+	--llm-ui-border-strong: rgba(15, 23, 42, 0.22);
+	--llm-ui-surface: #ffffff;
+	--llm-ui-surface-muted: #f1f5f9;
+	--llm-ui-accent: #2563eb;
+	--llm-ui-accent-hover: #1d4ed8;
+	--llm-ui-accent-soft: rgba(37, 99, 235, 0.1);
+	--llm-ui-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+	--llm-ui-gap-xs: 0.25rem;
+	--llm-ui-gap-sm: 0.4rem;
+	--llm-ui-gap-md: 0.55rem;
+	--llm-ui-gap-lg: 0.75rem;
+	--llm-ui-pad-x: 0.55rem;
+	--llm-ui-pad-y: 0.38rem;
+	--llm-ui-label-size: 0.6875rem;
+	--llm-ui-control-size: 0.8125rem;
+	--llm-ui-line: 1.25;
+	color: var(--llm-ui-text);
+	font-family: var(--llm-ui-font);
+}
+
+@media (prefers-color-scheme: dark) {
+	.llm-ui-scope.llm-ui-scope--auto-dark,
+	.llm-ap-loop-filters.llm-ap-loop-filters--auto-dark {
+		--llm-ui-text: #f1f5f9;
+		--llm-ui-muted: #94a3b8;
+		--llm-ui-border: rgba(248, 250, 252, 0.14);
+		--llm-ui-border-strong: rgba(248, 250, 252, 0.22);
+		--llm-ui-surface: #1e293b;
+		--llm-ui-surface-muted: #0f172a;
+		--llm-ui-accent: #60a5fa;
+		--llm-ui-accent-hover: #93c5fd;
+		--llm-ui-accent-soft: rgba(96, 165, 250, 0.15);
+		--llm-ui-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+	}
+}
+
+/* -------------------------------------------------------------------------
+   Barra form orizzontale (toolbar filtri / ricerca)
+   ------------------------------------------------------------------------- */
+.llm-ui-form-bar {
+	display: block;
+	box-sizing: border-box;
+	padding: var(--llm-ui-gap-md) var(--llm-ui-gap-lg);
+	background: var(--llm-ui-surface);
+	border: 1px solid var(--llm-ui-border);
+	border-radius: var(--llm-ui-radius);
+	box-shadow: var(--llm-ui-shadow);
+}
+
+.llm-ui-form-bar__inner {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: var(--llm-ui-gap-md) var(--llm-ui-gap-lg);
+	margin: 0;
+}
+
+/* -------------------------------------------------------------------------
+   Campo: etichetta sopra controllo, compatto
+   ------------------------------------------------------------------------- */
+.llm-ui-field {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: var(--llm-ui-gap-xs);
+	min-width: 0;
+	flex: 0 1 auto;
+}
+
+.llm-ui-field--fixed {
+	flex: 0 0 auto;
+	min-width: 7.5rem;
+	max-width: 11rem;
+}
+
+.llm-ui-field--grow {
+	flex: 1 1 9rem;
+	min-width: 8rem;
+	max-width: 16rem;
+}
+
+.llm-ui-field--search {
+	flex: 2 1 10rem;
+	min-width: 9rem;
+	max-width: 20rem;
+}
+
+.llm-ui-label {
+	display: block;
+	margin: 0;
+	padding: 0;
+	font-size: var(--llm-ui-label-size);
+	font-weight: 600;
+	line-height: var(--llm-ui-line);
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: var(--llm-ui-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* -------------------------------------------------------------------------
+   Input / select
+   ------------------------------------------------------------------------- */
+.llm-ui-input,
+.llm-ui-select {
+	box-sizing: border-box;
+	width: 100%;
+	margin: 0;
+	padding: var(--llm-ui-pad-y) var(--llm-ui-pad-x);
+	font-family: inherit;
+	font-size: var(--llm-ui-control-size);
+	line-height: var(--llm-ui-line);
+	color: var(--llm-ui-text);
+	background: var(--llm-ui-surface-muted);
+	border: 1px solid var(--llm-ui-border);
+	border-radius: var(--llm-ui-radius-sm);
+	transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.llm-ui-input::placeholder {
+	color: var(--llm-ui-muted);
+	opacity: 0.85;
+}
+
+.llm-ui-input:hover,
+.llm-ui-select:hover {
+	border-color: var(--llm-ui-border-strong);
+}
+
+.llm-ui-input:focus,
+.llm-ui-select:focus {
+	outline: none;
+	border-color: var(--llm-ui-accent);
+	box-shadow: 0 0 0 2px var(--llm-ui-accent-soft);
+	background: var(--llm-ui-surface);
+}
+
+.llm-ui-select {
+	cursor: pointer;
+	appearance: none;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M3 4.5L6 7.5L9 4.5'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 0.45rem center;
+	padding-right: 1.65rem;
+}
+
+/* -------------------------------------------------------------------------
+   Azioni (pulsanti in riga)
+   ------------------------------------------------------------------------- */
+.llm-ui-form-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--llm-ui-gap-sm);
+	flex: 0 0 auto;
+	margin-left: auto;
+}
+
+.llm-ui-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	margin: 0;
+	padding: var(--llm-ui-pad-y) 0.65rem;
+	font-family: inherit;
+	font-size: var(--llm-ui-control-size);
+	font-weight: 600;
+	line-height: var(--llm-ui-line);
+	text-decoration: none;
+	text-align: center;
+	white-space: nowrap;
+	border-radius: var(--llm-ui-radius-sm);
+	border: 1px solid transparent;
+	cursor: pointer;
+	transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.llm-ui-btn--primary {
+	color: #fff;
+	background: var(--llm-ui-accent);
+	border-color: var(--llm-ui-accent);
+	box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08);
+}
+
+.llm-ui-btn--primary:hover,
+.llm-ui-btn--primary:focus-visible {
+	color: #fff;
+	background: var(--llm-ui-accent-hover);
+	border-color: var(--llm-ui-accent-hover);
+}
+
+.llm-ui-btn--primary:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 2px var(--llm-ui-accent-soft);
+}
+
+.llm-ui-btn--ghost {
+	color: var(--llm-ui-muted);
+	background: transparent;
+	border-color: var(--llm-ui-border);
+}
+
+.llm-ui-btn--ghost:hover,
+.llm-ui-btn--ghost:focus-visible {
+	color: var(--llm-ui-text);
+	border-color: var(--llm-ui-border-strong);
+	background: var(--llm-ui-surface-muted);
+}
+
+/* -------------------------------------------------------------------------
+   Messaggi / notice
+   ------------------------------------------------------------------------- */
+.llm-ui-notice {
+	margin: 0 0 var(--llm-ui-gap-md);
+	padding: var(--llm-ui-gap-sm) var(--llm-ui-gap-md);
+	font-size: var(--llm-ui-control-size);
+	line-height: var(--llm-ui-line);
+	color: var(--llm-ui-muted);
+	background: var(--llm-ui-surface-muted);
+	border-radius: var(--llm-ui-radius-sm);
+	border: 1px dashed var(--llm-ui-border);
+}
+
+/* -------------------------------------------------------------------------
+   Responsive: più compatto su mobile, azioni a tutta larghezza se serve
+   ------------------------------------------------------------------------- */
+@media (max-width: 639px) {
+	.llm-ui-form-bar {
+		padding: var(--llm-ui-gap-sm) var(--llm-ui-gap-md);
+	}
+
+	.llm-ui-form-bar__inner {
+		flex-direction: column;
+		align-items: stretch;
+		gap: var(--llm-ui-gap-md);
+	}
+
+	.llm-ui-field--fixed,
+	.llm-ui-field--grow,
+	.llm-ui-field--search {
+		flex: 1 1 auto;
+		max-width: none;
+		min-width: 0;
+	}
+
+	.llm-ui-form-actions {
+		margin-left: 0;
+		width: 100%;
+		justify-content: stretch;
+		gap: var(--llm-ui-gap-sm);
+	}
+
+	.llm-ui-form-actions .llm-ui-btn {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+}
