@@ -52,6 +52,9 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-elementor-group-control-relat
 require_once LLM_TABELLE_DIR . 'includes/class-llm-elementor-unlocked-stories-loop.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-area-personale-loop-filters-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-activity-feed-shortcode.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-community-feed-i18n.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-community-feed-shortcode.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-bravo-balance-shortcode.php';
 
 /**
  * Aggiorna schema DB se la versione salvata è inferiore (es. da 1.1 → 2.0).
@@ -91,6 +94,8 @@ function llm_tabelle_boot() {
 	LLM_Elementor_Unlocked_Stories_Loop::init();
 	LLM_Area_Personale_Loop_Filters_Shortcode::init();
 	LLM_User_Activity_Feed_Shortcode::init();
+	LLM_Community_Feed_Shortcode::init();
+	LLM_Bravo_Balance_Shortcode::init();
 	LLM_Story_Phrase_Game::init();
 }
 add_action( 'plugins_loaded', 'llm_tabelle_boot', 5 );

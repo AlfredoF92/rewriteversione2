@@ -69,8 +69,10 @@ class LLM_Admin_Design_System {
 		echo '<div class="wrap llm-ds-wrap">';
 		echo '<h1>' . esc_html__( 'Design System', 'llm-con-tabelle' ) . '</h1>';
 		echo '<p class="llm-ds-intro">';
-		echo esc_html__( 'Design system: tema scuro predefinito, font Manrope (Google Fonts), pulsanti compatti. File: assets/llm-ui.css. Usa .llm-ui-scope sul wrapper; per tema chiaro aggiungi .llm-ui-scope--light. Registra wp_enqueue_style( \'llm-ui\' ) sul frontend.', 'llm-con-tabelle' );
+		echo esc_html__( 'Design system: palette monocromatica (scala di grigi e nero) per testi, bordi, link, pulsanti ed enfasi — senza colori accesi. Font Manrope (Google Fonts), pulsanti compatti. File: assets/llm-ui.css. Usa .llm-ui-scope sul wrapper; per tema chiaro aggiungi .llm-ui-scope--light. Registra wp_enqueue_style( \'llm-ui\' ) sul frontend.', 'llm-con-tabelle' );
 		echo '</p>';
+
+		self::render_palette_table();
 
 		self::section(
 			__( 'Tipografia — titoli', 'llm-con-tabelle' ),
@@ -143,7 +145,7 @@ class LLM_Admin_Design_System {
 			),
 			'<span class="llm-ui-row">'
 			. '<span class="llm-ui-badge">' . esc_html__( 'Default', 'llm-con-tabelle' ) . '</span>'
-			. '<span class="llm-ui-badge llm-ui-badge--accent">' . esc_html__( 'Accent', 'llm-con-tabelle' ) . '</span>'
+			. '<span class="llm-ui-badge llm-ui-badge--accent">' . esc_html__( 'Enfasi', 'llm-con-tabelle' ) . '</span>'
 			. '<span class="llm-ui-badge llm-ui-badge--outline">' . esc_html__( 'Outline', 'llm-con-tabelle' ) . '</span>'
 			. '</span>'
 		);
@@ -238,10 +240,10 @@ class LLM_Admin_Design_System {
 			__( 'Scope e variabili CSS', 'llm-con-tabelle' ),
 			array(
 				'.llm-ui-scope',
-				'Variabili: --llm-ui-font, --llm-ui-text, --llm-ui-accent, --llm-ui-btn-pad-y, …',
+				'Variabili: --llm-ui-gray-*, --llm-ui-text, --llm-ui-link, --llm-ui-accent, --llm-ui-on-accent, --llm-ui-btn-pad-y, …',
 			),
 			'<p class="llm-ui-text--small" style="margin:0;">' . esc_html__( 'Sovrascrivi le variabili sul wrapper .llm-ui-scope per temi personalizzati (anche inline style).', 'llm-con-tabelle' ) . '</p>'
-			. '<pre class="llm-ds-class" style="white-space:pre-wrap;margin-top:0.5rem;">.llm-ui-scope { --llm-ui-accent: #a78bfa; }</pre>'
+			. '<pre class="llm-ds-class" style="white-space:pre-wrap;margin-top:0.5rem;">.llm-ui-scope { --llm-ui-accent: var(--llm-ui-gray-300); --llm-ui-on-accent: var(--llm-ui-gray-950); }</pre>'
 		);
 
 		echo '<section class="llm-ds-section">';
@@ -259,8 +261,39 @@ class LLM_Admin_Design_System {
 		echo '</div>';
 	}
 
+	/**
+	 * Tabella token colore (documentazione palette grigia).
+	 */
+	private static function render_palette_table() {
+		echo '<section class="llm-ds-section">';
+		echo '<h2 class="llm-ds-section__title">' . esc_html__( 'Palette — grigi, nero e token semantici', 'llm-con-tabelle' ) . '</h2>';
+		echo '<p class="llm-ds-intro" style="margin-bottom:1rem;">';
+		echo esc_html__( 'Il tema dark usa una scala slate; il tema light una scala zinc. Link, bordi, pulsanti primary/ghost e badge --accent derivano solo da questi token.', 'llm-con-tabelle' );
+		echo '</p>';
+		echo '<table class="widefat striped"><thead><tr>';
+		echo '<th>' . esc_html__( 'Variabile / gruppo', 'llm-con-tabelle' ) . '</th>';
+		echo '<th>' . esc_html__( 'Ruolo', 'llm-con-tabelle' ) . '</th>';
+		echo '</tr></thead><tbody>';
+		$palette_rows = array(
+			array( '--llm-ui-gray-50 … --llm-ui-gray-950', __( 'Scala completa (valori diversi in .llm-ui-scope--light).', 'llm-con-tabelle' ) ),
+			array( '--llm-ui-text, --llm-ui-muted', __( 'Corpo, etichette attenuate, help.', 'llm-con-tabelle' ) ),
+			array( '--llm-ui-border, --llm-ui-border-strong', __( 'Card, input, tabelle, separatori.', 'llm-con-tabelle' ) ),
+			array( '--llm-ui-surface, --llm-ui-surface-muted', __( 'Sfondi pannelli e campi.', 'llm-con-tabelle' ) ),
+			array( '--llm-ui-accent, --llm-ui-accent-hover, --llm-ui-accent-soft', __( 'Primary button, focus input, badge .llm-ui-badge--accent, anello di focus.', 'llm-con-tabelle' ) ),
+			array( '--llm-ui-on-accent', __( 'Testo sul pulsante primary (contrasto su --llm-ui-accent).', 'llm-con-tabelle' ) ),
+			array( '--llm-ui-link, --llm-ui-link-hover', __( '.llm-ui-link e .llm-ui-btn--link.', 'llm-con-tabelle' ) ),
+			array( '--llm-ui-danger*, --llm-ui-danger-border*', __( 'Pulsante danger in monocromatico (grigio marcato).', 'llm-con-tabelle' ) ),
+		);
+		foreach ( $palette_rows as $pr ) {
+			echo '<tr><td><code>' . esc_html( $pr[0] ) . '</code></td><td>' . esc_html( $pr[1] ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
+		echo '</section>';
+	}
+
 	private static function render_reference_table() {
 		$rows = array(
+			array( __( 'Colori / token', 'llm-con-tabelle' ), '--llm-ui-gray-*, --llm-ui-text, --llm-ui-muted, --llm-ui-border*, --llm-ui-surface*, --llm-ui-accent*, --llm-ui-link*, --llm-ui-on-accent, --llm-ui-danger*' ),
 			array( __( 'Tipografia', 'llm-con-tabelle' ), '.llm-ui-body, .llm-ui-heading, .llm-ui-heading--page, .llm-ui-heading--section, .llm-ui-heading--subsection, .llm-ui-heading--card, .llm-ui-text, .llm-ui-text--small, .llm-ui-text--muted, .llm-ui-lead, .llm-ui-link, .llm-ui-help' ),
 			array( __( 'Layout', 'llm-con-tabelle' ), '.llm-ui-stack, .llm-ui-stack--lg, .llm-ui-row' ),
 			array( __( 'Card', 'llm-con-tabelle' ), '.llm-ui-card, .llm-ui-card__head, .llm-ui-card__body' ),

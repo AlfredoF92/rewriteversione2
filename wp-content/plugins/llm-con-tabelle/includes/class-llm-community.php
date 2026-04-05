@@ -204,6 +204,57 @@ class LLM_Community {
 		return is_array( $col ) ? array_map( 'absint', $col ) : array();
 	}
 
+	/**
+	 * @param int $activity_id ID attività.
+	 * @return int
+	 */
+	public static function count_kudos( $activity_id ) {
+		global $wpdb;
+		$activity_id = absint( $activity_id );
+		if ( ! $activity_id ) {
+			return 0;
+		}
+		$table = LLM_Tabelle_Database::table( 'llm_activity_kudos' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE activity_id = %d", $activity_id ) );
+	}
+
+	/**
+	 * @param int $activity_id ID attività.
+	 * @param int $user_id     ID utente.
+	 */
+	public static function user_has_kudos( $activity_id, $user_id ) {
+		return in_array( absint( $user_id ), self::get_kudos_user_ids( $activity_id ), true );
+	}
+
+	/**
+	 * Rimuove Bravo / like (toggle).
+	 *
+	 * @param int $activity_id ID attività.
+	 * @param int $liker_id    ID utente che toglie il proprio like.
+	 * @return bool
+	 */
+	public static function remove_bravo( $activity_id, $liker_id ) {
+		global $wpdb;
+		$activity_id = absint( $activity_id );
+		$liker_id    = absint( $liker_id );
+		if ( ! $activity_id || ! $liker_id ) {
+			return false;
+		}
+		$post = get_post( $activity_id );
+		if ( ! $post || LLM_ACTIVITY_CPT !== $post->post_type ) {
+			return false;
+		}
+		if ( ! self::user_has_kudos( $activity_id, $liker_id ) ) {
+			return false;
+		}
+		$k = LLM_Tabelle_Database::table( 'llm_activity_kudos' );
+		$b = LLM_Tabelle_Database::table( 'llm_user_bravo_given' );
+		$wpdb->delete( $k, array( 'activity_id' => $activity_id, 'user_id' => $liker_id ), array( '%d', '%d' ) );
+		$wpdb->delete( $b, array( 'user_id' => $liker_id, 'activity_id' => $activity_id ), array( '%d', '%d' ) );
+		return true;
+	}
+
 	public static function add_bravo( $activity_id, $liker_id ) {
 		global $wpdb;
 		$activity_id = absint( $activity_id );
