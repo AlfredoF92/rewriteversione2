@@ -1,0 +1,167 @@
+/* Language Learning Stories — bacheca */
+
+.lls-field-row {
+	margin-bottom: 1em;
+}
+
+.lls-field-row label {
+	display: block;
+	margin-bottom: 0.25em;
+}
+
+.lls-field-inline {
+	display: flex;
+	gap: 2rem;
+	flex-wrap: wrap;
+}
+
+.lls-field-inline > div {
+	flex: 1;
+	min-width: 140px;
+}
+
+.lls-sortable-list {
+	margin-top: 0.75em;
+}
+
+.lls-phrase-row {
+	display: flex;
+	gap: 8px;
+	align-items: flex-start;
+	background: #f6f7f7;
+	border: 1px solid #c3c4c7;
+	padding: 10px 12px;
+	margin-bottom: 10px;
+	border-radius: 4px;
+}
+
+.lls-phrase-details {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+}
+
+.lls-phrase-summary {
+	cursor: pointer;
+	list-style: none;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.5rem 1rem;
+	padding: 4px 0 8px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.lls-phrase-summary::-webkit-details-marker {
+	display: none;
+}
+
+.lls-phrase-summary::marker {
+	display: none;
+}
+
+.lls-phrase-summary-title {
+	white-space: nowrap;
+}
+
+.lls-phrase-preview {
+	flex: 1;
+	min-width: 120px;
+	font-weight: 400;
+	color: #646970;
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.lls-phrase-details[open] .lls-phrase-summary {
+	border-bottom: 1px solid #dcdcde;
+	margin-bottom: 10px;
+}
+
+.lls-drag-handle {
+	cursor: grab;
+	color: #787c82;
+	margin-top: 6px;
+	flex-shrink: 0;
+}
+
+.lls-drag-handle:active {
+	cursor: grabbing;
+}
+
+.lls-phrase-fields {
+	flex: 1;
+	min-width: 0;
+	padding-top: 4px;
+}
+
+.lls-phrase-fields label {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	color: #646970;
+	margin-top: 0.5em;
+}
+
+.lls-phrase-fields label:first-child {
+	margin-top: 0;
+}
+
+.lls-media-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 12px;
+	margin-bottom: 12px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #fff;
+}
+
+.lls-media-thumb {
+	width: 80px;
+	height: 80px;
+	background: #f0f0f1;
+	border-radius: 4px;
+	overflow: hidden;
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.lls-media-thumb img {
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: cover;
+}
+
+.lls-media-actions {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+}
+
+.lls-media-row .lls-after-phrase {
+	max-width: 280px;
+}
+
+#post-body .lls-preview-flow {
+	margin: 0.5em 0 0 1.2em;
+	padding: 0;
+	max-height: 400px;
+	overflow-y: auto;
+}
+
+.lls-preview-flow li {
+	margin-bottom: 0.5em;
+}
+
+.lls-preview-image img {
+	vertical-align: middle;
+	margin-right: 6px;
+	border-radius: 2px;
+}
