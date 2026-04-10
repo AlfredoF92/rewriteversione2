@@ -9,4 +9,5 @@ wp-content/debug.log
 .DS_Store
 Thumbs.db
 *.sql
+!database/*.sql
 node_modules/

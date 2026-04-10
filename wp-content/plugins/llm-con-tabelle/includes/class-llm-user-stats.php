@@ -282,6 +282,83 @@ class LLM_User_Stats {
 		self::save_ledger( $user_id, $ledger );
 	}
 
+	/**
+	 * Esiste già un accredito coin per questa frase (replay senza doppi +1).
+	 *
+	 * @param int $user_id      ID utente.
+	 * @param int $story_id     ID storia.
+	 * @param int $phrase_index Indice 0-based.
+	 * @return bool
+	 */
+	protected static function ledger_has_phrase_reward( $user_id, $story_id, $phrase_index ) {
+		global $wpdb;
+		$user_id      = absint( $user_id );
+		$story_id     = absint( $story_id );
+		$phrase_index = (int) $phrase_index;
+		if ( ! $user_id || ! $story_id ) {
+			return false;
+		}
+		$table = LLM_Tabelle_Database::table( 'llm_user_coin_ledger' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$n = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE user_id = %d AND story_id = %d AND entry_type = %s AND phrase_index = %d",
+				$user_id,
+				$story_id,
+				'phrase',
+				$phrase_index
+			)
+		);
+		return $n > 0;
+	}
+
+	/**
+	 * Esiste già una voce di completamento storia (premio o marca senza premio).
+	 *
+	 * @param int $user_id  ID utente.
+	 * @param int $story_id ID storia.
+	 * @return bool
+	 */
+	protected static function ledger_has_story_completion_entry( $user_id, $story_id ) {
+		global $wpdb;
+		$user_id  = absint( $user_id );
+		$story_id = absint( $story_id );
+		if ( ! $user_id || ! $story_id ) {
+			return false;
+		}
+		$table = LLM_Tabelle_Database::table( 'llm_user_coin_ledger' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$n = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE user_id = %d AND story_id = %d AND entry_type IN ('story_reward','story_done')",
+				$user_id,
+				$story_id
+			)
+		);
+		return $n > 0;
+	}
+
+	/**
+	 * Riporta il gioco all'inizio della storia senza toccare barra/coin.
+	 * Mantiene quindi frasi completate, stato storia completata, saldo e ledger.
+	 *
+	 * @param int $user_id  ID utente.
+	 * @param int $story_id ID storia.
+	 */
+	public static function reset_story_progress_for_user( $user_id, $story_id ) {
+		$user_id  = absint( $user_id );
+		$story_id = absint( $story_id );
+		if ( ! $user_id || ! $story_id ) {
+			return;
+		}
+		LLM_Story_Game_Progress::upsert(
+			$user_id,
+			$story_id,
+			0,
+			LLM_Story_Game_Progress::STEP_TRANSLATE
+		);
+	}
+
 	public static function set_balance_admin( $user_id, $new_balance, $note = '' ) {
 		$new_balance = max( 0, (int) $new_balance );
 		$old         = self::get_balance( $user_id );
@@ -317,14 +394,16 @@ class LLM_User_Stats {
 		sort( $map[ $key ] );
 		self::save_phrase_map( $user_id, $map );
 
-		self::push_ledger(
-			$user_id,
-			'phrase',
-			1,
-			$story_id,
-			$phrase_index,
-			__( 'Frase completata (+1)', 'llm-con-tabelle' )
-		);
+		if ( ! self::ledger_has_phrase_reward( $user_id, $story_id, $phrase_index ) ) {
+			self::push_ledger(
+				$user_id,
+				'phrase',
+				1,
+				$story_id,
+				$phrase_index,
+				__( 'Frase completata (+1)', 'llm-con-tabelle' )
+			);
+		}
 
 		if ( ! self::$suppress_community ) {
 			LLM_Community::record_phrase_completed( $user_id, $story_id, $phrase_index );
@@ -361,6 +440,10 @@ class LLM_User_Stats {
 
 		if ( ! self::$suppress_community ) {
 			LLM_Community::record_story_completed( $user_id, $story_id );
+		}
+
+		if ( self::ledger_has_story_completion_entry( $user_id, $story_id ) ) {
+			return;
 		}
 
 		$reward = (int) get_post_meta( $story_id, LLM_Story_Meta::COIN_REWARD, true );

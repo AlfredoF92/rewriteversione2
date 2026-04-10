@@ -1,0 +1,87 @@
+/* Feed attività — [llm_user_activity_feed] */
+.llm-activity-feed {
+	max-width: 36rem;
+	margin: 0 auto 2rem;
+	font-family: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	font-size: 0.95rem;
+	line-height: 1.5;
+	color: #1a1a1a;
+}
+
+.llm-activity-feed--guest {
+	text-align: center;
+	max-width: 24rem;
+}
+
+.llm-activity-feed__guest {
+	margin: 0 0 0.5rem;
+}
+
+.llm-activity-feed__guest-link {
+	font-weight: 600;
+	color: inherit;
+}
+
+.llm-activity-feed__empty {
+	margin: 0;
+	color: #555;
+}
+
+.llm-activity-feed__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	border-top: 1px solid #e0e0e0;
+}
+
+.llm-activity-feed__item {
+	display: grid;
+	grid-template-columns: 7.5rem 1fr;
+	gap: 0.65rem 1rem;
+	align-items: baseline;
+	padding: 0.75rem 0;
+	border-bottom: 1px solid #eee;
+}
+
+@media (max-width: 480px) {
+	.llm-activity-feed__item {
+		grid-template-columns: 1fr;
+		gap: 0.2rem;
+	}
+}
+
+.llm-activity-feed__time {
+	font-size: 0.78rem;
+	font-weight: 600;
+	color: #666;
+	white-space: nowrap;
+}
+
+.llm-activity-feed__text {
+	font-weight: 500;
+}
+
+.llm-activity-feed__link {
+	font-weight: 500;
+	color: inherit;
+	text-decoration: none;
+	border-bottom: 1px solid transparent;
+	transition: border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.llm-activity-feed__link:hover,
+.llm-activity-feed__link:focus-visible {
+	border-bottom-color: currentColor;
+	opacity: 0.88;
+	outline: none;
+}
+
+.llm-activity-feed__item--coin .llm-activity-feed__text {
+	color: #135e96;
+	font-weight: 600;
+}
+
+.llm-activity-feed__item--coin .llm-activity-feed__link {
+	color: #135e96;
+	font-weight: 600;
+}

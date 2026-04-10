@@ -129,6 +129,10 @@ class LLM_Phrase_Game_I18n {
 				'mic_button'            => 'Pronuncia la frase in %s',
 				'sr_mic'                => 'Tieni premuto per dettare nel campo di testo.',
 				'listen_target_aria'    => 'Ascolta la traduzione in %s (lettura lenta)',
+				'story_progress_restart' => 'Ricomincia storia',
+				'story_progress_guest'  => 'Accedi per vedere i progressi e ricominciare la storia.',
+				'story_progress_confirm' => 'Ricominciare dalla prima frase? I coin non verranno modificati.',
+				'story_progress_sr'     => 'Progresso storia: %1$d frasi su %2$d completate',
 			),
 			'en' => array(
 				'lang_names'            => $names_en,
@@ -156,6 +160,10 @@ class LLM_Phrase_Game_I18n {
 				'mic_button'            => 'Say the sentence in %s',
 				'sr_mic'                => 'Hold to dictate into the text field.',
 				'listen_target_aria'    => 'Listen to the translation in %s (slow)',
+				'story_progress_restart' => 'Restart story',
+				'story_progress_guest'  => 'Log in to see progress and restart the story.',
+				'story_progress_confirm' => 'Restart from the first phrase? Your coins will not change.',
+				'story_progress_sr'     => 'Story progress: %1$d of %2$d phrases completed',
 			),
 			'pl' => array(
 				'lang_names'            => $names_pl,
@@ -183,6 +191,10 @@ class LLM_Phrase_Game_I18n {
 				'mic_button'            => 'Wypowiedz zdanie po %s',
 				'sr_mic'                => 'Przytrzymaj, aby dyktować w polu tekstowym.',
 				'listen_target_aria'    => 'Posłuchaj tłumaczenia po %s (wolno)',
+				'story_progress_restart' => 'Zacznij od nowa',
+				'story_progress_guest'  => 'Zaloguj się, aby zobaczyć postęp i zacząć opowieść od nowa.',
+				'story_progress_confirm' => 'Zacząć od pierwszego zdania? Monety się nie zmienią.',
+				'story_progress_sr'     => 'Postęp: ukończono %1$d z %2$d zdań',
 			),
 			'es' => array(
 				'lang_names'            => $names_es,
@@ -210,6 +222,10 @@ class LLM_Phrase_Game_I18n {
 				'mic_button'            => 'Pronuncia la frase en %s',
 				'sr_mic'                => 'Mantén pulsado para dictar en el cuadro de texto.',
 				'listen_target_aria'    => 'Escucha la traducción en %s (lento)',
+				'story_progress_restart' => 'Reiniciar historia',
+				'story_progress_guest'  => 'Inicia sesión para ver el progreso y reiniciar la historia.',
+				'story_progress_confirm' => '¿Volver a la primera frase? Las monedas no cambiarán.',
+				'story_progress_sr'     => 'Progreso: %1$d de %2$d frases completadas',
 			),
 		);
 

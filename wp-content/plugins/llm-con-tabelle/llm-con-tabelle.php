@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       LLM CON TABELLE
  * Description:       Storie, utenti e community in tabelle MySQL (no JSON strutturato). Parallelo a LLS, senza migrazione.
- * Version:           2.0.0
+ * Version:           2.0.2
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            LLM CON TABELLE
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LLM_TABELLE_VERSION', '2.0.0' );
+define( 'LLM_TABELLE_VERSION', '2.0.2' );
 define( 'LLM_TABELLE_FILE', __FILE__ );
 define( 'LLM_TABELLE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LLM_TABELLE_URL', plugin_dir_url( __FILE__ ) );
@@ -43,6 +43,7 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-elementor-dynamic-tags.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-phrase-game-i18n.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-game-progress.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-phrase-game.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-story-progress-bar-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-header-ui-icons.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-header-user-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-stat-shortcodes.php';
@@ -97,6 +98,7 @@ function llm_tabelle_boot() {
 	LLM_Community_Feed_Shortcode::init();
 	LLM_Bravo_Balance_Shortcode::init();
 	LLM_Story_Phrase_Game::init();
+	LLM_Story_Progress_Bar_Shortcode::init();
 }
 add_action( 'plugins_loaded', 'llm_tabelle_boot', 5 );
 

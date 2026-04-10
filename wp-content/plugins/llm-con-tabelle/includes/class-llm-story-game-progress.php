@@ -31,6 +31,24 @@ class LLM_Story_Game_Progress {
 			return null;
 		}
 
+		// Se esiste un checkpoint valido lo rispettiamo anche a storia già completata:
+		// serve per il pulsante "Ricomincia storia" senza azzerare statistiche.
+		$row = self::get_row( $user_id, $story_id );
+		if ( $row ) {
+			$pi = (int) $row['phrase_index'];
+			$st = (int) $row['step'];
+			if ( self::STEP_TRANSLATE !== $st && self::STEP_REWRITE !== $st ) {
+				$st = self::STEP_TRANSLATE;
+			}
+			if ( $pi >= 0 && $pi < $total ) {
+				return array(
+					'phrase_index' => $pi,
+					'step'         => $st,
+					'finished'     => false,
+				);
+			}
+		}
+
 		$map = LLM_User_Stats::get_phrase_map( $user_id );
 		$k   = (string) $story_id;
 		$done_indices = isset( $map[ $k ] ) && is_array( $map[ $k ] ) ? array_map( 'intval', $map[ $k ] ) : array();
@@ -54,33 +72,9 @@ class LLM_Story_Game_Progress {
 			);
 		}
 
-		$row = self::get_row( $user_id, $story_id );
-		if ( ! $row ) {
-			return array(
-				'phrase_index' => $first_incomplete,
-				'step'         => self::STEP_TRANSLATE,
-				'finished'     => false,
-			);
-		}
-
-		$pi = (int) $row['phrase_index'];
-		$st = (int) $row['step'];
-		if ( self::STEP_TRANSLATE !== $st && self::STEP_REWRITE !== $st ) {
-			$st = self::STEP_TRANSLATE;
-		}
-
-		if ( $pi !== $first_incomplete ) {
-			self::upsert( $user_id, $story_id, $first_incomplete, self::STEP_TRANSLATE );
-			return array(
-				'phrase_index' => $first_incomplete,
-				'step'         => self::STEP_TRANSLATE,
-				'finished'     => false,
-			);
-		}
-
 		return array(
-			'phrase_index' => $pi,
-			'step'         => $st,
+			'phrase_index' => $first_incomplete,
+			'step'         => self::STEP_TRANSLATE,
 			'finished'     => false,
 		);
 	}
