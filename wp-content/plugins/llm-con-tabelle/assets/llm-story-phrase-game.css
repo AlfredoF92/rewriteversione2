@@ -67,6 +67,12 @@
 	max-width: 100%;
 }
 
+/* Dopo una frase completata: durante scroll + typewriter sulla storia, nasconde scheda (analisi, input, progress in-card). */
+.llm-phrase-game--story-focus .llm-phrase-game__card,
+.llm-phrase-game--story-focus .llm-phrase-game__divider {
+	display: none;
+}
+
 .llm-phrase-game__card {
 	padding: 0;
 	border: none;
@@ -456,6 +462,28 @@
 .llm-phrase-game__message--error {
 	color: #a32020;
 	font-weight: 700;
+}
+
+.llm-phrase-game__message-phase2 {
+	margin-top: 1rem;
+	min-height: 1.25em;
+	color: inherit;
+	font-weight: 400;
+}
+
+.llm-phrase-game__message-phase2--error {
+	color: #a32020;
+	font-weight: 700;
+}
+
+.llm-phrase-game__message-phase2--success {
+	color: #1e4620;
+	font-weight: 600;
+}
+
+.llm-phrase-game__message-phase2--pending {
+	color: #50575e;
+	font-weight: 500;
 }
 
 .llm-phrase-game__analysis {

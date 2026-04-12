@@ -25,6 +25,46 @@
 		}
 	}
 
+	function formatSr(template, done, total) {
+		return String(template || '')
+			.replace('%1$d', String(done))
+			.replace('%2$d', String(total));
+	}
+
+	/**
+	 * Aggiorna tutte le barre [llm_story_progress_bar] per la storia (es. dopo completamento frase).
+	 *
+	 * @param {string|number} storyId
+	 * @param {number} done
+	 * @param {number} total
+	 */
+	function updateBarsForStory(storyId, done, total) {
+		var sid = String(storyId || '');
+		var d = Math.max(0, parseInt(done, 10) || 0);
+		var t = Math.max(0, parseInt(total, 10) || 0);
+		if (!sid || t < 1) {
+			return;
+		}
+		var cfg = window.llmStoryProgressBar || {};
+		var srTpl = (cfg.i18n && cfg.i18n.sr) || '';
+		document.querySelectorAll('.llm-story-progress-bar').forEach(function (wrap) {
+			if (wrap.getAttribute('data-story-id') !== sid) {
+				return;
+			}
+			setBar(wrap, d, t);
+			var count = qs(wrap, '.llm-story-progress-bar__count');
+			if (count) {
+				count.textContent = d + ' / ' + t;
+			}
+			var track = qs(wrap, '.llm-story-progress-bar__track');
+			if (track && srTpl) {
+				track.setAttribute('aria-label', formatSr(srTpl, d, t));
+			}
+		});
+	}
+
+	window.llmUpdateStoryProgressBar = updateBarsForStory;
+
 	document.addEventListener('DOMContentLoaded', function () {
 		var cfg = window.llmStoryProgressBar || {};
 		var ajaxUrl = cfg.ajaxUrl || '';

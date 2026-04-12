@@ -339,8 +339,8 @@ class LLM_User_Stats {
 	}
 
 	/**
-	 * Riporta il gioco all'inizio della storia senza toccare barra/coin.
-	 * Mantiene quindi frasi completate, stato storia completata, saldo e ledger.
+	 * Ricomincia il gioco dalla prima frase: aggiorna solo il checkpoint (frase 0, fase traduzione).
+	 * Le frasi già completate restano in `llm_user_phrase_done` (storico, coin/ledger invariati).
 	 *
 	 * @param int $user_id  ID utente.
 	 * @param int $story_id ID storia.
@@ -351,11 +351,13 @@ class LLM_User_Stats {
 		if ( ! $user_id || ! $story_id ) {
 			return;
 		}
+
 		LLM_Story_Game_Progress::upsert(
 			$user_id,
 			$story_id,
 			0,
-			LLM_Story_Game_Progress::STEP_TRANSLATE
+			LLM_Story_Game_Progress::STEP_TRANSLATE,
+			0
 		);
 	}
 
@@ -387,31 +389,31 @@ class LLM_User_Stats {
 		if ( ! isset( $map[ $key ] ) ) {
 			$map[ $key ] = array();
 		}
-		if ( in_array( $phrase_index, $map[ $key ], true ) ) {
-			return false;
+		if ( ! in_array( $phrase_index, $map[ $key ], true ) ) {
+			$map[ $key ][] = $phrase_index;
+			sort( $map[ $key ] );
+			self::save_phrase_map( $user_id, $map );
 		}
-		$map[ $key ][] = $phrase_index;
-		sort( $map[ $key ] );
-		self::save_phrase_map( $user_id, $map );
 
-		if ( ! self::ledger_has_phrase_reward( $user_id, $story_id, $phrase_index ) ) {
-			self::push_ledger(
-				$user_id,
-				'phrase',
-				1,
-				$story_id,
-				$phrase_index,
-				__( 'Frase completata (+1)', 'llm-con-tabelle' )
-			);
-		}
+		self::push_ledger(
+			$user_id,
+			'phrase',
+			1,
+			$story_id,
+			$phrase_index,
+			__( 'Frase completata (+1)', 'llm-con-tabelle' )
+		);
+
+		LLM_Story_Game_Progress::increment_run_completions( $user_id, $story_id );
 
 		if ( ! self::$suppress_community ) {
 			LLM_Community::record_phrase_completed( $user_id, $story_id, $phrase_index );
 		}
 
+		$map_after      = self::get_phrase_map( $user_id );
 		$phrases_story = LLM_Story_Repository::get_phrases( $story_id );
 		$total         = count( $phrases_story );
-		if ( $total > 0 && count( $map[ $key ] ) >= $total ) {
+		if ( $total > 0 && isset( $map_after[ $key ] ) && is_array( $map_after[ $key ] ) && count( $map_after[ $key ] ) >= $total ) {
 			self::maybe_complete_story( $user_id, $story_id );
 		}
 

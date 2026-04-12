@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class LLM_Tabelle_Database {
 
-	const DB_VERSION = '2.1.0';
+	const DB_VERSION = '2.1.1';
 
 	const OPT_VERSION = 'llm_tabelle_db_version';
 
@@ -104,6 +104,7 @@ class LLM_Tabelle_Database {
 			story_id bigint(20) unsigned NOT NULL,
 			phrase_index int(11) NOT NULL DEFAULT 0,
 			step tinyint(4) unsigned NOT NULL DEFAULT 1,
+			run_completions int(11) unsigned NOT NULL DEFAULT 0,
 			updated_gmt datetime NOT NULL,
 			PRIMARY KEY  (user_id, story_id),
 			KEY story_id (story_id)

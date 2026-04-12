@@ -57,6 +57,7 @@ class LLM_Story_Progress_Bar_Shortcode {
 				'i18n'    => array(
 					'confirm'   => LLM_Phrase_Game_I18n::get( 'story_progress_confirm' ),
 					'ajaxError' => LLM_Phrase_Game_I18n::get( 'ajax_error' ),
+					'sr'        => LLM_Phrase_Game_I18n::get( 'story_progress_sr' ),
 				),
 			)
 		);
@@ -94,11 +95,7 @@ class LLM_Story_Progress_Bar_Shortcode {
 
 		$done = 0;
 		if ( is_user_logged_in() ) {
-			$map = LLM_User_Stats::get_phrase_map( get_current_user_id() );
-			$key = (string) $story_id;
-			if ( isset( $map[ $key ] ) && is_array( $map[ $key ] ) ) {
-				$done = count( $map[ $key ] );
-			}
+			$done = LLM_Story_Game_Progress::bar_completed_count( get_current_user_id(), $story_id, $total );
 		}
 
 		$pct = $total > 0 ? (int) min( 100, round( ( 100 * $done ) / $total ) ) : 0;
@@ -157,12 +154,14 @@ class LLM_Story_Progress_Bar_Shortcode {
 			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'invalid_story' ) ), 400 );
 		}
 
-		LLM_User_Stats::reset_story_progress_for_user( get_current_user_id(), $story_id );
+		$uid = get_current_user_id();
+		LLM_User_Stats::reset_story_progress_for_user( $uid, $story_id );
 
 		$total = count( LLM_Story_Repository::get_phrases( $story_id ) );
+		$done  = LLM_Story_Game_Progress::bar_completed_count( $uid, $story_id, $total );
 		wp_send_json_success(
 			array(
-				'done'  => 0,
+				'done'  => $done,
 				'total' => $total,
 			)
 		);
