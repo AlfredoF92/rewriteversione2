@@ -222,13 +222,10 @@ class LLM_Story_Phrase_Game {
 			} elseif ( $resolved ) {
 				$saved_phrase_ix = (int) $resolved['phrase_index'];
 				$saved_step      = (int) $resolved['step'];
-				if ( LLM_Story_Game_Progress::STEP_REWRITE === $saved_step && isset( $phrases[ $saved_phrase_ix ] ) ) {
-					$pr              = $phrases[ $saved_phrase_ix ];
-					$resume_analysis = array(
-						'grammar' => isset( $pr['grammar'] ) ? (string) $pr['grammar'] : '',
-						'target'  => isset( $pr['target'] ) ? (string) $pr['target'] : '',
-						'alt'     => isset( $pr['alt'] ) ? (string) $pr['alt'] : '',
-					);
+				// A ogni caricamento pagina si riparte sempre dalla fase 1 (traduzione), anche se il checkpoint era in fase 2.
+				if ( LLM_Story_Game_Progress::STEP_REWRITE === $saved_step && $saved_phrase_ix >= 0 && $saved_phrase_ix < $n_phrases ) {
+					LLM_Story_Game_Progress::upsert( $uid, $story_id, $saved_phrase_ix, LLM_Story_Game_Progress::STEP_TRANSLATE );
+					$saved_step = LLM_Story_Game_Progress::STEP_TRANSLATE;
 				}
 			}
 

@@ -67,12 +67,6 @@
 	max-width: 100%;
 }
 
-/* Dopo una frase completata: durante scroll + typewriter sulla storia, nasconde scheda (analisi, input, progress in-card). */
-.llm-phrase-game--story-focus .llm-phrase-game__card,
-.llm-phrase-game--story-focus .llm-phrase-game__divider {
-	display: none;
-}
-
 .llm-phrase-game__card {
 	padding: 0;
 	border: none;
@@ -86,6 +80,17 @@
 	color: #555;
 	margin-bottom: 1.25rem;
 	font-weight: 500;
+}
+
+.llm-phrase-game--phase2-active .llm-phrase-game__phase--1 {
+	margin-bottom: 1rem;
+	padding-bottom: 1rem;
+	border-bottom: 1px solid #dcdcde;
+}
+
+/* visibility:hidden sul compose lascerebbe comunque il “buco” layout; in fase 2 si toglie del tutto. */
+.llm-phrase-game--phase2-active .llm-phrase-game__compose--phase1 {
+	display: none;
 }
 
 .llm-phrase-game__interface-row {

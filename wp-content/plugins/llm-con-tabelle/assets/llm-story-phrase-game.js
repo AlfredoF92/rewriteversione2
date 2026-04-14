@@ -172,16 +172,6 @@
 		var composePhase1 = qs(root, '.llm-phrase-game__compose--phase1');
 		var composePhase2 = qs(root, '.llm-phrase-game__compose--phase2');
 
-		function enterStoryFocusMode() {
-			root.classList.add('llm-phrase-game--story-focus');
-		}
-
-		function leaveStoryFocusMode() {
-			root.classList.remove('llm-phrase-game--story-focus');
-		}
-
-		var COMPOSE_FADE_MS = 520;
-
 		function setComposePhaseVisible(phaseNum, visible) {
 			var el = phaseNum === 1 ? composePhase1 : composePhase2;
 			if (!el) {
@@ -243,6 +233,31 @@
 			return new Promise(function (resolve) {
 				setTimeout(resolve, ms);
 			});
+		}
+
+		/** Scroll morbido: elemento allineato circa al centro del viewport. */
+		function smoothScrollIntoCenter(el) {
+			if (!el || typeof el.scrollIntoView !== 'function') {
+				return Promise.resolve();
+			}
+			return new Promise(function (resolve) {
+				try {
+					el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+				} catch (e) {
+					try {
+						el.scrollIntoView(true);
+					} catch (e2) {
+						resolve();
+						return;
+					}
+				}
+				window.setTimeout(resolve, 600);
+			});
+		}
+
+		function smoothScrollStoryToCenter() {
+			var wrap = storyEl ? storyEl.closest('.llm-phrase-game__story-wrap') : null;
+			return smoothScrollIntoCenter(wrap || storyEl);
 		}
 
 		function typewriterInto(el, text, isAlive) {
@@ -487,18 +502,13 @@
 				}
 				if (input2) {
 					input2.readOnly = false;
-					setTimeout(function () {
-						if (streamAlive(run) && input2) {
-							input2.focus();
-						}
-					}, COMPOSE_FADE_MS);
 				}
 			});
 		}
 
 		if (window.speechSynthesis) {
 			window.speechSynthesis.onvoiceschanged = function () {
-				/* Chrome/Safari: carica elenco voci */
+				syncListenTargetUi();
 			};
 			window.speechSynthesis.getVoices();
 		}
@@ -611,8 +621,12 @@
 			return candidates[0] || null;
 		}
 
-		function speakTargetTranslation(text) {
-			if (!window.speechSynthesis || !listenTargetBtn) {
+		function speakTargetTranslation(text, triggerBtn) {
+			if (!window.speechSynthesis) {
+				return;
+			}
+			var btnEl = triggerBtn || listenTargetBtn;
+			if (!btnEl) {
 				return;
 			}
 			var trimmed = String(text || '').trim();
@@ -629,16 +643,16 @@
 				ut.voice = v;
 			}
 			ut.onend = function () {
-				if (listenTargetBtn) {
-					listenTargetBtn.classList.remove('llm-phrase-game__listen-target--playing');
+				if (btnEl) {
+					btnEl.classList.remove('llm-phrase-game__listen-target--playing');
 				}
 			};
 			ut.onerror = function () {
-				if (listenTargetBtn) {
-					listenTargetBtn.classList.remove('llm-phrase-game__listen-target--playing');
+				if (btnEl) {
+					btnEl.classList.remove('llm-phrase-game__listen-target--playing');
 				}
 			};
-			listenTargetBtn.classList.add('llm-phrase-game__listen-target--playing');
+			btnEl.classList.add('llm-phrase-game__listen-target--playing');
 			window.speechSynthesis.speak(ut);
 		}
 
@@ -649,7 +663,8 @@
 			var p = phrases[phraseIx];
 			var hasSynth = typeof window.speechSynthesis !== 'undefined' && window.speechSynthesis;
 			var hasText = p && String(p.target || '').trim();
-			listenTargetBtn.hidden = !hasSynth || !hasText || phase1.hidden;
+			var inPhase2 = phase2 && !phase2.hidden;
+			listenTargetBtn.hidden = !hasSynth || !hasText || inPhase2;
 		}
 
 		function startSpeech(textarea, micBtn) {
@@ -755,7 +770,7 @@
 					return;
 				}
 				var p = phrases[phraseIx];
-				speakTargetTranslation(p ? p.target : '');
+				speakTargetTranslation(p ? p.target : '', listenTargetBtn);
 			});
 		}
 
@@ -822,8 +837,33 @@
 		}
 
 		function showPhase(n) {
-			phase1.hidden = n !== 1;
 			phase2.hidden = n !== 2;
+			phase1.hidden = false;
+			root.classList.toggle('llm-phrase-game--phase2-active', n === 2);
+			if (n === 2) {
+				setComposePhaseVisible(1, false);
+				if (input1) {
+					input1.readOnly = true;
+					input1.setAttribute('tabindex', '-1');
+				}
+				if (btn1) {
+					btn1.setAttribute('tabindex', '-1');
+				}
+				if (mic1) {
+					mic1.setAttribute('tabindex', '-1');
+				}
+			} else {
+				if (input1) {
+					input1.readOnly = false;
+					input1.removeAttribute('tabindex');
+				}
+				if (btn1) {
+					btn1.removeAttribute('tabindex');
+				}
+				if (mic1) {
+					mic1.removeAttribute('tabindex');
+				}
+			}
 			syncListenTargetUi();
 		}
 
@@ -863,7 +903,6 @@
 		}
 
 		function loadPhrase(resumeStep2) {
-			leaveStoryFocusMode();
 			cancelTts();
 			cancelAnalysisStream();
 			cancelStoryStream();
@@ -1003,13 +1042,22 @@
 				input2.readOnly = true;
 				input2.value = '';
 			}
+			/* Stesso stato che runAnalysisTypestream applica subito: altrimenti, finché non parte lo stream (es. dopo lo scroll), le etichette statiche in analisi resterebbero visibili un attimo. */
+			prepareAnalysisStreamLayout();
+			setComposePhaseVisible(2, false);
 			analysisEl.hidden = false;
 			showPhase(2);
-			runAnalysisTypestream({
-				yourText: txt,
-				grammar: (p && p.grammar) || '',
-				target: targetRef,
-				alt: (p && p.alt) || '',
+			requestAnimationFrame(function () {
+				requestAnimationFrame(function () {
+					smoothScrollIntoCenter(analysisEl).then(function () {
+						runAnalysisTypestream({
+							yourText: txt,
+							grammar: (p && p.grammar) || '',
+							target: targetRef,
+							alt: (p && p.alt) || '',
+						});
+					});
+				});
 			});
 			postCheck(1, txt, function (json) {
 				btn1.disabled = false;
@@ -1055,11 +1103,14 @@
 			if (input2) {
 				input2.readOnly = true;
 			}
+			var phase2ScrollTarget = messagePhase2El || phase2;
 			/** Prima feedback positivo (già validato in locale); salvataggio server in parallelo ai 3s dopo il typewriter. */
-			setMessagePhase2Typewriter(
-				i18n.phase2StoryContinue || i18n.phase2Complete || '',
-				'success'
-			)
+			smoothScrollIntoCenter(phase2ScrollTarget).then(function () {
+				return setMessagePhase2Typewriter(
+					i18n.phase2StoryContinue || i18n.phase2Complete || '',
+					'success'
+				);
+			})
 				.then(function () {
 					var ajaxPromise = new Promise(function (resolve) {
 						postCheck(2, txt, function (json) {
@@ -1094,8 +1145,6 @@
 					}
 					var sentence = d.display_sentence || '';
 					function advanceAfterPhrase2() {
-						var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
-						leaveStoryFocusMode();
 						resetAnalysis();
 						if (d.has_more && d.next_index !== null && d.next_index !== undefined) {
 							phraseIx = parseInt(d.next_index, 10);
@@ -1107,33 +1156,23 @@
 							phraseIx = phrases.length;
 							loadPhrase(false);
 						}
-						requestAnimationFrame(function () {
-							window.scrollTo(0, scrollY);
-							requestAnimationFrame(function () {
-								window.scrollTo(0, scrollY);
-							});
-						});
-					}
-					if (sentence) {
-						enterStoryFocusMode();
 					}
 					if (!sentence) {
 						advanceAfterPhrase2();
 						return;
 					}
-					var block = document.createElement('p');
-					block.className = 'llm-phrase-game__story-line';
-					storyEl.appendChild(block);
-					storyEl.scrollTop = storyEl.scrollHeight;
-					var sr = ++storyStreamRun;
-					typewriterInto(block, sentence, function () {
-						return storyStreamRun === sr;
-					}).then(function () {
-						if (storyStreamRun === sr) {
-							advanceAfterPhrase2();
-						} else {
-							leaveStoryFocusMode();
-						}
+					smoothScrollStoryToCenter().then(function () {
+						var block = document.createElement('p');
+						block.className = 'llm-phrase-game__story-line';
+						storyEl.appendChild(block);
+						var sr = ++storyStreamRun;
+						typewriterInto(block, sentence, function () {
+							return storyStreamRun === sr;
+						}).then(function () {
+							if (storyStreamRun === sr) {
+								advanceAfterPhrase2();
+							}
+						});
 					});
 				});
 		});
