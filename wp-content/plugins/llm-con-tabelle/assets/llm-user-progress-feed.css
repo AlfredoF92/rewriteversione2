@@ -1,0 +1,115 @@
+/**
+ * [llm_user_progress_feed] — frasi e storie dell’utente (allineato al feed community).
+ */
+
+.llm-user-progress-feed {
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 44rem;
+	margin-left: auto;
+	margin-right: auto;
+	padding-left: clamp(0.25rem, 2.5vw, 0.75rem);
+	padding-right: clamp(0.25rem, 2.5vw, 0.75rem);
+}
+
+.llm-user-progress-feed--guest {
+	text-align: center;
+	max-width: 36rem;
+}
+
+.llm-user-progress-feed__title {
+	margin: 0 0 var(--llm-ui-gap-lg);
+}
+
+.llm-user-progress-feed__guest-msg,
+.llm-user-progress-feed__empty {
+	margin: 0 0 var(--llm-ui-gap-sm);
+	text-align: left;
+}
+
+.llm-user-progress-feed--guest .llm-user-progress-feed__guest-msg {
+	text-align: center;
+}
+
+.llm-user-progress-feed__list.llm-ui-feed > li {
+	margin-bottom: var(--llm-ui-gap-md);
+}
+
+.llm-user-progress-feed__list.llm-ui-feed > li:last-child {
+	margin-bottom: 0;
+}
+
+.llm-user-progress-feed .llm-user-progress__card.llm-ui-card {
+	background: rgba(255, 255, 255, 0.58);
+	backdrop-filter: blur(12px);
+	-webkit-backdrop-filter: blur(12px);
+	border: 1px solid rgba(255, 255, 255, 0.85);
+	border-left: 3px solid var(--llm-ui-accent);
+	box-shadow:
+		0 4px 20px rgba(15, 23, 42, 0.07),
+		0 1px 3px rgba(15, 23, 42, 0.04),
+		inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.llm-user-progress-feed .llm-user-progress__body {
+	padding: var(--llm-ui-gap-lg) calc(var(--llm-ui-gap-lg) + 0.15rem);
+	box-sizing: border-box;
+}
+
+.llm-user-progress__sentence {
+	margin: 0 0 var(--llm-ui-gap-sm);
+	font-size: 1rem;
+	font-weight: 500;
+	line-height: 1.5;
+	color: var(--llm-ui-text);
+	overflow-wrap: anywhere;
+	word-break: break-word;
+}
+
+.llm-user-progress__story-title {
+	font-weight: 700;
+}
+
+a.llm-user-progress__story-link {
+	font-weight: 700;
+}
+
+.llm-user-progress__phrase-stack {
+	margin: var(--llm-ui-gap-md) 0 0;
+	padding: var(--llm-ui-gap-md) 0 0;
+	border-top: 1px solid var(--llm-ui-border);
+}
+
+.llm-user-progress__phrase-target {
+	margin: 0;
+	font-size: 1.02rem;
+	font-weight: 600;
+	line-height: 1.45;
+	color: var(--llm-ui-text);
+	overflow-wrap: anywhere;
+}
+
+.llm-user-progress__phrase-translation {
+	margin: 0.35rem 0 0;
+	font-size: 0.78rem;
+	font-weight: 500;
+	line-height: 1.4;
+	color: var(--llm-ui-muted);
+	overflow-wrap: anywhere;
+}
+
+.llm-user-progress__lang-row {
+	margin: 0 0 var(--llm-ui-gap-sm);
+	font-weight: 500;
+}
+
+.llm-user-progress__when {
+	display: block;
+	margin: 0;
+}
+
+@media (max-width: 480px) {
+	.llm-user-progress__body {
+		padding: var(--llm-ui-gap-md);
+	}
+}

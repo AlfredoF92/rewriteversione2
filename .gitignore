@@ -1,0 +1,13 @@
+# WordPress — non versionare credenziali e file generati
+wp-config.php
+wp-content/uploads/
+wp-content/upgrade/
+wp-content/backup*/
+wp-content/cache/
+wp-content/debug.log
+*.log
+.DS_Store
+Thumbs.db
+*.sql
+!database/*.sql
+node_modules/

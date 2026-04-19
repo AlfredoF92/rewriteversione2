@@ -1,0 +1,96 @@
+/**
+ * Shortcode [llm_bravo_balance] — righe etichetta + numero a destra.
+ * Container come [llm_community_feed]: larghezza piena del column, max-width centrato.
+ */
+
+.llm-bravo-balance {
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 44rem;
+	margin-left: auto;
+	margin-right: auto;
+	padding-left: clamp(0.25rem, 2.5vw, 0.75rem);
+	padding-right: clamp(0.25rem, 2.5vw, 0.75rem);
+}
+
+.llm-bravo-balance__card {
+	margin: 0;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.llm-bravo-balance__body {
+	box-sizing: border-box;
+	padding: clamp(var(--llm-ui-gap-md), 2.5vw, var(--llm-ui-gap-lg)) clamp(var(--llm-ui-gap-md), 2.5vw, calc(var(--llm-ui-gap-lg) + 0.15rem));
+}
+
+.llm-bravo-balance__row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--llm-ui-gap-sm) var(--llm-ui-gap-md);
+	margin: 0 0 var(--llm-ui-gap-md);
+}
+
+.llm-bravo-balance__row:last-of-type {
+	margin-bottom: var(--llm-ui-gap-lg);
+}
+
+.llm-bravo-balance__label {
+	flex: 1 1 auto;
+	min-width: 0;
+	font-size: var(--llm-ui-body-size);
+	font-weight: 600;
+	line-height: var(--llm-ui-line-body);
+	color: var(--llm-ui-text);
+}
+
+.llm-bravo-balance__value {
+	flex: 0 0 auto;
+	font-size: 1.25rem;
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.2;
+	color: var(--llm-ui-text);
+	text-align: right;
+}
+
+.llm-bravo-balance__tip {
+	margin: 0;
+	padding-top: var(--llm-ui-gap-md);
+	border-top: 1px dashed var(--llm-ui-border);
+	line-height: var(--llm-ui-line-body);
+	font-weight: 500;
+}
+
+.llm-bravo-balance__guest {
+	margin: 0;
+}
+
+.llm-bravo-balance__guest-link {
+	margin-left: 0.25rem;
+	white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+	.llm-bravo-balance__row {
+		flex-direction: column;
+		align-items: stretch;
+		gap: var(--llm-ui-gap-xs);
+		margin-bottom: var(--llm-ui-gap-md);
+	}
+
+	.llm-bravo-balance__row:last-of-type {
+		margin-bottom: var(--llm-ui-gap-lg);
+	}
+
+	.llm-bravo-balance__value {
+		text-align: right;
+		font-size: 1.35rem;
+	}
+
+	.llm-bravo-balance__guest-link {
+		white-space: normal;
+	}
+}

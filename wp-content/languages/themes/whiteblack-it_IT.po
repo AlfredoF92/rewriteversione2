@@ -1,0 +1,371 @@
+# Translation of Themes - WhiteBlack in Italian
+# This file is distributed under the same license as the Themes - WhiteBlack package.
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2025-02-01 20:10:54+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: GlotPress/4.0.1\n"
+"Language: it\n"
+"Project-Id-Version: Themes - WhiteBlack\n"
+
+#. Description of the theme
+#: style.css assets/benvenuto/benvenuto.php:86
+#, gp-priority: high
+msgid "Simple white and black theme. This theme offers nine different filter effects for images and featured images. It also offers an effect that shows or hides the filter as the cursor hovers over the image, custom pages and custom post templates."
+msgstr "Tema semplice in bianco e nero. Questo tema offre nove diversi effetti di filtro per le immagini e le immagini in evidenza. Offre anche un effetto che mostra o nasconde il filtro al passaggio del mouse sopra l'immagine."
+
+#. Theme Name of the theme
+#: style.css
+#, gp-priority: high
+msgid "WhiteBlack"
+msgstr "WhiteBlack"
+
+#: theme.json
+msgctxt "Custom template name"
+msgid "Post with mini header and mini footer - no featured image"
+msgstr "Articolo con mini header e mini footer - senza immagine in evidenza"
+
+#: theme.json
+msgctxt "Custom template name"
+msgid "Post with mini header and mini footer"
+msgstr "Articolo con mini header e mini footer"
+
+#: theme.json
+msgctxt "Custom template name"
+msgid "Post - no featured image"
+msgstr "Articolo - senza immagine in evidenza"
+
+#: theme.json
+msgctxt "Custom template name"
+msgid "Page with mini header and mini footer"
+msgstr "Pagina con mini header e mini footer"
+
+#: theme.json
+msgctxt "Custom template name"
+msgid "One column page wiht mini header & mini footer"
+msgstr "Pagina a una colonna con mini header e mini footer"
+
+#: theme.json
+msgctxt "Custom template name"
+msgid "One column page"
+msgstr "Pagina a una colonna"
+
+#: assets/benvenuto/benvenuto.php:91
+msgid "Please read the contents of the readme.txt file inside the main theme folder."
+msgstr "Leggere il contenuto del file readme.txt all'interno della cartella principale del tema."
+
+#: theme.json
+msgctxt "Font family name"
+msgid "Noto Sans"
+msgstr "Noto Sans"
+
+#: theme.json
+msgctxt "Color name"
+msgid "Color 4"
+msgstr "Colore 4"
+
+#: theme.json
+msgctxt "Color name"
+msgid "Color 3"
+msgstr "Colore 3"
+
+#: theme.json
+msgctxt "Color name"
+msgid "Color 2"
+msgstr "Colore 2"
+
+#: theme.json
+msgctxt "Color name"
+msgid "Color 1"
+msgstr "Colore 1"
+
+#: patterns/post-mhmf.php
+msgctxt "Pattern title"
+msgid "Post with mini header and mini footer"
+msgstr "Articolo con mini header e mini footer"
+
+#: patterns/post-mhmfnfi.php
+msgctxt "Pattern title"
+msgid "Post with mini header and mini footer - no featured image"
+msgstr "Articolo con mini header e mini footer - senza immagine in evidenza"
+
+#: patterns/post-nfi.php
+msgctxt "Pattern title"
+msgid "Post - no featured image"
+msgstr "Articolo - senza immagine in evidenza"
+
+#: patterns/page-mhmf.php
+msgctxt "Pattern title"
+msgid "Page with mini header and mini footer"
+msgstr "Pagina con mini header e mini footer"
+
+#: patterns/page-oc.php
+msgctxt "Pattern title"
+msgid "One column page"
+msgstr "Pagina a una colonna"
+
+#: patterns/page-ocmhmf.php
+msgctxt "Pattern title"
+msgid "One column page wiht mini header and mini footer"
+msgstr "Pagina a una colonna con mini header e mini footer"
+
+#: patterns/mini-footer.php
+msgctxt "Pattern title"
+msgid "mini-footer"
+msgstr "mini-footer"
+
+#: patterns/loop.php:39
+msgid "No result content."
+msgstr "Nessun risultato."
+
+#: patterns/loop.php
+msgctxt "Pattern title"
+msgid "loop"
+msgstr "loop"
+
+#. Translators: 1. is the start of a 'a' HTML element, 2. is the end of a 'a'
+#. HTML element
+#: patterns/footer.php:35 patterns/mini-footer.php:18
+msgid "Fantasmagorically photographed, developed and printed in black and white with %1$sWordPress%2$s"
+msgstr "Fantasmagoricamente fotografato, sviluppato e stampato in bianco e nero con %1$sWordPress%2$s"
+
+#: patterns/footer.php
+msgctxt "Pattern title"
+msgid "footer"
+msgstr "footer"
+
+#: patterns/404.php:30
+msgid "The cosmic object you were looking for has disappeared beyond the event horizon. If you arrived at this page using a bookmark or favorites link, please update it accordingly."
+msgstr "L'oggetto cosmico che stavi cercando è scomparso oltre l'orizzonte degli eventi. Se sei arrivato a questa pagina usando un segnalibro o un link ai preferiti, aggiornalo di conseguenza."
+
+#: patterns/404.php:24
+msgid "404 Error - The page you requested doesn’t exist."
+msgstr "Errore 404 - la pagina richiesta non esiste."
+
+#: patterns/404.php
+msgctxt "Pattern title"
+msgid "404"
+msgstr "404"
+
+#: functions.php:323 functions.php:324
+msgid "Welcome"
+msgstr "Ti diamo il benvenuto"
+
+#: functions.php:267
+msgid "→ Opacity"
+msgstr "→ Opacità"
+
+#: functions.php:258
+msgid "Opacity →"
+msgstr "Opacità →"
+
+#: functions.php:249
+msgid "→ Invert"
+msgstr "→ Negativo"
+
+#: functions.php:240
+msgid "Invert →"
+msgstr "Negativo →"
+
+#: functions.php:231
+msgid "→ Hue270"
+msgstr "→ Tono270"
+
+#: functions.php:222
+msgid "Hue270 →"
+msgstr "Tono270 →"
+
+#: functions.php:213
+msgid "→ Hue180"
+msgstr "→ Tono180"
+
+#: functions.php:204
+msgid "Hue180 →"
+msgstr "Tono180 →"
+
+#: functions.php:195
+msgid "→ Hue90"
+msgstr "→ Tono90"
+
+#: functions.php:186
+msgid "Hue90 →"
+msgstr "Tono90 →"
+
+#: functions.php:159
+msgid "→ Brightness"
+msgstr "→ Luminosità"
+
+#: functions.php:150
+msgid "Brightness →"
+msgstr "Luminosità →"
+
+#: functions.php:141
+msgid "→ Blur"
+msgstr "→ Sfocato"
+
+#: functions.php:132
+msgid "Blur →"
+msgstr "Sfocato →"
+
+#: functions.php:123
+msgid "→ Gray"
+msgstr "→ Grigio"
+
+#: functions.php:114
+msgid "Gray →"
+msgstr "Grigio →"
+
+#: functions.php:87
+msgid "Opacity"
+msgstr "Opacità"
+
+#: functions.php:78
+msgid "Invert"
+msgstr "Negativo"
+
+#: functions.php:69
+msgid "Hue-270"
+msgstr "Tono-270"
+
+#: functions.php:60
+msgid "Hue-180"
+msgstr "Tono-180"
+
+#: functions.php:51
+msgid "Hue-90"
+msgstr "Tono-90"
+
+#: functions.php:33
+msgid "Brightness"
+msgstr "Luminosità"
+
+#: functions.php:24
+msgid "Blur"
+msgstr "Sfocato"
+
+#: assets/benvenuto/benvenuto.php:89
+msgid "Licenses"
+msgstr "Licenze"
+
+#: assets/benvenuto/benvenuto.php:84
+msgid "Description"
+msgstr "Descrizione"
+
+#: assets/benvenuto/benvenuto.php:81
+msgid "This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details."
+msgstr "Questo programma viene distribuito nella speranza che sia utile, ma SENZA ALCUNA GARANZIA; senza nemmeno la garanzia implicita di COMMERCIABILITÀ o IDONEITÀ PER UN PARTICOLARE SCOPO. Per maggiori dettagli, consultare la GNU General Public License."
+
+#: assets/benvenuto/benvenuto.php:79
+msgid "This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 2 of the License, or (at your option) any later version."
+msgstr "Questo programma è software libero: puoi ridistribuirlo e/o modificarlo secondo i termini della GNU General Public License pubblicata dalla Free Software Foundation, sia la versione 2 della licenza, sia (a tua scelta) qualsiasi versione successiva."
+
+#: assets/benvenuto/benvenuto.php:76
+msgid ""
+"WhiteBlack WordPress Theme, (C) 2025 masino1967<br/>\n"
+"WhiteBlack is distributed under the terms of the GNU GPL."
+msgstr ""
+"Tema di WordPress WhiteBlack, (C) 2025 masino1967 <br/>\n"
+"WhiteBlack è distribuito secondo i termini della GNU GPL."
+
+#: assets/benvenuto/benvenuto.php:74
+msgid "Copyright"
+msgstr "Copyright"
+
+#: assets/benvenuto/benvenuto.php:68
+msgid ""
+"This is a free theme, created in my spare time, available exclusively on WordPress.org and designed for personal blogs and institutional sites.<br>If you like this theme, you can give me up to five stars on the theme page on WordPress.org: <a href=\"https://wordpress.org/support/theme/whiteblack/reviews/#new-post\">Add your review</a>.<br>\n"
+"If you like you can also check out the other themes I have created for you: <a href=\"https://wordpress.org/themes/author/masino1967/\">@masino1967 themes</a>."
+msgstr ""
+"Questo è un tema gratuito, creato nel mio tempo libero, disponibile esclusivamente su WordPress.org e progettato per blog personali e siti istituzionali.<br>Se ti piace questo tema, puoi darmi fino a cinque stelle nella pagina del tema su WordPress.org: <a href=\"https://wordpress.org/support/theme/whiteblack/reviews/#new-post\">Aggiungi la tua recensione</a>.<br>\n"
+"Se ti piace puoi anche dare un'occhiata agli altri temi che ho creato per te: <a href=\"https://wordpress.org/themes/author/masino1967/\">Temi di @masino1967</a>."
+
+#: assets/benvenuto/benvenuto.php:64 functions.php:168
+msgid "Contrast →"
+msgstr "Contrasto →"
+
+#: assets/benvenuto/benvenuto.php:63 functions.php:276
+msgid "Saturate →"
+msgstr "Saturato →"
+
+#: assets/benvenuto/benvenuto.php:62 functions.php:294
+msgid "Sepia →"
+msgstr "Seppia →"
+
+#: assets/benvenuto/benvenuto.php:61
+msgid "Grayscale →"
+msgstr "Scala di grigi →"
+
+#: assets/benvenuto/benvenuto.php:51 functions.php:177
+msgid "→ Contrast"
+msgstr "→ Contrasto"
+
+#: assets/benvenuto/benvenuto.php:50 functions.php:285
+msgid "→ Saturate"
+msgstr "→ Saturato"
+
+#: assets/benvenuto/benvenuto.php:49 functions.php:303
+msgid "→ Sepia"
+msgstr "→ Seppia"
+
+#: assets/benvenuto/benvenuto.php:48
+msgid "→ Grayscale"
+msgstr "→ Scala di grigi"
+
+#: assets/benvenuto/benvenuto.php:39 functions.php:42
+msgid "Contrast"
+msgstr "Contrasto"
+
+#: assets/benvenuto/benvenuto.php:38 functions.php:96
+msgid "Saturate"
+msgstr "Saturato"
+
+#: assets/benvenuto/benvenuto.php:37 functions.php:105
+msgid "Sepia"
+msgstr "Seppia"
+
+#: assets/benvenuto/benvenuto.php:36 functions.php:15
+msgid "Grayscale"
+msgstr "Scala di grigi"
+
+#: assets/benvenuto/benvenuto.php:27
+msgid "Original"
+msgstr "Originale"
+
+#: assets/benvenuto/benvenuto.php:21
+msgid ""
+"This theme contains nine different image filters, which can be activated from the Styles section of the Image block of the editor.<br>Two filter modes:<br/> \n"
+"1) filter that changes the appearance of the image,<br/>\n"
+"2) filter that changes the appearance by hovering the mouse over the image."
+msgstr ""
+"Questo tema contiene nove diversi filtri per le immagini, attivabili dalla sezione Stili del blocco Immagine dell'editor.<br>Due modalità di filtro:<br> \n"
+"1) filtro che cambia l'aspetto dell'immagine,<br/>\n"
+"2) filtro che cambia l'aspetto passando il mouse sull'immagine."
+
+#: assets/benvenuto/benvenuto.php:19 assets/benvenuto/benvenuto.php:30
+#: assets/benvenuto/benvenuto.php:31 assets/benvenuto/benvenuto.php:32
+#: assets/benvenuto/benvenuto.php:33 assets/benvenuto/benvenuto.php:42
+#: assets/benvenuto/benvenuto.php:43 assets/benvenuto/benvenuto.php:44
+#: assets/benvenuto/benvenuto.php:45 assets/benvenuto/benvenuto.php:55
+#: assets/benvenuto/benvenuto.php:56 assets/benvenuto/benvenuto.php:57
+#: assets/benvenuto/benvenuto.php:58
+msgid "street lamps"
+msgstr "lampioni"
+
+#: assets/benvenuto/benvenuto.php:11
+msgid "Welcome to the WhiteBlack theme."
+msgstr "Ti diamo il benvenuto al tema WhiteBlack."
+
+#. Author URI of the theme
+#: style.css
+#, gp-priority: low
+msgid "https://profiles.wordpress.org/masino1967/"
+msgstr "https://profiles.wordpress.org/masino1967/"
+
+#. Author of the theme
+#: style.css
+#, gp-priority: low
+msgid "masino1967"
+msgstr "masino1967"

@@ -1,0 +1,15 @@
+/**
+ * Filtri loop Area Personale — dipende da llm-ui.css
+ */
+
+.llm-ap-loop-filters--loading,
+.llm-ap-loop-filters-target--loading {
+	opacity: 0.55;
+	pointer-events: none;
+	transition: opacity 0.2s ease;
+}
+
+/* Allinea il blocco filtri al sistema UI (variabili già su .llm-ap-loop-filters da llm-ui.css) */
+.llm-ap-loop-filters .llm-ui-form-bar {
+	margin-bottom: var(--llm-ui-gap-lg, 0.75rem);
+}

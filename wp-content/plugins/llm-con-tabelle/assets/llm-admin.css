@@ -1,0 +1,245 @@
+/* LLM CON TABELLE — bacheca storie */
+
+/* ============================================================
+   Colonna thumbnail nella lista storie
+   ============================================================ */
+
+.column-llm_thumbnail {
+	width: 72px;
+}
+
+.llm-col-thumb {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 60px;
+	height: 60px;
+}
+
+.llm-col-thumb img {
+	width: 60px;
+	height: 60px;
+	object-fit: cover;
+	border-radius: 4px;
+	display: block;
+}
+
+.llm-no-thumb {
+	color: #c3c4c7;
+	font-size: 18px;
+}
+
+/* ============================================================
+   Quick edit — immagine anteprima
+   ============================================================ */
+
+.llm-qe-wrap {
+	border-top: 1px solid #dcdcde;
+	padding-top: 12px;
+	margin-top: 4px;
+}
+
+.llm-qe-thumb-preview {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	margin-top: 6px;
+}
+
+.llm-qe-thumb-img {
+	width: 72px;
+	height: 72px;
+	background: #f0f0f1;
+	border-radius: 4px;
+	border: 1px solid #dcdcde;
+	overflow: hidden;
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.llm-qe-thumb-img img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.llm-qe-thumb-buttons {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding-top: 4px;
+}
+
+.llm-qe-remove-image {
+	color: #d63638 !important;
+	font-size: 12px;
+}
+
+
+	margin-bottom: 1em;
+}
+
+.llm-field-row label {
+	display: block;
+	margin-bottom: 0.25em;
+}
+
+.llm-field-inline {
+	display: flex;
+	gap: 2rem;
+	flex-wrap: wrap;
+}
+
+.llm-field-inline > div {
+	flex: 1;
+	min-width: 140px;
+}
+
+.llm-sortable-list {
+	margin-top: 0.75em;
+}
+
+.llm-phrase-row {
+	display: flex;
+	gap: 8px;
+	align-items: flex-start;
+	background: #f6f7f7;
+	border: 1px solid #c3c4c7;
+	padding: 10px 12px;
+	margin-bottom: 10px;
+	border-radius: 4px;
+}
+
+.llm-phrase-details {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+}
+
+.llm-phrase-summary {
+	cursor: pointer;
+	list-style: none;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.5rem 1rem;
+	padding: 4px 0 8px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.llm-phrase-summary::-webkit-details-marker {
+	display: none;
+}
+
+.llm-phrase-summary::marker {
+	display: none;
+}
+
+.llm-phrase-summary-title {
+	white-space: nowrap;
+}
+
+.llm-phrase-preview {
+	flex: 1;
+	min-width: 120px;
+	font-weight: 400;
+	color: #646970;
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.llm-phrase-details[open] .llm-phrase-summary {
+	border-bottom: 1px solid #dcdcde;
+	margin-bottom: 10px;
+}
+
+.llm-drag-handle {
+	cursor: grab;
+	color: #787c82;
+	margin-top: 6px;
+	flex-shrink: 0;
+}
+
+.llm-drag-handle:active {
+	cursor: grabbing;
+}
+
+.llm-phrase-fields {
+	flex: 1;
+	min-width: 0;
+	padding-top: 4px;
+}
+
+.llm-phrase-fields label {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	color: #646970;
+	margin-top: 0.5em;
+}
+
+.llm-phrase-fields label:first-child {
+	margin-top: 0;
+}
+
+.llm-media-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 12px;
+	margin-bottom: 12px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #fff;
+}
+
+.llm-media-thumb {
+	width: 80px;
+	height: 80px;
+	background: #f0f0f1;
+	border-radius: 4px;
+	overflow: hidden;
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.llm-media-thumb img {
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: cover;
+}
+
+.llm-media-actions {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+}
+
+.llm-media-row .llm-after-phrase {
+	max-width: 280px;
+}
+
+#post-body .llm-preview-flow {
+	margin: 0.5em 0 0 1.2em;
+	padding: 0;
+	max-height: 400px;
+	overflow-y: auto;
+}
+
+.llm-preview-flow li {
+	margin-bottom: 0.5em;
+}
+
+.llm-preview-image img {
+	vertical-align: middle;
+	margin-right: 6px;
+	border-radius: 2px;
+}

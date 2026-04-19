@@ -1,0 +1,98 @@
+/**
+ * [llm_story_progress_bar] / [llm_story_loop_progress] — barra progresso frasi.
+ * Nessuno sfondo sul contenitore: si integra nel layout (Elementor, card, ecc.).
+ */
+
+.llm-story-progress-bar {
+	box-sizing: border-box;
+	width: 100%;
+	max-width: none;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	box-shadow: none;
+	font: inherit;
+	font-size: 0.8125rem;
+	line-height: 1.25;
+	color: inherit;
+}
+
+.llm-story-progress-bar__row {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex-wrap: nowrap;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+}
+
+.llm-story-progress-bar__track {
+	flex: 1 1 auto;
+	min-width: 0;
+	height: 6px;
+	border-radius: 999px;
+	background: #8f8f98;
+	overflow: hidden;
+	box-shadow: none;
+}
+
+.llm-story-progress-bar__fill {
+	height: 100%;
+	width: 0;
+	border-radius: inherit;
+	background: #3d3d45;
+	transition: width 0.35s ease;
+}
+
+.llm-story-progress-bar__count {
+	flex: 0 0 auto;
+	margin: 0;
+	padding: 0;
+	font-variant-numeric: tabular-nums;
+	font-weight: 500;
+	font-size: 0.75rem;
+	line-height: 1;
+	color: inherit;
+	opacity: 0.88;
+	white-space: nowrap;
+}
+
+.llm-story-progress-bar__guest-hint {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	font: inherit;
+	font-size: 0.7em;
+	line-height: 1.3;
+	color: inherit;
+	opacity: 0.72;
+}
+
+/* Variante compatta (loop): traccia più sottile, testo leggermente più piccolo */
+.llm-story-progress-bar--compact {
+	font-size: 0.7rem;
+}
+
+.llm-story-progress-bar--compact .llm-story-progress-bar__track {
+	height: 4px;
+	background: #85858e;
+}
+
+.llm-story-progress-bar--compact .llm-story-progress-bar__fill {
+	background: #35353c;
+}
+
+.llm-story-progress-bar--compact .llm-story-progress-bar__count {
+	font-size: 0.68rem;
+	opacity: 0.9;
+}
+
+.llm-story-progress-bar__guest-hint--compact {
+	margin: 0;
+	font-size: 0.65em;
+	opacity: 0.68;
+}
