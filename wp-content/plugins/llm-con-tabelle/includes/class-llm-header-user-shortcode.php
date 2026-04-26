@@ -80,8 +80,17 @@ class LLM_Header_User_Shortcode {
 		if ( $greeting_tpl !== '' && strpos( $greeting_tpl, '%s' ) !== false ) {
 			$label = sprintf( $greeting_tpl, $name );
 		} else {
-			/* translators: %s: display name of the logged-in user */
-			$label = sprintf( __( 'Ciao, %s', 'llm-con-tabelle' ), $name );
+			$ui_lang = class_exists( 'LLM_Category_Translations' )
+				? LLM_Category_Translations::current_user_lang()
+				: 'it';
+			$greetings = array(
+				'it' => 'Ciao, %s',
+				'en' => 'Hi, %s',
+				'pl' => 'Czesc, %s',
+				'es' => 'Hola, %s',
+			);
+			$tpl = isset( $greetings[ $ui_lang ] ) ? $greetings[ $ui_lang ] : $greetings['it'];
+			$label = sprintf( $tpl, $name );
 		}
 
 		return sprintf(

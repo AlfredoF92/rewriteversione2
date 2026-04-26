@@ -112,9 +112,17 @@ class LLM_Story_Template_Vars {
 				$v = get_post_meta( $id, LLM_Story_Meta::TITLE_TARGET, true );
 				return is_string( $v ) ? $v : '';
 			case 'known_lang_code':
+				$u = self::get_current_user_interface_lang_code();
+				if ( '' !== $u ) {
+					return $u;
+				}
 				$v = get_post_meta( $id, LLM_Story_Meta::KNOWN_LANG, true );
 				return is_string( $v ) ? $v : '';
 			case 'known_lang_label':
+				$u = self::get_current_user_interface_lang_code();
+				if ( '' !== $u ) {
+					return LLM_Languages::label( $u );
+				}
 				$code = get_post_meta( $id, LLM_Story_Meta::KNOWN_LANG, true );
 				return LLM_Languages::label( is_string( $code ) ? $code : '' );
 			case 'target_lang_code':
@@ -259,6 +267,22 @@ class LLM_Story_Template_Vars {
 	public static function get_featured_image_url( $post_id ) {
 		$url = get_the_post_thumbnail_url( $post_id, 'full' );
 		return is_string( $url ) ? $url : '';
+	}
+
+	/**
+	 * Lingua interfaccia dell'utente corrente (se valida), altrimenti stringa vuota.
+	 *
+	 * @return string
+	 */
+	private static function get_current_user_interface_lang_code() {
+		if ( ! is_user_logged_in() ) {
+			return '';
+		}
+		$code = sanitize_key( (string) get_user_meta( get_current_user_id(), LLM_User_Meta::INTERFACE_LANG, true ) );
+		if ( '' === $code || ! LLM_Languages::is_valid( $code ) ) {
+			return '';
+		}
+		return $code;
 	}
 
 	/**

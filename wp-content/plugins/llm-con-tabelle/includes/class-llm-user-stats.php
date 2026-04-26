@@ -381,9 +381,10 @@ class LLM_User_Stats {
 		self::save_ledger( $user_id, $ledger );
 	}
 
-	public static function record_phrase_completion( $user_id, $story_id, $phrase_index ) {
+	public static function record_phrase_completion( $user_id, $story_id, $phrase_index, $amount = 1 ) {
 		$story_id     = absint( $story_id );
 		$phrase_index = (int) $phrase_index;
+		$amount       = max( 1, (int) $amount );
 		$map          = self::get_phrase_map( $user_id );
 		$key          = (string) $story_id;
 		if ( ! isset( $map[ $key ] ) ) {
@@ -398,10 +399,11 @@ class LLM_User_Stats {
 		self::push_ledger(
 			$user_id,
 			'phrase',
-			1,
+			$amount,
 			$story_id,
 			$phrase_index,
-			__( 'Frase completata (+1)', 'llm-con-tabelle' )
+			/* translators: %d: number of points awarded */
+			sprintf( __( 'Frase completata (+%d)', 'llm-con-tabelle' ), $amount )
 		);
 
 		LLM_Story_Game_Progress::increment_run_completions( $user_id, $story_id );
@@ -410,11 +412,21 @@ class LLM_User_Stats {
 			LLM_Community::record_phrase_completed( $user_id, $story_id, $phrase_index );
 		}
 
-		$map_after      = self::get_phrase_map( $user_id );
+		$map_after     = self::get_phrase_map( $user_id );
 		$phrases_story = LLM_Story_Repository::get_phrases( $story_id );
 		$total         = count( $phrases_story );
-		if ( $total > 0 && isset( $map_after[ $key ] ) && is_array( $map_after[ $key ] ) && count( $map_after[ $key ] ) >= $total ) {
-			self::maybe_complete_story( $user_id, $story_id );
+		if ( $total > 0 && isset( $map_after[ $key ] ) && is_array( $map_after[ $key ] ) ) {
+			$done_set = array_flip( $map_after[ $key ] );
+			$all_done = true;
+			for ( $i = 0; $i < $total; $i++ ) {
+				if ( ! isset( $done_set[ $i ] ) ) {
+					$all_done = false;
+					break;
+				}
+			}
+			if ( $all_done ) {
+				self::maybe_complete_story( $user_id, $story_id );
+			}
 		}
 
 		return true;
@@ -428,8 +440,13 @@ class LLM_User_Stats {
 		if ( empty( $need ) ) {
 			return;
 		}
-		if ( ! isset( $done[ $key ] ) || count( $done[ $key ] ) < count( $need ) ) {
-			return;
+		$total        = count( $need );
+		$done_indices = isset( $done[ $key ] ) && is_array( $done[ $key ] ) ? $done[ $key ] : array();
+		$done_set     = array_flip( $done_indices );
+		for ( $i = 0; $i < $total; $i++ ) {
+			if ( ! isset( $done_set[ $i ] ) ) {
+				return;
+			}
 		}
 
 		$completed = self::get_completed_stories_map( $user_id );

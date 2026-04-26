@@ -37,5 +37,21 @@ class LLM_Elementor_Dynamic_Tags {
 		$dynamic_tags_manager->register( new LLM_Elementor_Tag_Story_Text() );
 		$dynamic_tags_manager->register( new LLM_Elementor_Tag_Story_Url() );
 		$dynamic_tags_manager->register( new LLM_Elementor_Tag_Story_Image() );
+
+		// Hero homepage tags
+		$dynamic_tags_manager->register_group(
+			'llm-hero',
+			array(
+				'title' => __( 'LLM Hero Homepage', 'llm-con-tabelle' ),
+			)
+		);
+
+		require_once LLM_TABELLE_DIR . 'includes/elementor/class-llm-elementor-tag-hero-badge.php';
+		require_once LLM_TABELLE_DIR . 'includes/elementor/class-llm-elementor-tag-hero-title.php';
+		require_once LLM_TABELLE_DIR . 'includes/elementor/class-llm-elementor-tag-hero-subtitle.php';
+
+		$dynamic_tags_manager->register( new LLM_Elementor_Tag_Hero_Badge() );
+		$dynamic_tags_manager->register( new LLM_Elementor_Tag_Hero_Title() );
+		$dynamic_tags_manager->register( new LLM_Elementor_Tag_Hero_Subtitle() );
 	}
 }

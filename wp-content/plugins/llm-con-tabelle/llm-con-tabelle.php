@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LLM_TABELLE_VERSION', '2.0.30' );
+define( 'LLM_TABELLE_VERSION', '2.0.48' );
 define( 'LLM_TABELLE_FILE', __FILE__ );
 define( 'LLM_TABELLE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LLM_TABELLE_URL', plugin_dir_url( __FILE__ ) );
@@ -35,6 +35,8 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-story.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-users.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-community.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-design-system.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-category-translations.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-hero-translations.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-demo-stories.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-demo-users.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-demo-community.php';
@@ -50,6 +52,11 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-user-stat-shortcodes.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-profile-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-learning-lang-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-elementor-group-control-related-unlocked.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-elementor-homepage-stories-loop.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-story-loop-filters-shortcode.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-storie-filtri-shortcode.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-continua-storie-loop.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-continua-filtri-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-elementor-unlocked-stories-loop.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-area-personale-loop-filters-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-activity-feed-shortcode.php';
@@ -83,15 +90,22 @@ function llm_tabelle_boot() {
 	LLM_Admin_Users::init();
 	LLM_Admin_Community::init();
 	LLM_Admin_Design_System::init();
+	LLM_Category_Translations::init();
+	LLM_Hero_Translations::init();
 	LLM_Demo_Stories::init();
 	LLM_Demo_Users::init();
 	LLM_Demo_Community::init();
 
 	add_shortcode( 'llm_story_field', array( 'LLM_Story_Template_Vars', 'shortcode_field' ) );
+	LLM_Story_Loop_Filters_Shortcode::init();
+	LLM_Storie_Filtri_Shortcode::init();
+	LLM_Continua_Storie_Loop::init();
+	LLM_Continua_Filtri_Shortcode::init();
 	LLM_Header_User_Shortcode::init();
 	LLM_User_Stat_Shortcodes::init();
 	LLM_User_Profile_Shortcode::init();
 	LLM_Learning_Lang_Shortcode::init();
+	LLM_Elementor_Homepage_Stories_Loop::init();
 	LLM_Elementor_Unlocked_Stories_Loop::init();
 	LLM_Area_Personale_Loop_Filters_Shortcode::init();
 	LLM_User_Activity_Feed_Shortcode::init();
@@ -124,6 +138,20 @@ add_action( 'wp_enqueue_scripts', 'llm_tabelle_register_shared_style_handles', 1
 add_action( 'admin_init', 'llm_tabelle_register_shared_style_handles', 1 );
 
 /**
+ * Script filtri loop storie (AJAX).
+ */
+function llm_tabelle_register_loop_filters_script() {
+	wp_register_script(
+		'llm-loop-stories-filters',
+		LLM_TABELLE_URL . 'assets/llm-loop-stories-filters.js',
+		array(),
+		LLM_TABELLE_VERSION,
+		true
+	);
+}
+add_action( 'wp_enqueue_scripts', 'llm_tabelle_register_loop_filters_script', 3 );
+
+/**
  * Elementor carica prima (ordine alfabetico): l’hook elementor/loaded è già scattato
  * quando questo file viene letto. Registriamo i Dynamic Tag su plugins_loaded.
  */
@@ -135,6 +163,20 @@ add_action(
 		}
 	},
 	20
+);
+
+add_action(
+	'elementor/widgets/register',
+	static function ( $widgets_manager ) {
+		if ( ! class_exists( '\Elementor\Widget_Base' ) ) {
+			return;
+		}
+		require_once LLM_TABELLE_DIR . 'includes/elementor/class-llm-elementor-widget-loop-stories-filters.php';
+		if ( class_exists( 'LLM_Elementor_Widget_Loop_Stories_Filters' ) ) {
+			$widgets_manager->register( new LLM_Elementor_Widget_Loop_Stories_Filters() );
+		}
+	},
+	10
 );
 
 /**

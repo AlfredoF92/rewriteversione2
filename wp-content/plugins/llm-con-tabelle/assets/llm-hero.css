@@ -1,0 +1,30 @@
+/* =========================================================
+   LLM Hero — cursore typewriter
+   ========================================================= */
+
+.llm-hero-typewriter {
+	display: inline;
+}
+
+/* Cursore lampeggiante durante la scrittura */
+.llm-hero-typewriter__cursor {
+	display: inline-block;
+	width: 3px;
+	height: 0.85em;
+	background-color: currentColor;
+	margin-left: 2px;
+	vertical-align: middle;
+	border-radius: 1px;
+	animation: llm-hero-blink 0.75s step-end infinite;
+}
+
+@keyframes llm-hero-blink {
+	0%,
+	100% { opacity: 1; }
+	50%  { opacity: 0; }
+}
+
+/* Nessun cursore a termine animazione */
+.llm-hero-typewriter--done .llm-hero-typewriter__cursor {
+	display: none;
+}

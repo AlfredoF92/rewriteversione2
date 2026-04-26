@@ -189,11 +189,12 @@
 			savedPhraseIndexOnLoad = 0;
 		}
 
-		var speechRec = null;
-		var speechBase = '';
-		var speechFinals = '';
-		var activeMicTa = null;
-		var activeMicBtn = null;
+	var speechRec = null;
+	var speechBase = '';
+	var speechFinals = '';
+	var activeMicTa = null;
+	var activeMicBtn = null;
+	var micWordsThisPhrase = 0;
 
 		var TTS_SLOW_RATE = 0.78;
 
@@ -513,12 +514,152 @@
 			window.speechSynthesis.getVoices();
 		}
 
-		if (cfg.completedStoryLines && cfg.completedStoryLines.length) {
-			cfg.completedStoryLines.forEach(function (line) {
-				var block = document.createElement('p');
-				block.className = 'llm-phrase-game__story-line';
-				block.textContent = line;
-				storyEl.appendChild(block);
+	var openStoryChip = null;
+
+	function closeOpenStoryChip() {
+		if (openStoryChip && openStoryChip.parentNode) {
+			openStoryChip.parentNode.removeChild(openStoryChip);
+		}
+		openStoryChip = null;
+	}
+
+	function attachStoryTranslationChip(lineEl, translationText) {
+		if (!lineEl || !translationText) {
+			return null;
+		}
+		var oldChip = qs(lineEl, '.llm-phrase-game__story-chip');
+		if (oldChip) {
+			oldChip.remove();
+		}
+		var chip = document.createElement('span');
+		chip.className = 'llm-phrase-game__story-chip';
+		chip.textContent = translationText;
+		lineEl.appendChild(chip);
+		return chip;
+	}
+
+	function getStoryLineElementFromEventTarget(target) {
+		var node = target;
+		while (node && node !== storyEl) {
+			if (node.nodeType === 1 && node.classList && node.classList.contains('llm-phrase-game__story-line')) {
+				return node;
+			}
+			node = node.parentNode;
+		}
+		return null;
+	}
+
+	function hydrateStoryLineTranslations() {
+		if (!storyEl || !cfg.phrases || !cfg.phrases.length) {
+			return;
+		}
+		var lines = storyEl.querySelectorAll('.llm-phrase-game__story-line');
+		lines.forEach(function (line) {
+			if (line.dataset.translation) {
+				return;
+			}
+			var text = (line.childNodes[0] && line.childNodes[0].textContent) ? line.childNodes[0].textContent : line.textContent;
+			var translation = findInterfaceForStoryLine((text || '').trim());
+			if (translation) {
+				line.dataset.translation = translation;
+			}
+		});
+	}
+
+	if (cfg.completedStoryLines && cfg.completedStoryLines.length) {
+		cfg.completedStoryLines.forEach(function (line) {
+			var block = document.createElement('p');
+			block.className = 'llm-phrase-game__story-line';
+			var target = typeof line === 'object' ? (line.target || '') : String(line);
+			var iface = typeof line === 'object' ? (line.interface || '') : '';
+			block.textContent = target;
+			if (iface) {
+				block.dataset.translation = iface;
+			}
+			storyEl.appendChild(block);
+		});
+	}
+	hydrateStoryLineTranslations();
+
+		var restartBtnEl = doneEl ? qs(doneEl, '.llm-phrase-game__restart-btn') : null;
+
+	/* ── Click su riga storia: TTS + etichetta traduzione ─── */
+	function findInterfaceForStoryLine(targetText) {
+		var wanted = normalizeSentence(targetText || '');
+		if (!wanted || !cfg.phrases || !cfg.phrases.length) {
+			return '';
+		}
+		var i;
+		for (i = 0; i < cfg.phrases.length; i++) {
+			var p = cfg.phrases[i] || {};
+			if (normalizeSentence(p.target || '') === wanted) {
+				return p.interface || '';
+			}
+		}
+		return '';
+	}
+	storyEl && storyEl.addEventListener('click', function (e) {
+		var line = getStoryLineElementFromEventTarget(e.target);
+		if (!line) {
+			return;
+		}
+		/* TTS */
+		var textNode = line.childNodes[0];
+		var text = (textNode && textNode.textContent ? textNode.textContent : line.textContent || '').trim();
+		if (text) {
+			speakTargetTranslation(text, null);
+		}
+		/* Traduzione */
+		var translation = line.dataset.translation || findInterfaceForStoryLine(text);
+		if (!translation) {
+			return;
+		}
+		line.dataset.translation = translation;
+		/* Mostra/nascondi etichetta traduzione al click. */
+		var existingChip = qs(line, '.llm-phrase-game__story-chip');
+		if (existingChip) {
+			closeOpenStoryChip();
+			return;
+		}
+		closeOpenStoryChip();
+		openStoryChip = attachStoryTranslationChip(line, translation);
+	});
+	document.addEventListener('click', function (e) {
+		if (!openStoryChip) {
+			return;
+		}
+		var t = e.target;
+		if (!t || t.nodeType !== 1) {
+			closeOpenStoryChip();
+			return;
+		}
+		if (t.closest && (t.closest('.llm-phrase-game__story-line') || t.closest('.llm-phrase-game__story-chip'))) {
+			return;
+		}
+		closeOpenStoryChip();
+	});
+		if (restartBtnEl) {
+			restartBtnEl.addEventListener('click', function () {
+				if (i18n.restartConfirm && !window.confirm(i18n.restartConfirm)) {
+					return;
+				}
+				restartBtnEl.disabled = true;
+				var body = new URLSearchParams();
+				body.set('action', 'llm_phrase_game_restart');
+				body.set('nonce', nonce);
+				body.set('story_id', String(storyId));
+				fetch(ajaxUrl, {
+					method: 'POST',
+					credentials: 'same-origin',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+					body: body.toString(),
+				})
+					.then(function () {
+						window.location.reload();
+					})
+					.catch(function () {
+						restartBtnEl.disabled = false;
+					});
 			});
 		}
 
@@ -683,19 +824,20 @@
 			speechRec.lang = speechLang;
 			speechRec.continuous = true;
 			speechRec.interimResults = true;
-			speechRec.onresult = function (ev) {
-				var interim = '';
-				var i;
-				for (i = ev.resultIndex; i < ev.results.length; i++) {
-					var tr = ev.results[i][0].transcript;
-					if (ev.results[i].isFinal) {
-						speechFinals += tr;
-					} else {
-						interim += tr;
-					}
+		speechRec.onresult = function (ev) {
+			var interim = '';
+			var i;
+			for (i = ev.resultIndex; i < ev.results.length; i++) {
+				var tr = ev.results[i][0].transcript;
+				if (ev.results[i].isFinal) {
+					speechFinals += tr;
+					micWordsThisPhrase += tokenizeWords(tr).length;
+				} else {
+					interim += tr;
 				}
-				textarea.value = speechBase + speechFinals + interim;
-			};
+			}
+			textarea.value = speechBase + speechFinals + interim;
+		};
 			speechRec.onerror = function () {
 				stopSpeech();
 			};
@@ -836,6 +978,20 @@
 			});
 		}
 
+		function appendMessagePhase2Typewriter(text) {
+			if (!messagePhase2El) {
+				return Promise.resolve();
+			}
+			phase2MessageRun++;
+			var run = phase2MessageRun;
+			var line = document.createElement('p');
+			line.className = 'llm-phrase-game__message-phase2-line';
+			messagePhase2El.appendChild(line);
+			return typewriterInto(line, text || '', function () {
+				return phase2MessageRun === run;
+			});
+		}
+
 		function showPhase(n) {
 			phase2.hidden = n !== 2;
 			phase1.hidden = false;
@@ -902,9 +1058,10 @@
 			progressEl.textContent = t('progress', phraseIx + 1, phrases.length);
 		}
 
-		function loadPhrase(resumeStep2) {
-			cancelTts();
-			cancelAnalysisStream();
+	function loadPhrase(resumeStep2) {
+		micWordsThisPhrase = 0;
+		cancelTts();
+		cancelAnalysisStream();
 			cancelStoryStream();
 			cancelPhraseIntro();
 			if (phraseIx >= phrases.length) {
@@ -988,14 +1145,19 @@
 			});
 		}
 
-		function postCheck(phase, userText, cb) {
-			var body = new URLSearchParams();
-			body.set('action', 'llm_phrase_game_check');
-			body.set('nonce', nonce);
-			body.set('story_id', String(storyId));
-			body.set('phrase_index', String(phrases[phraseIx].index));
-			body.set('phase', String(phase));
-			body.set('user_text', userText);
+	function postCheck(phase, userText, micUsed, cb) {
+		if (typeof micUsed === 'function') {
+			cb = micUsed;
+			micUsed = false;
+		}
+		var body = new URLSearchParams();
+		body.set('action', 'llm_phrase_game_check');
+		body.set('nonce', nonce);
+		body.set('story_id', String(storyId));
+		body.set('phrase_index', String(phrases[phraseIx].index));
+		body.set('phase', String(phase));
+		body.set('user_text', userText);
+		body.set('mic_used', micUsed ? '1' : '0');
 
 			fetch(ajaxUrl, {
 				method: 'POST',
@@ -1059,7 +1221,7 @@
 					});
 				});
 			});
-			postCheck(1, txt, function (json) {
+			postCheck(1, txt, false, function (json) {
 				btn1.disabled = false;
 				if (!json || !json.success) {
 					cancelAnalysisStream();
@@ -1098,27 +1260,44 @@
 				setMessagePhase2Typewriter(i18n.phase2Fail || '', 'error');
 				return;
 			}
-			setMessagePhase2('', '');
-			btn2.disabled = true;
-			if (input2) {
-				input2.readOnly = true;
-			}
-			var phase2ScrollTarget = messagePhase2El || phase2;
-			/** Prima feedback positivo (già validato in locale); salvataggio server in parallelo ai 3s dopo il typewriter. */
-			smoothScrollIntoCenter(phase2ScrollTarget).then(function () {
-				return setMessagePhase2Typewriter(
-					i18n.phase2StoryContinue || i18n.phase2Complete || '',
-					'success'
-				);
-			})
-				.then(function () {
-					var ajaxPromise = new Promise(function (resolve) {
-						postCheck(2, txt, function (json) {
-							resolve(json);
-						});
-					});
-					return Promise.all([ajaxPromise, sleepMs(3000)]);
-				})
+		setMessagePhase2('', '');
+		btn2.disabled = true;
+		if (input2) {
+			input2.readOnly = true;
+		}
+		var phase2ScrollTarget = messagePhase2El || phase2;
+		var totalWords = tokenizeWords(txt).length;
+		var micUsed = totalWords > 0 && micWordsThisPhrase >= Math.max(1, Math.ceil(totalWords * 0.2));
+
+		/* Avvia AJAX subito in parallelo con i messaggi. */
+		var ajaxPromise = new Promise(function (resolve) {
+			postCheck(2, txt, micUsed, function (json) {
+				resolve(json);
+			});
+		});
+
+		setMessagePhase2('', '');
+		messagePhase2El && (messagePhase2El.innerHTML = '');
+		messagePhase2El && messagePhase2El.classList.add('llm-phrase-game__message-phase2--success');
+
+		smoothScrollIntoCenter(phase2ScrollTarget).then(function () {
+			return appendMessagePhase2Typewriter(i18n.bravoCorrect || '');
+		}).then(function () {
+			return sleepMs(300);
+		}).then(function () {
+			return appendMessagePhase2Typewriter(i18n.phraseCompletePoints || '');
+		}).then(function () {
+			return sleepMs(300);
+		}).then(function () {
+			var micMsg = micUsed ? (i18n.micUsedPoint || '') : (i18n.micUsedNoPoint || '');
+			return appendMessagePhase2Typewriter(micMsg);
+		}).then(function () {
+			return sleepMs(300);
+		}).then(function () {
+			return appendMessagePhase2Typewriter(i18n.storyContinue || '');
+		}).then(function () {
+			return Promise.all([ajaxPromise, sleepMs(3000)]);
+		})
 				.then(function (pair) {
 					var json = pair && pair[0];
 					if (!json || !json.success) {
@@ -1161,10 +1340,14 @@
 						advanceAfterPhrase2();
 						return;
 					}
-					smoothScrollStoryToCenter().then(function () {
-						var block = document.createElement('p');
-						block.className = 'llm-phrase-game__story-line';
-						storyEl.appendChild(block);
+				smoothScrollStoryToCenter().then(function () {
+					var block = document.createElement('p');
+					block.className = 'llm-phrase-game__story-line';
+					if (d.display_interface) {
+						block.dataset.translation = d.display_interface;
+					}
+					storyEl.appendChild(block);
+					hydrateStoryLineTranslations();
 						var sr = ++storyStreamRun;
 						typewriterInto(block, sentence, function () {
 							return storyStreamRun === sr;

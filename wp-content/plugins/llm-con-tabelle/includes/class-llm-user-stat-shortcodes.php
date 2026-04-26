@@ -126,7 +126,7 @@ class LLM_User_Stat_Shortcodes {
 		$uid    = get_current_user_id();
 		$bal = $uid ? LLM_User_Stats::get_balance( $uid ) : 0;
 
-		return self::render_number_chip( $target, $ctx, $bal, __( 'Coin:', 'llm-con-tabelle' ), LLM_Header_UI_Icons::coin() );
+		return self::render_number_chip( $target, $ctx, $bal, 'Points:', LLM_Header_UI_Icons::coin() );
 	}
 
 	/**
@@ -149,7 +149,7 @@ class LLM_User_Stat_Shortcodes {
 		$uid    = get_current_user_id();
 		$n = $uid ? LLM_User_Stats::count_completed_phrases( $uid ) : 0;
 
-		return self::render_number_chip( $target, $ctx, $n, __( 'Frasi completate:', 'llm-con-tabelle' ), LLM_Header_UI_Icons::phrases() );
+		return self::render_number_chip( $target, $ctx, $n, 'Minephrases:', LLM_Header_UI_Icons::phrases() );
 	}
 
 	/**
@@ -172,7 +172,7 @@ class LLM_User_Stat_Shortcodes {
 		$uid    = get_current_user_id();
 		$n = $uid ? LLM_Community::count_bravi_received( $uid ) : 0;
 
-		return self::render_number_chip( $target, $ctx, $n, __( 'Bravi ricevuti:', 'llm-con-tabelle' ), LLM_Header_UI_Icons::bravo() );
+		return self::render_number_chip( $target, $ctx, $n, 'Likes:', LLM_Header_UI_Icons::bravo() );
 	}
 
 	/**
@@ -212,7 +212,7 @@ class LLM_User_Stat_Shortcodes {
 		}
 
 		$link_path   = trim( (string) $atts['link_path'] );
-		$lang_label  = __( 'Lingua:', 'llm-con-tabelle' );
+		$lang_label  = 'Learn:';
 		$icon        = LLM_Header_UI_Icons::language();
 		$inner       = sprintf(
 			'<span class="llm-stat-chip__body"><span class="llm-stat-chip__label">%1$s</span><span class="llm-stat-chip__value">%2$s</span></span>',

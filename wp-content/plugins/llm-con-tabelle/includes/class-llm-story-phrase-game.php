@@ -44,6 +44,7 @@ class LLM_Story_Phrase_Game {
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'maybe_enqueue_singular' ) );
 		add_action( 'wp_ajax_llm_phrase_game_check', array( __CLASS__, 'ajax_check' ) );
 		add_action( 'wp_ajax_nopriv_llm_phrase_game_check', array( __CLASS__, 'ajax_check' ) );
+		add_action( 'wp_ajax_llm_phrase_game_restart', array( __CLASS__, 'ajax_restart' ) );
 	}
 
 	/**
@@ -114,7 +115,6 @@ class LLM_Story_Phrase_Game {
 		?>
 		<div id="<?php echo esc_attr( $uid ); ?>" class="llm-phrase-game" data-story-id="<?php echo esc_attr( (string) $story_id ); ?>">
 			<div class="llm-phrase-game__story-wrap">
-				<h3 class="llm-phrase-game__story-title"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'story_section_title' ) ); ?></h3>
 				<div class="llm-phrase-game__story" aria-live="polite"></div>
 			</div>
 			<div class="llm-phrase-game__divider" role="presentation" aria-hidden="true"></div>
@@ -175,9 +175,12 @@ class LLM_Story_Phrase_Game {
 					<div class="llm-phrase-game__message-phase2" role="status" aria-live="polite"></div>
 				</div>
 			</div>
-			<div class="llm-phrase-game__done" hidden>
-				<p class="llm-phrase-game__done-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'done_all' ) ); ?></p>
-			</div>
+		<div class="llm-phrase-game__done" hidden>
+			<p class="llm-phrase-game__done-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'done_all' ) ); ?></p>
+			<?php if ( is_user_logged_in() ) : ?>
+			<button type="button" class="llm-phrase-game__restart-btn button"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'story_progress_restart' ) ); ?></button>
+			<?php endif; ?>
+		</div>
 		</div>
 		<?php
 		return (string) ob_get_clean();
@@ -237,19 +240,24 @@ class LLM_Story_Phrase_Game {
 					sort( $indices );
 					foreach ( $indices as $pi ) {
 						if ( isset( $phrases[ $pi ]['target'] ) ) {
-							$completed_targets[] = (string) $phrases[ $pi ]['target'];
+							$completed_targets[] = array(
+								'target'    => (string) $phrases[ $pi ]['target'],
+								'interface' => isset( $phrases[ $pi ]['interface'] ) ? (string) $phrases[ $pi ]['interface'] : '',
+							);
 						}
 					}
 				}
 			} else {
-				// In una ripartenza la mappa phrase_done resta storica: le righe in pagina seguono solo questa «corsa».
 				$prog_row = LLM_Story_Game_Progress::get_row( $uid, $story_id );
 				$run      = ( is_array( $prog_row ) && isset( $prog_row['run_completions'] ) ) ? (int) $prog_row['run_completions'] : 0;
 				if ( $run > 0 ) {
 					$show = min( $run, $n_phrases );
 					for ( $ix = 0; $ix < $show; $ix++ ) {
 						if ( isset( $phrases[ $ix ]['target'] ) ) {
-							$completed_targets[] = (string) $phrases[ $ix ]['target'];
+							$completed_targets[] = array(
+								'target'    => (string) $phrases[ $ix ]['target'],
+								'interface' => isset( $phrases[ $ix ]['interface'] ) ? (string) $phrases[ $ix ]['interface'] : '',
+							);
 						}
 					}
 				}
@@ -289,17 +297,23 @@ class LLM_Story_Phrase_Game {
 				'phrases'         => $boot,
 				'targetLangLabel' => LLM_Phrase_Game_I18n::target_lang_label_for_ui( $target_code ),
 				'i18n'                => array(
-					'translatePrompt' => LLM_Phrase_Game_I18n::get( 'translate_prompt' ),
-					'rewritePrompt'   => LLM_Phrase_Game_I18n::get( 'rewrite_prompt' ),
-					'phase1Fail'      => LLM_Phrase_Game_I18n::get( 'phase1_fail' ),
-					'phase2Fail'      => LLM_Phrase_Game_I18n::get( 'phase2_fail' ),
-					'phase2Complete'  => LLM_Phrase_Game_I18n::get( 'phase2_complete' ),
-					'phase2StoryContinue' => LLM_Phrase_Game_I18n::get( 'phase2_story_continue' ),
-					'phase2Checking'    => LLM_Phrase_Game_I18n::get( 'phase2_checking' ),
-					'empty'           => LLM_Phrase_Game_I18n::get( 'empty_input' ),
-					'progress'        => LLM_Phrase_Game_I18n::get( 'progress' ),
-					'ajaxError'       => LLM_Phrase_Game_I18n::get( 'ajax_error' ),
-				),
+				'translatePrompt'  => LLM_Phrase_Game_I18n::get( 'translate_prompt' ),
+				'rewritePrompt'    => LLM_Phrase_Game_I18n::get( 'rewrite_prompt' ),
+				'phase1Fail'       => LLM_Phrase_Game_I18n::get( 'phase1_fail' ),
+			'phase2Fail'       => LLM_Phrase_Game_I18n::get( 'phase2_fail' ),
+			'phase2Complete'   => LLM_Phrase_Game_I18n::get( 'phase2_complete' ),
+			'phase2StoryContinue' => LLM_Phrase_Game_I18n::get( 'phase2_story_continue' ),
+			'phase2Checking'   => LLM_Phrase_Game_I18n::get( 'phase2_checking' ),
+			'bravoCorrect'     => LLM_Phrase_Game_I18n::get( 'bravo_correct' ),
+			'phraseCompletePoints' => LLM_Phrase_Game_I18n::get( 'phrase_complete_points' ),
+			'micUsedPoint'     => LLM_Phrase_Game_I18n::get( 'mic_used_point' ),
+			'micUsedNoPoint'   => LLM_Phrase_Game_I18n::get( 'mic_used_no_point' ),
+			'storyContinue'    => LLM_Phrase_Game_I18n::get( 'story_continue' ),
+				'empty'            => LLM_Phrase_Game_I18n::get( 'empty_input' ),
+				'progress'         => LLM_Phrase_Game_I18n::get( 'progress' ),
+				'ajaxError'        => LLM_Phrase_Game_I18n::get( 'ajax_error' ),
+				'restartConfirm'   => LLM_Phrase_Game_I18n::get( 'story_progress_confirm' ),
+			),
 				'gameFinished'        => $game_finished,
 				'savedPhraseIndex'    => $saved_phrase_ix,
 				'savedStep'           => $saved_step,
@@ -326,6 +340,7 @@ class LLM_Story_Phrase_Game {
 		$phase    = isset( $_POST['phase'] ) ? absint( wp_unslash( $_POST['phase'] ) ) : 0;
 		$user_raw = isset( $_POST['user_text'] ) ? wp_unslash( $_POST['user_text'] ) : '';
 		$user     = sanitize_textarea_field( $user_raw );
+		$mic_used = isset( $_POST['mic_used'] ) && '1' === $_POST['mic_used'];
 
 		$post = get_post( $story_id );
 		if ( ! $post || LLM_STORY_CPT !== $post->post_type || 'publish' !== $post->post_status ) {
@@ -386,9 +401,10 @@ class LLM_Story_Phrase_Game {
 			$phr_total  = count( $phrases );
 			$phrases_done = 0;
 
-			if ( is_user_logged_in() ) {
-				$uid = get_current_user_id();
-				LLM_User_Stats::record_phrase_completion( $uid, $story_id, $index );
+		if ( is_user_logged_in() ) {
+			$uid    = get_current_user_id();
+			$amount = $mic_used ? 2 : 1;
+			LLM_User_Stats::record_phrase_completion( $uid, $story_id, $index, $amount );
 				if ( $next ) {
 					LLM_Story_Game_Progress::upsert(
 						$uid,
@@ -404,12 +420,13 @@ class LLM_Story_Phrase_Game {
 
 			wp_send_json_success(
 				array(
-					'phase'            => 2,
-					'display_sentence' => $target,
-					'has_more'         => $next,
-					'next_index'       => $next ? $index + 1 : null,
-					'phrases_done'     => $phrases_done,
-					'phrases_total'    => $phr_total,
+					'phase'             => 2,
+					'display_sentence'  => $target,
+					'display_interface' => isset( $row['interface'] ) ? (string) $row['interface'] : '',
+					'has_more'          => $next,
+					'next_index'        => $next ? $index + 1 : null,
+					'phrases_done'      => $phrases_done,
+					'phrases_total'     => $phr_total,
 				)
 			);
 		}
@@ -466,6 +483,30 @@ class LLM_Story_Phrase_Game {
 		$s = preg_replace( '/[^\p{L}\p{N}\s]+/u', ' ', $s );
 		$s = preg_replace( '/\s+/u', ' ', $s );
 		return trim( $s );
+	}
+
+	/**
+	 * AJAX: ricomincia la storia dalla prima frase (solo utenti loggati).
+	 */
+	public static function ajax_restart() {
+		check_ajax_referer( 'llm_phrase_game', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( array( 'message' => 'Not logged in.' ), 403 );
+		}
+
+		$story_id = isset( $_POST['story_id'] ) ? absint( wp_unslash( $_POST['story_id'] ) ) : 0;
+		if ( ! $story_id ) {
+			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'invalid_story' ) ), 400 );
+		}
+
+		$post = get_post( $story_id );
+		if ( ! $post || LLM_STORY_CPT !== $post->post_type ) {
+			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'invalid_story' ) ), 400 );
+		}
+
+		LLM_User_Stats::reset_story_progress_for_user( get_current_user_id(), $story_id );
+		wp_send_json_success();
 	}
 
 	/**
