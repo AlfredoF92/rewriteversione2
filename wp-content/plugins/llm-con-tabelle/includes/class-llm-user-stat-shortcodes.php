@@ -201,14 +201,21 @@ class LLM_User_Stat_Shortcodes {
 			);
 		}
 
-		$uid  = get_current_user_id();
-		$code = (string) get_user_meta( $uid, LLM_User_Meta::LEARNING_LANG, true );
-		$code = sanitize_key( $code );
+		$uid            = get_current_user_id();
+		$learning_code  = sanitize_key( (string) get_user_meta( $uid, LLM_User_Meta::LEARNING_LANG, true ) );
+		$interface_code = sanitize_key( (string) get_user_meta( $uid, LLM_User_Meta::INTERFACE_LANG, true ) );
+		$learning_valid = ( '' !== $learning_code && LLM_Languages::is_valid( $learning_code ) );
+		$known_valid    = ( '' !== $interface_code && LLM_Languages::is_valid( $interface_code ) );
 
-		if ( $code === '' || ! LLM_Languages::is_valid( $code ) ) {
-			$label = __( 'Lingua non impostata', 'llm-con-tabelle' );
+		if ( $learning_valid && $known_valid ) {
+			$ui_lang = class_exists( 'LLM_User_Settings_I18n' ) ? LLM_User_Settings_I18n::lang_for_user( $uid ) : '';
+			$label   = strtoupper( $interface_code ) . ' -> ' . ( class_exists( 'LLM_User_Settings_I18n' ) ? LLM_User_Settings_I18n::language_label( $learning_code, $ui_lang ) : LLM_Languages::label( $learning_code ) );
+		} elseif ( $learning_valid ) {
+			$label = LLM_Languages::label( $learning_code );
+		} elseif ( $known_valid ) {
+			$label = strtoupper( $interface_code );
 		} else {
-			$label = LLM_Languages::label( $code );
+			$label = __( 'Lingua non impostata', 'llm-con-tabelle' );
 		}
 
 		$link_path   = trim( (string) $atts['link_path'] );

@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LLM_TABELLE_VERSION', '2.0.48' );
+define( 'LLM_TABELLE_VERSION', '2.0.55' );
 define( 'LLM_TABELLE_FILE', __FILE__ );
 define( 'LLM_TABELLE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LLM_TABELLE_URL', plugin_dir_url( __FILE__ ) );
@@ -43,6 +43,7 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-demo-community.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-template-vars.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-elementor-dynamic-tags.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-phrase-game-i18n.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-user-settings-i18n.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-game-progress.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-phrase-game.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-progress-bar-shortcode.php';
@@ -51,6 +52,7 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-header-user-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-stat-shortcodes.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-profile-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-learning-lang-shortcode.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-logout-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-elementor-group-control-related-unlocked.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-elementor-homepage-stories-loop.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-loop-filters-shortcode.php';
@@ -105,6 +107,7 @@ function llm_tabelle_boot() {
 	LLM_User_Stat_Shortcodes::init();
 	LLM_User_Profile_Shortcode::init();
 	LLM_Learning_Lang_Shortcode::init();
+	LLM_Logout_Shortcode::init();
 	LLM_Elementor_Homepage_Stories_Loop::init();
 	LLM_Elementor_Unlocked_Stories_Loop::init();
 	LLM_Area_Personale_Loop_Filters_Shortcode::init();

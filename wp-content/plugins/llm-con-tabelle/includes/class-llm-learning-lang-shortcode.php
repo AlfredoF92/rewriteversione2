@@ -35,6 +35,7 @@ class LLM_Learning_Lang_Shortcode {
 	 * @return string
 	 */
 	public static function render_shortcode( $atts ) {
+		$ui_lang = LLM_User_Settings_I18n::lang();
 		$atts = shortcode_atts(
 			array(
 				'login_path' => '/login',
@@ -71,10 +72,10 @@ class LLM_Learning_Lang_Shortcode {
 				'action'  => self::AJAX_ACTION,
 				'nonce'   => wp_create_nonce( self::NONCE_ACTION ),
 				'i18n'    => array(
-					'saved'        => __( 'Lingua di studio aggiornata.', 'llm-con-tabelle' ),
-					'networkError' => __( 'Errore di rete. Riprova.', 'llm-con-tabelle' ),
-					'langInvalid'  => __( 'Seleziona una lingua valida.', 'llm-con-tabelle' ),
-					'genericError' => __( 'Impossibile salvare. Riprova.', 'llm-con-tabelle' ),
+					'saved'        => LLM_User_Settings_I18n::get( 'saved_learning_lang', $ui_lang ),
+					'networkError' => LLM_User_Settings_I18n::get( 'network_error', $ui_lang ),
+					'langInvalid'  => LLM_User_Settings_I18n::get( 'learning_lang_invalid', $ui_lang ),
+					'genericError' => LLM_User_Settings_I18n::get( 'generic_error', $ui_lang ),
 				),
 			)
 		);
@@ -89,9 +90,9 @@ class LLM_Learning_Lang_Shortcode {
 			}
 			$login_url = esc_url( home_url( $path ) );
 			return '<div class="llm-user-profile llm-user-profile--guest llm-learning-lang"><p class="llm-user-profile__guest-msg">' .
-				esc_html( __( 'Accedi per impostare la lingua che vuoi imparare.', 'llm-con-tabelle' ) ) .
+				esc_html( LLM_User_Settings_I18n::get( 'guest_set_learning', $ui_lang ) ) .
 				'</p><p><a class="llm-user-profile__guest-link" href="' . $login_url . '">' .
-				esc_html( __( 'Vai al login', 'llm-con-tabelle' ) ) . '</a></p></div>';
+				esc_html( LLM_User_Settings_I18n::get( 'go_login', $ui_lang ) ) . '</a></p></div>';
 		}
 
 		$user = wp_get_current_user();
@@ -104,14 +105,14 @@ class LLM_Learning_Lang_Shortcode {
 		$code = sanitize_key( $code );
 
 		if ( $code === '' || ! LLM_Languages::is_valid( $code ) ) {
-			$view_label = __( 'Non impostata', 'llm-con-tabelle' );
+			$view_label = LLM_User_Settings_I18n::get( 'not_set', $ui_lang );
 			$sel_code   = '';
 		} else {
-			$view_label = LLM_Languages::label( $code );
+			$view_label = LLM_User_Settings_I18n::language_label( $code, $ui_lang );
 			$sel_code   = $code;
 		}
 
-		$lang_options = LLM_Languages::get_codes();
+		$lang_options = LLM_User_Settings_I18n::language_names( $ui_lang );
 		$uid_attr     = 'llm-learn-lang-' . uniqid( '', false );
 
 		ob_start();
@@ -120,21 +121,21 @@ class LLM_Learning_Lang_Shortcode {
 			<div class="llm-user-profile__panel llm-user-profile__panel--view" data-llm-panel="view">
 				<div class="llm-user-profile__list" role="list">
 					<div class="llm-user-profile__row" role="listitem">
-						<div class="llm-user-profile__dt"><?php echo esc_html( __( 'Lingua che vuoi imparare', 'llm-con-tabelle' ) ); ?></div>
+						<div class="llm-user-profile__dt"><?php echo esc_html( LLM_User_Settings_I18n::get( 'learning_lang_title', $ui_lang ) ); ?></div>
 						<div class="llm-user-profile__dd"><span data-llm-field="learning_label"><?php echo esc_html( $view_label ); ?></span></div>
 					</div>
 				</div>
 				<button type="button" class="llm-user-profile__btn llm-user-profile__btn--primary" data-llm-action="edit">
-					<?php echo esc_html( __( 'Modifica', 'llm-con-tabelle' ) ); ?>
+					<?php echo esc_html( LLM_User_Settings_I18n::get( 'edit', $ui_lang ) ); ?>
 				</button>
 			</div>
 
 			<div class="llm-user-profile__panel llm-user-profile__panel--edit" data-llm-panel="edit" hidden>
 				<form class="llm-user-profile__form" data-llm-learn-form novalidate>
 					<div class="llm-user-profile__field">
-						<label class="llm-user-profile__label" for="<?php echo esc_attr( $uid_attr ); ?>-learn"><?php echo esc_html( __( 'Lingua che vuoi imparare', 'llm-con-tabelle' ) ); ?></label>
+						<label class="llm-user-profile__label" for="<?php echo esc_attr( $uid_attr ); ?>-learn"><?php echo esc_html( LLM_User_Settings_I18n::get( 'learning_lang_title', $ui_lang ) ); ?></label>
 						<select class="llm-user-profile__input llm-user-profile__select" id="<?php echo esc_attr( $uid_attr ); ?>-learn" name="learning_lang" required>
-							<option value="" disabled <?php echo $sel_code === '' ? 'selected' : ''; ?>><?php echo esc_html( __( 'Scegli una lingua…', 'llm-con-tabelle' ) ); ?></option>
+							<option value="" disabled <?php echo $sel_code === '' ? 'selected' : ''; ?>><?php echo esc_html( LLM_User_Settings_I18n::get( 'choose_lang', $ui_lang ) ); ?></option>
 							<?php foreach ( $lang_options as $opt_code => $lab ) : ?>
 								<option value="<?php echo esc_attr( $opt_code ); ?>" <?php selected( $sel_code, $opt_code ); ?>><?php echo esc_html( $lab ); ?></option>
 							<?php endforeach; ?>
@@ -142,10 +143,10 @@ class LLM_Learning_Lang_Shortcode {
 					</div>
 					<div class="llm-user-profile__actions">
 						<button type="submit" class="llm-user-profile__btn llm-user-profile__btn--primary" data-llm-action="save">
-							<?php echo esc_html( __( 'Salva', 'llm-con-tabelle' ) ); ?>
+							<?php echo esc_html( LLM_User_Settings_I18n::get( 'save', $ui_lang ) ); ?>
 						</button>
 						<button type="button" class="llm-user-profile__btn llm-user-profile__btn--ghost" data-llm-action="cancel">
-							<?php echo esc_html( __( 'Annulla', 'llm-con-tabelle' ) ); ?>
+							<?php echo esc_html( LLM_User_Settings_I18n::get( 'cancel', $ui_lang ) ); ?>
 						</button>
 					</div>
 				</form>
@@ -164,12 +165,12 @@ class LLM_Learning_Lang_Shortcode {
 		check_ajax_referer( self::NONCE_ACTION, 'nonce' );
 
 		if ( ! is_user_logged_in() ) {
-			wp_send_json_error( array( 'message' => __( 'Non autorizzato.', 'llm-con-tabelle' ) ), 403 );
+			wp_send_json_error( array( 'message' => LLM_User_Settings_I18n::get( 'unauthorized' ) ), 403 );
 		}
 
 		$user = wp_get_current_user();
 		if ( ! $user || ! $user->exists() ) {
-			wp_send_json_error( array( 'message' => __( 'Utente non valido.', 'llm-con-tabelle' ) ), 403 );
+			wp_send_json_error( array( 'message' => LLM_User_Settings_I18n::get( 'invalid_user' ) ), 403 );
 		}
 
 		$uid = (int) $user->ID;
@@ -184,7 +185,7 @@ class LLM_Learning_Lang_Shortcode {
 		wp_send_json_success(
 			array(
 				'code'  => $raw,
-				'label' => LLM_Languages::label( $raw ),
+				'label' => LLM_User_Settings_I18n::language_label( $raw, LLM_User_Settings_I18n::lang_for_user( $uid ) ),
 			)
 		);
 	}

@@ -89,21 +89,22 @@
 	width: 100%;
 	max-width: 100%;
 	box-sizing: border-box;
-	padding: 0.55rem 0.65rem;
+	padding: 0.5rem 0.65rem;
 	font-family: inherit;
-	font-size: 0.95rem;
+	font-size: 0.9rem;
 	line-height: 1.4;
-	border: 1px solid #c3c4c7;
-	border-radius: 6px;
-	background: #fff;
+	border: 1px solid #8c8f94;
+	border-radius: 4px;
+	background: #fafafa;
 	color: inherit;
+	box-shadow: none;
 }
 
 .llm-user-profile__input:focus,
 .llm-user-profile__select:focus {
 	outline: none;
-	border-color: #2271b1;
-	box-shadow: 0 0 0 2px rgba(34, 113, 177, 0.15);
+	border-color: #50575e;
+	box-shadow: 0 0 0 2px rgba(80, 87, 94, 0.16);
 }
 
 .llm-user-profile__input[readonly] {
@@ -123,15 +124,16 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	padding: 0.45rem 1rem;
+	padding: 0.3rem 0.65rem;
 	font-family: inherit;
-	font-size: 0.875rem;
+	font-size: 0.78rem;
 	font-weight: 600;
 	line-height: 1.2;
-	border-radius: 4px;
+	letter-spacing: 0.02em;
+	border-radius: 2px;
 	cursor: pointer;
 	border: 1px solid transparent;
-	transition: opacity 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+	transition: opacity 0.15s ease, border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
 .llm-user-profile__btn:disabled {
@@ -140,24 +142,29 @@
 }
 
 .llm-user-profile__btn--primary {
-	color: #fff;
-	background: #2271b1;
-	border-color: #135e96;
+	color: #e8e8ea;
+	background: linear-gradient(180deg, #3a3a3d 0%, #252528 100%);
+	border-color: #1a1a1c;
+	box-shadow:
+		0 1px 0 rgba(255, 255, 255, 0.07) inset,
+		0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .llm-user-profile__btn--primary:hover:not(:disabled) {
-	background: #135e96;
+	color: #fafafa;
+	background: linear-gradient(180deg, #4a4a4e 0%, #323236 100%);
+	border-color: #0f0f10;
 }
 
 .llm-user-profile__btn--ghost {
 	color: #1a1a1a;
-	background: transparent;
-	border-color: #c3c4c7;
+	background: #fafafa;
+	border-color: #8c8f94;
 }
 
 .llm-user-profile__btn--ghost:hover:not(:disabled) {
-	border-color: #8c8f94;
-	background: rgba(0, 0, 0, 0.03);
+	border-color: #50575e;
+	background: #f0f0f1;
 }
 
 .llm-user-profile__message {

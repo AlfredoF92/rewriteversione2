@@ -121,7 +121,7 @@
 						}
 
 						msg(root, cfg.i18n.saved || '', false);
-						showPanel(root, 'view');
+						window.location.reload();
 					})
 					.catch(function () {
 						if (saveBtn) {

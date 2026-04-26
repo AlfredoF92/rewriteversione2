@@ -157,6 +157,24 @@
 	text-decoration: none;
 }
 
+/* Mobile: testo e icone bianchi per i chip statistiche header */
+@media (max-width: 767px) {
+	.llm-stat-chip,
+	.llm-stat-chip__label,
+	.llm-stat-chip__value,
+	.llm-stat-chip__text,
+	.llm-stat-chip__icon,
+	.llm-stat-chip .llm-header-icon {
+		color: #fff !important;
+	}
+
+	.llm-stat-chip .llm-header-icon,
+	.llm-stat-chip .llm-header-icon * {
+		stroke: #fff !important;
+		fill: #fff !important;
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.llm-header-user__account,
 	.llm-header-user__login,

@@ -33,6 +33,7 @@ class LLM_User_Profile_Shortcode {
 	 * @return string
 	 */
 	public static function render_shortcode( $atts ) {
+		$ui_lang = LLM_User_Settings_I18n::lang();
 		$atts = shortcode_atts(
 			array(
 				'login_path' => '/login',
@@ -69,16 +70,16 @@ class LLM_User_Profile_Shortcode {
 				'action'  => self::AJAX_ACTION,
 				'nonce'   => wp_create_nonce( self::NONCE_ACTION ),
 				'i18n'    => array(
-					'saved'           => __( 'Impostazioni salvate.', 'llm-con-tabelle' ),
-					'networkError'    => __( 'Errore di rete. Riprova.', 'llm-con-tabelle' ),
-					'invalidEmail'    => __( 'Indirizzo email non valido.', 'llm-con-tabelle' ),
-					'emailInUse'      => __( 'Questa email è già usata da un altro account.', 'llm-con-tabelle' ),
-					'passwordMismatch' => __( 'Le nuove password non coincidono.', 'llm-con-tabelle' ),
-					'passwordShort'   => __( 'La nuova password è troppo corta (minimo 8 caratteri).', 'llm-con-tabelle' ),
-					'passwordWrong'   => __( 'Password attuale non corretta.', 'llm-con-tabelle' ),
-					'passwordNeedOld' => __( 'Per impostare una nuova password inserisci anche la password attuale.', 'llm-con-tabelle' ),
-					'langInvalid'     => __( 'Lingua interfaccia non valida.', 'llm-con-tabelle' ),
-					'genericError'    => __( 'Impossibile salvare. Riprova.', 'llm-con-tabelle' ),
+					'saved'           => LLM_User_Settings_I18n::get( 'saved_settings', $ui_lang ),
+					'networkError'    => LLM_User_Settings_I18n::get( 'network_error', $ui_lang ),
+					'invalidEmail'    => LLM_User_Settings_I18n::get( 'invalid_email', $ui_lang ),
+					'emailInUse'      => LLM_User_Settings_I18n::get( 'email_in_use', $ui_lang ),
+					'passwordMismatch' => LLM_User_Settings_I18n::get( 'password_mismatch', $ui_lang ),
+					'passwordShort'   => LLM_User_Settings_I18n::get( 'password_short', $ui_lang ),
+					'passwordWrong'   => LLM_User_Settings_I18n::get( 'password_wrong', $ui_lang ),
+					'passwordNeedOld' => LLM_User_Settings_I18n::get( 'password_need_old', $ui_lang ),
+					'langInvalid'     => LLM_User_Settings_I18n::get( 'lang_invalid', $ui_lang ),
+					'genericError'    => LLM_User_Settings_I18n::get( 'generic_error', $ui_lang ),
 				),
 			)
 		);
@@ -93,9 +94,9 @@ class LLM_User_Profile_Shortcode {
 			}
 			$login_url = esc_url( home_url( $path ) );
 			return '<div class="llm-user-profile llm-user-profile--guest"><p class="llm-user-profile__guest-msg">' .
-				esc_html( __( 'Accedi per gestire il tuo profilo.', 'llm-con-tabelle' ) ) .
+				esc_html( LLM_User_Settings_I18n::get( 'guest_manage_profile', $ui_lang ) ) .
 				'</p><p><a class="llm-user-profile__guest-link" href="' . $login_url . '">' .
-				esc_html( __( 'Vai al login', 'llm-con-tabelle' ) ) . '</a></p></div>';
+				esc_html( LLM_User_Settings_I18n::get( 'go_login', $ui_lang ) ) . '</a></p></div>';
 		}
 
 		$user = wp_get_current_user();
@@ -111,9 +112,9 @@ class LLM_User_Profile_Shortcode {
 		if ( $interface_code === '' || ! LLM_Languages::is_valid( $interface_code ) ) {
 			$interface_code = 'it';
 		}
-		$interface_label = LLM_Languages::label( $interface_code );
+		$interface_label = LLM_User_Settings_I18n::language_label( $interface_code, $ui_lang );
 
-		$lang_options = LLM_Languages::get_codes();
+		$lang_options = LLM_User_Settings_I18n::language_names( $ui_lang );
 		$uid_attr     = 'llm-profile-' . uniqid( '', false );
 
 		ob_start();
@@ -122,53 +123,53 @@ class LLM_User_Profile_Shortcode {
 			<div class="llm-user-profile__panel llm-user-profile__panel--view" data-panel="view">
 				<div class="llm-user-profile__list" role="list">
 					<div class="llm-user-profile__row" role="listitem">
-						<div class="llm-user-profile__dt"><?php echo esc_html( __( 'Username', 'llm-con-tabelle' ) ); ?></div>
+						<div class="llm-user-profile__dt"><?php echo esc_html( LLM_User_Settings_I18n::get( 'username', $ui_lang ) ); ?></div>
 						<div class="llm-user-profile__dd"><span data-field="username"><?php echo esc_html( $username ); ?></span></div>
 					</div>
 					<div class="llm-user-profile__row" role="listitem">
-						<div class="llm-user-profile__dt"><?php echo esc_html( __( 'Email', 'llm-con-tabelle' ) ); ?></div>
+						<div class="llm-user-profile__dt"><?php echo esc_html( LLM_User_Settings_I18n::get( 'email', $ui_lang ) ); ?></div>
 						<div class="llm-user-profile__dd"><span data-field="email"><?php echo esc_html( $email ); ?></span></div>
 					</div>
 					<div class="llm-user-profile__row" role="listitem">
-						<div class="llm-user-profile__dt"><?php echo esc_html( __( 'Password', 'llm-con-tabelle' ) ); ?></div>
+						<div class="llm-user-profile__dt"><?php echo esc_html( LLM_User_Settings_I18n::get( 'password', $ui_lang ) ); ?></div>
 						<div class="llm-user-profile__dd"><span data-field="password-mask"><?php echo esc_html( __( '••••••••', 'llm-con-tabelle' ) ); ?></span></div>
 					</div>
 					<div class="llm-user-profile__row" role="listitem">
-						<div class="llm-user-profile__dt"><?php echo esc_html( __( 'Lingua che conosci (interfaccia)', 'llm-con-tabelle' ) ); ?></div>
+						<div class="llm-user-profile__dt"><?php echo esc_html( LLM_User_Settings_I18n::get( 'known_lang', $ui_lang ) ); ?></div>
 						<div class="llm-user-profile__dd"><span data-field="interface_label"><?php echo esc_html( $interface_label ); ?></span></div>
 					</div>
 				</div>
-				<p class="llm-user-profile__hint"><?php echo esc_html( __( 'Lo username non è modificabile.', 'llm-con-tabelle' ) ); ?></p>
+				<p class="llm-user-profile__hint"><?php echo esc_html( LLM_User_Settings_I18n::get( 'username_hint', $ui_lang ) ); ?></p>
 				<button type="button" class="llm-user-profile__btn llm-user-profile__btn--primary" data-action="edit">
-					<?php echo esc_html( __( 'Modifica', 'llm-con-tabelle' ) ); ?>
+					<?php echo esc_html( LLM_User_Settings_I18n::get( 'edit', $ui_lang ) ); ?>
 				</button>
 			</div>
 
 			<div class="llm-user-profile__panel llm-user-profile__panel--edit" data-panel="edit" hidden>
 				<form class="llm-user-profile__form" data-profile-form novalidate>
 					<div class="llm-user-profile__field">
-						<label class="llm-user-profile__label"><?php echo esc_html( __( 'Username', 'llm-con-tabelle' ) ); ?></label>
+						<label class="llm-user-profile__label"><?php echo esc_html( LLM_User_Settings_I18n::get( 'username', $ui_lang ) ); ?></label>
 						<input type="text" class="llm-user-profile__input" value="<?php echo esc_attr( $username ); ?>" readonly autocomplete="username">
 					</div>
 					<div class="llm-user-profile__field">
-						<label class="llm-user-profile__label" for="<?php echo esc_attr( $uid_attr ); ?>-email"><?php echo esc_html( __( 'Email', 'llm-con-tabelle' ) ); ?></label>
+						<label class="llm-user-profile__label" for="<?php echo esc_attr( $uid_attr ); ?>-email"><?php echo esc_html( LLM_User_Settings_I18n::get( 'email', $ui_lang ) ); ?></label>
 						<input type="email" class="llm-user-profile__input" id="<?php echo esc_attr( $uid_attr ); ?>-email" name="user_email" value="<?php echo esc_attr( $email ); ?>" required autocomplete="email">
 					</div>
 					<div class="llm-user-profile__field">
-						<label class="llm-user-profile__label" for="<?php echo esc_attr( $uid_attr ); ?>-old-pass"><?php echo esc_html( __( 'Password attuale', 'llm-con-tabelle' ) ); ?></label>
+						<label class="llm-user-profile__label" for="<?php echo esc_attr( $uid_attr ); ?>-old-pass"><?php echo esc_html( LLM_User_Settings_I18n::get( 'current_password', $ui_lang ) ); ?></label>
 						<input type="password" class="llm-user-profile__input" id="<?php echo esc_attr( $uid_attr ); ?>-old-pass" name="old_password" value="" autocomplete="current-password">
-						<p class="llm-user-profile__field-hint"><?php echo esc_html( __( 'Obbligatoria solo se cambi password.', 'llm-con-tabelle' ) ); ?></p>
+						<p class="llm-user-profile__field-hint"><?php echo esc_html( LLM_User_Settings_I18n::get( 'current_password_hint', $ui_lang ) ); ?></p>
 					</div>
 					<div class="llm-user-profile__field">
-						<label class="llm-user-profile__label" for="<?php echo esc_attr( $uid_attr ); ?>-new-pass"><?php echo esc_html( __( 'Nuova password', 'llm-con-tabelle' ) ); ?></label>
+						<label class="llm-user-profile__label" for="<?php echo esc_attr( $uid_attr ); ?>-new-pass"><?php echo esc_html( LLM_User_Settings_I18n::get( 'new_password', $ui_lang ) ); ?></label>
 						<input type="password" class="llm-user-profile__input" id="<?php echo esc_attr( $uid_attr ); ?>-new-pass" name="new_password" value="" autocomplete="new-password" minlength="8">
 					</div>
 					<div class="llm-user-profile__field">
-						<label class="llm-user-profile__label" for="<?php echo esc_attr( $uid_attr ); ?>-new-pass2"><?php echo esc_html( __( 'Ripeti nuova password', 'llm-con-tabelle' ) ); ?></label>
+						<label class="llm-user-profile__label" for="<?php echo esc_attr( $uid_attr ); ?>-new-pass2"><?php echo esc_html( LLM_User_Settings_I18n::get( 'repeat_new_password', $ui_lang ) ); ?></label>
 						<input type="password" class="llm-user-profile__input" id="<?php echo esc_attr( $uid_attr ); ?>-new-pass2" name="new_password_confirm" value="" autocomplete="new-password" minlength="8">
 					</div>
 					<div class="llm-user-profile__field">
-						<label class="llm-user-profile__label" for="<?php echo esc_attr( $uid_attr ); ?>-iface"><?php echo esc_html( __( 'Lingua che conosci (interfaccia)', 'llm-con-tabelle' ) ); ?></label>
+						<label class="llm-user-profile__label" for="<?php echo esc_attr( $uid_attr ); ?>-iface"><?php echo esc_html( LLM_User_Settings_I18n::get( 'known_lang', $ui_lang ) ); ?></label>
 						<select class="llm-user-profile__input llm-user-profile__select" id="<?php echo esc_attr( $uid_attr ); ?>-iface" name="interface_lang">
 							<?php foreach ( $lang_options as $code => $lab ) : ?>
 								<option value="<?php echo esc_attr( $code ); ?>" <?php selected( $interface_code, $code ); ?>><?php echo esc_html( $lab ); ?></option>
@@ -177,10 +178,10 @@ class LLM_User_Profile_Shortcode {
 					</div>
 					<div class="llm-user-profile__actions">
 						<button type="submit" class="llm-user-profile__btn llm-user-profile__btn--primary" data-action="save">
-							<?php echo esc_html( __( 'Salva', 'llm-con-tabelle' ) ); ?>
+							<?php echo esc_html( LLM_User_Settings_I18n::get( 'save', $ui_lang ) ); ?>
 						</button>
 						<button type="button" class="llm-user-profile__btn llm-user-profile__btn--ghost" data-action="cancel">
-							<?php echo esc_html( __( 'Annulla', 'llm-con-tabelle' ) ); ?>
+							<?php echo esc_html( LLM_User_Settings_I18n::get( 'cancel', $ui_lang ) ); ?>
 						</button>
 					</div>
 				</form>
@@ -199,12 +200,12 @@ class LLM_User_Profile_Shortcode {
 		check_ajax_referer( self::NONCE_ACTION, 'nonce' );
 
 		if ( ! is_user_logged_in() ) {
-			wp_send_json_error( array( 'message' => __( 'Non autorizzato.', 'llm-con-tabelle' ) ), 403 );
+			wp_send_json_error( array( 'message' => LLM_User_Settings_I18n::get( 'unauthorized' ) ), 403 );
 		}
 
 		$user = wp_get_current_user();
 		if ( ! $user || ! $user->exists() ) {
-			wp_send_json_error( array( 'message' => __( 'Utente non valido.', 'llm-con-tabelle' ) ), 403 );
+			wp_send_json_error( array( 'message' => LLM_User_Settings_I18n::get( 'invalid_user' ) ), 403 );
 		}
 
 		$uid = (int) $user->ID;
@@ -270,7 +271,7 @@ class LLM_User_Profile_Shortcode {
 			array(
 				'email'           => $email,
 				'interface_code'  => $interface,
-				'interface_label' => LLM_Languages::label( $interface ),
+				'interface_label' => LLM_User_Settings_I18n::language_label( $interface, $interface ),
 				'passwordChanged' => ( $new_pass !== '' ),
 			)
 		);

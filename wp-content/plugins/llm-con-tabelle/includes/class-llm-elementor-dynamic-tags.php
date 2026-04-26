@@ -53,5 +53,17 @@ class LLM_Elementor_Dynamic_Tags {
 		$dynamic_tags_manager->register( new LLM_Elementor_Tag_Hero_Badge() );
 		$dynamic_tags_manager->register( new LLM_Elementor_Tag_Hero_Title() );
 		$dynamic_tags_manager->register( new LLM_Elementor_Tag_Hero_Subtitle() );
+
+		// User tags
+		$dynamic_tags_manager->register_group(
+			'llm-user',
+			array(
+				'title' => __( 'LLM User', 'llm-con-tabelle' ),
+			)
+		);
+
+		require_once LLM_TABELLE_DIR . 'includes/elementor/class-llm-elementor-tag-user-greeting.php';
+
+		$dynamic_tags_manager->register( new LLM_Elementor_Tag_User_Greeting() );
 	}
 }
