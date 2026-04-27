@@ -22,6 +22,8 @@ class LLM_Admin_Story {
 		add_filter( 'manage_' . LLM_STORY_CPT . '_posts_columns', array( __CLASS__, 'columns' ) );
 		add_action( 'manage_' . LLM_STORY_CPT . '_posts_custom_column', array( __CLASS__, 'column_content' ), 10, 2 );
 		add_action( 'quick_edit_custom_box', array( __CLASS__, 'quick_edit_box' ), 10, 2 );
+		add_action( 'restrict_manage_posts', array( __CLASS__, 'story_list_filters' ), 10, 2 );
+		add_action( 'pre_get_posts', array( __CLASS__, 'filter_story_list_query' ) );
 	}
 
 	public static function enqueue( $hook ) {
@@ -73,6 +75,8 @@ class LLM_Admin_Story {
 			LLM_TABELLE_VERSION,
 			true
 		);
+		$post_id = isset( $GLOBALS['post']->ID ) ? (int) $GLOBALS['post']->ID : 0;
+
 		wp_localize_script(
 			'llm-admin-story',
 			'llmAdmin',
@@ -84,6 +88,31 @@ class LLM_Admin_Story {
 				'beforeAllPhrases' => __( 'Prima di tutte le frasi', 'llm-con-tabelle' ),
 				'phraseLabel'      => __( 'Frase', 'llm-con-tabelle' ),
 				'emptyPhraseHint'  => __( '(nessun testo interfaccia)', 'llm-con-tabelle' ),
+				'ajaxUrl'          => admin_url( 'admin-ajax.php' ),
+				'postId'           => $post_id,
+				'csvNonce'         => wp_create_nonce( LLM_Story_Phrases_Csv::NONCE_ACTION ),
+				'csvNoncePost'     => $post_id ? wp_create_nonce( LLM_Story_Phrases_Csv::NONCE_ACTION . '_' . $post_id ) : '',
+				'csvExportUrl'     => $post_id ? LLM_Story_Phrases_Csv::export_url( $post_id ) : '',
+				'csvPreviewAction' => 'llm_story_phrases_preview_import',
+				'csvCommitAction'  => 'llm_story_phrases_commit_import',
+				'csvColPos'        => __( 'N.', 'llm-con-tabelle' ),
+				'csvColAction'     => __( 'Operazione', 'llm-con-tabelle' ),
+				'csvColIface'      => __( 'Frase (interfaccia)', 'llm-con-tabelle' ),
+				'csvColTarget'     => __( 'Frase (obiettivo)', 'llm-con-tabelle' ),
+				'csvColGrammar'    => __( 'Analisi grammaticale', 'llm-con-tabelle' ),
+				'csvColAlt'        => __( 'Traduzione alternativa', 'llm-con-tabelle' ),
+				'csvModalTitle'    => __( 'Anteprima importazione CSV', 'llm-con-tabelle' ),
+				'csvSummary'       => __( 'Riepilogo: %1$d sostituzioni, %2$d aggiunte.', 'llm-con-tabelle' ),
+				'csvBtnImport'     => __( 'Scegli file CSV…', 'llm-con-tabelle' ),
+				'csvBtnExport'     => __( 'Esporta CSV', 'llm-con-tabelle' ),
+				'csvBtnCancel'     => __( 'Annulla', 'llm-con-tabelle' ),
+				'csvBtnConfirm'    => __( 'Salva importazione', 'llm-con-tabelle' ),
+				'csvBtnClose'      => __( 'Chiudi', 'llm-con-tabelle' ),
+				'csvLogTitle'      => __( 'Log importazione', 'llm-con-tabelle' ),
+				'csvLoading'       => __( 'Elaborazione…', 'llm-con-tabelle' ),
+				'csvPasteEmpty'    => __( 'Incolla prima il testo CSV.', 'llm-con-tabelle' ),
+				'csvErrGeneric'    => __( 'Operazione non riuscita.', 'llm-con-tabelle' ),
+				'csvNeedSaveDraft' => __( 'Salva prima la bozza per usare import/export CSV.', 'llm-con-tabelle' ),
 			)
 		);
 	}
@@ -189,6 +218,26 @@ class LLM_Admin_Story {
 		}
 		?>
 		<p class="description"><?php esc_html_e( 'Salvate in tabella dedicata (nessun JSON). Trascina per riordinare.', 'llm-con-tabelle' ); ?></p>
+		<p class="llm-phrases-csv-toolbar">
+			<?php if ( $post->ID > 0 ) : ?>
+				<a href="<?php echo esc_url( LLM_Story_Phrases_Csv::export_url( $post->ID ) ); ?>" class="button" id="llm-phrases-csv-export"><?php esc_html_e( 'Esporta CSV', 'llm-con-tabelle' ); ?></a>
+				<label for="llm-phrases-csv-file" class="button" id="llm-phrases-csv-import"><?php esc_html_e( 'Importa CSV…', 'llm-con-tabelle' ); ?></label>
+				<input type="file" id="llm-phrases-csv-file" accept=".csv,text/csv" tabindex="-1" class="llm-csv-file-input-hidden" />
+				<button type="button" class="button" id="llm-phrases-csv-paste-toggle" aria-expanded="false" aria-controls="llm-phrases-csv-paste-panel"><?php esc_html_e( 'Incolla CSV…', 'llm-con-tabelle' ); ?></button>
+			<?php else : ?>
+				<span class="description"><?php esc_html_e( 'Salva la bozza per abilitare importazione ed esportazione CSV delle frasi.', 'llm-con-tabelle' ); ?></span>
+			<?php endif; ?>
+		</p>
+		<?php if ( $post->ID > 0 ) : ?>
+		<div id="llm-phrases-csv-paste-panel" class="llm-phrases-csv-paste-panel" hidden>
+			<p class="description"><?php esc_html_e( 'Incolla qui il contenuto del CSV (delimitatore punto e virgola, come dall’esportazione). Puoi includere tag HTML per la formattazione (stessi criteri di sicurezza dei contenuti del sito). Poi usa «Anteprima importazione».', 'llm-con-tabelle' ); ?></p>
+			<label for="llm-phrases-csv-paste" class="screen-reader-text"><?php esc_html_e( 'Contenuto CSV', 'llm-con-tabelle' ); ?></label>
+			<textarea id="llm-phrases-csv-paste" class="large-text code" rows="12" spellcheck="false"></textarea>
+			<p class="llm-phrases-csv-paste-actions">
+				<button type="button" class="button button-primary" id="llm-phrases-csv-paste-preview"><?php esc_html_e( 'Anteprima importazione', 'llm-con-tabelle' ); ?></button>
+			</p>
+		</div>
+		<?php endif; ?>
 		<div id="llm-phrases-list" class="llm-sortable-list">
 			<?php
 			foreach ( $phrases as $i => $p ) {
@@ -202,6 +251,49 @@ class LLM_Admin_Story {
 		<script type="text/template" id="llm-phrase-template">
 			<?php self::render_phrase_row( '{{IDX}}', array( 'interface' => '', 'target' => '', 'grammar' => '', 'alt' => '' ) ); ?>
 		</script>
+		<?php if ( $post->ID > 0 ) : ?>
+		<div id="llm-phrases-csv-modal" class="llm-csv-modal" hidden aria-hidden="true">
+			<div class="llm-csv-modal__backdrop" tabindex="-1"></div>
+			<div class="llm-csv-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="llm-phrases-csv-modal-title">
+				<div class="llm-csv-modal__head">
+					<h2 id="llm-phrases-csv-modal-title" class="llm-csv-modal__title"><?php esc_html_e( 'Anteprima importazione CSV', 'llm-con-tabelle' ); ?></h2>
+					<button type="button" class="button-link llm-csv-modal__x" id="llm-phrases-csv-modal-close" aria-label="<?php esc_attr_e( 'Chiudi', 'llm-con-tabelle' ); ?>">×</button>
+				</div>
+				<div class="llm-csv-modal__body">
+					<div id="llm-phrases-csv-modal-step-preview">
+						<p id="llm-phrases-csv-summary" class="llm-csv-summary"></p>
+						<ul id="llm-phrases-csv-warnings" class="llm-csv-warnings"></ul>
+						<div class="llm-csv-table-wrap">
+							<table class="widefat striped llm-csv-preview-table">
+								<thead>
+									<tr>
+										<th><?php esc_html_e( 'N.', 'llm-con-tabelle' ); ?></th>
+										<th><?php esc_html_e( 'Operazione', 'llm-con-tabelle' ); ?></th>
+										<th><?php esc_html_e( 'Frase (interfaccia)', 'llm-con-tabelle' ); ?></th>
+										<th><?php esc_html_e( 'Frase (obiettivo)', 'llm-con-tabelle' ); ?></th>
+										<th><?php esc_html_e( 'Analisi grammaticale', 'llm-con-tabelle' ); ?></th>
+										<th><?php esc_html_e( 'Traduzione alternativa', 'llm-con-tabelle' ); ?></th>
+									</tr>
+								</thead>
+								<tbody id="llm-phrases-csv-preview-rows"></tbody>
+							</table>
+						</div>
+					</div>
+					<div id="llm-phrases-csv-modal-step-log" hidden>
+						<p class="llm-csv-log-title"><?php esc_html_e( 'Log importazione', 'llm-con-tabelle' ); ?></p>
+						<pre id="llm-phrases-csv-log" class="llm-csv-log"></pre>
+					</div>
+				</div>
+				<div class="llm-csv-modal__foot" id="llm-phrases-csv-modal-foot-preview">
+					<button type="button" class="button" id="llm-phrases-csv-cancel"><?php esc_html_e( 'Annulla', 'llm-con-tabelle' ); ?></button>
+					<button type="button" class="button button-primary" id="llm-phrases-csv-confirm"><?php esc_html_e( 'Salva importazione', 'llm-con-tabelle' ); ?></button>
+				</div>
+				<div class="llm-csv-modal__foot" id="llm-phrases-csv-modal-foot-done" hidden>
+					<button type="button" class="button button-primary" id="llm-phrases-csv-done"><?php esc_html_e( 'Chiudi', 'llm-con-tabelle' ); ?></button>
+				</div>
+			</div>
+		</div>
+		<?php endif; ?>
 		<?php
 	}
 
@@ -242,7 +334,7 @@ class LLM_Admin_Story {
 	}
 
 	private static function phrase_preview_text( $interface ) {
-		$t = trim( preg_replace( '/\s+/', ' ', (string) $interface ) );
+		$t = trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( (string) $interface ) ) );
 		if ( $t === '' ) {
 			return __( '(nessun testo interfaccia)', 'llm-con-tabelle' );
 		}
@@ -531,6 +623,117 @@ class LLM_Admin_Story {
 			return;
 		}
 		LLM_Story_Repository::delete_for_story( $post_id );
+	}
+
+	/**
+	 * Dropdown filtri lingua nella lista storie (edit.php).
+	 *
+	 * @param string $post_type Post type della schermata.
+	 * @param string $which     'top' | 'bottom' (da WP 4.6).
+	 */
+	public static function story_list_filters( $post_type, $which = '' ) {
+		if ( LLM_STORY_CPT !== $post_type ) {
+			return;
+		}
+		if ( $which && 'top' !== $which ) {
+			return;
+		}
+
+		$codes = LLM_Languages::get_codes();
+		$fk    = isset( $_GET['llm_filter_known'] ) ? sanitize_key( wp_unslash( $_GET['llm_filter_known'] ) ) : '';
+		$ft    = isset( $_GET['llm_filter_target'] ) ? sanitize_key( wp_unslash( $_GET['llm_filter_target'] ) ) : '';
+		if ( $fk && ! LLM_Languages::is_valid( $fk ) ) {
+			$fk = '';
+		}
+		if ( $ft && ! LLM_Languages::is_valid( $ft ) ) {
+			$ft = '';
+		}
+
+		echo '<label for="llm_filter_known" class="screen-reader-text">' . esc_html__( 'Lingua interfaccia (nota)', 'llm-con-tabelle' ) . '</label>';
+		echo '<select name="llm_filter_known" id="llm_filter_known">';
+		echo '<option value="">' . esc_html__( 'Tutte — interfaccia', 'llm-con-tabelle' ) . '</option>';
+		foreach ( $codes as $code => $label ) {
+			echo '<option value="' . esc_attr( $code ) . '"' . selected( $fk, $code, false ) . '>' . esc_html( $label . ' (' . $code . ')' ) . '</option>';
+		}
+		echo '</select> ';
+
+		echo '<label for="llm_filter_target" class="screen-reader-text">' . esc_html__( 'Lingua da imparare (obiettivo)', 'llm-con-tabelle' ) . '</label>';
+		echo '<select name="llm_filter_target" id="llm_filter_target">';
+		echo '<option value="">' . esc_html__( 'Tutte — obiettivo', 'llm-con-tabelle' ) . '</option>';
+		foreach ( $codes as $code => $label ) {
+			echo '<option value="' . esc_attr( $code ) . '"' . selected( $ft, $code, false ) . '>' . esc_html( $label . ' (' . $code . ')' ) . '</option>';
+		}
+		echo '</select>';
+	}
+
+	/**
+	 * Applica meta_query alla lista storie in base ai filtri GET.
+	 *
+	 * @param \WP_Query $query Query principale admin.
+	 */
+	public static function filter_story_list_query( $query ) {
+		if ( ! is_admin() || ! $query->is_main_query() ) {
+			return;
+		}
+
+		global $pagenow;
+		if ( 'edit.php' !== $pagenow ) {
+			return;
+		}
+
+		$qv = $query->get( 'post_type' );
+		if ( LLM_STORY_CPT !== $qv && ! ( is_array( $qv ) && in_array( LLM_STORY_CPT, $qv, true ) ) ) {
+			return;
+		}
+
+		$pto = get_post_type_object( LLM_STORY_CPT );
+		if ( ! $pto || ! current_user_can( $pto->cap->edit_posts ) ) {
+			return;
+		}
+
+		$fk = isset( $_GET['llm_filter_known'] ) ? sanitize_key( wp_unslash( $_GET['llm_filter_known'] ) ) : '';
+		$ft = isset( $_GET['llm_filter_target'] ) ? sanitize_key( wp_unslash( $_GET['llm_filter_target'] ) ) : '';
+		if ( $fk && ! LLM_Languages::is_valid( $fk ) ) {
+			$fk = '';
+		}
+		if ( $ft && ! LLM_Languages::is_valid( $ft ) ) {
+			$ft = '';
+		}
+
+		$clauses = array();
+		if ( $fk ) {
+			$clauses[] = array(
+				'key'     => LLM_Story_Meta::KNOWN_LANG,
+				'value'   => $fk,
+				'compare' => '=',
+				'type'    => 'CHAR',
+			);
+		}
+		if ( $ft ) {
+			$clauses[] = array(
+				'key'     => LLM_Story_Meta::TARGET_LANG,
+				'value'   => $ft,
+				'compare' => '=',
+				'type'    => 'CHAR',
+			);
+		}
+		if ( empty( $clauses ) ) {
+			return;
+		}
+
+		$existing = $query->get( 'meta_query' );
+		$parts    = array();
+		if ( is_array( $existing ) && ! empty( $existing ) ) {
+			$parts[] = $existing;
+		}
+		foreach ( $clauses as $c ) {
+			$parts[] = $c;
+		}
+		if ( count( $parts ) === 1 ) {
+			$query->set( 'meta_query', $parts[0] );
+		} else {
+			$query->set( 'meta_query', array_merge( array( 'relation' => 'AND' ), $parts ) );
+		}
 	}
 
 	public static function columns( $columns ) {

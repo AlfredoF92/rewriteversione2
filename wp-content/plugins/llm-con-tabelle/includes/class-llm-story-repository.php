@@ -75,8 +75,24 @@ class LLM_Story_Repository {
 	}
 
 	/**
+	 * Sanifica contenuto frase conservando HTML consentito (come i post: `wp_kses_post`).
+	 *
+	 * @param mixed $value Valore grezzo.
+	 * @return string
+	 */
+	public static function sanitize_phrase_rich_text( $value ) {
+		if ( null === $value || false === $value ) {
+			return '';
+		}
+		$s = is_string( $value ) ? $value : (string) $value;
+		$s = str_replace( "\0", '', $s );
+
+		return wp_kses_post( $s );
+	}
+
+	/**
 	 * @param int   $story_id ID post.
-	 * @param array $phrases  Array di righe con chiavi interface, target, grammar, alt.
+	 * @param array $phrases  Array di righe con chiavi interface, target, grammar, alt (HTML consentito).
 	 */
 	public static function save_phrases( $story_id, array $phrases ) {
 		global $wpdb;
@@ -97,10 +113,10 @@ class LLM_Story_Repository {
 				array(
 					'story_id'         => $story_id,
 					'sort_order'       => $order,
-					'phrase_interface' => isset( $row['interface'] ) ? sanitize_textarea_field( wp_unslash( $row['interface'] ) ) : '',
-					'phrase_target'    => isset( $row['target'] ) ? sanitize_textarea_field( wp_unslash( $row['target'] ) ) : '',
-					'phrase_grammar'   => isset( $row['grammar'] ) ? sanitize_textarea_field( wp_unslash( $row['grammar'] ) ) : '',
-					'phrase_alt'       => isset( $row['alt'] ) ? sanitize_textarea_field( wp_unslash( $row['alt'] ) ) : '',
+					'phrase_interface' => isset( $row['interface'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['interface'] ) ) : '',
+					'phrase_target'    => isset( $row['target'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['target'] ) ) : '',
+					'phrase_grammar'   => isset( $row['grammar'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['grammar'] ) ) : '',
+					'phrase_alt'       => isset( $row['alt'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['alt'] ) ) : '',
 				),
 				array( '%d', '%d', '%s', '%s', '%s', '%s' )
 			);
@@ -203,10 +219,10 @@ class LLM_Story_Repository {
 				continue;
 			}
 			$out[] = array(
-				'interface' => isset( $row['interface'] ) ? sanitize_textarea_field( wp_unslash( $row['interface'] ) ) : '',
-				'target'    => isset( $row['target'] ) ? sanitize_textarea_field( wp_unslash( $row['target'] ) ) : '',
-				'grammar'   => isset( $row['grammar'] ) ? sanitize_textarea_field( wp_unslash( $row['grammar'] ) ) : '',
-				'alt'       => isset( $row['alt'] ) ? sanitize_textarea_field( wp_unslash( $row['alt'] ) ) : '',
+				'interface' => isset( $row['interface'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['interface'] ) ) : '',
+				'target'    => isset( $row['target'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['target'] ) ) : '',
+				'grammar'   => isset( $row['grammar'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['grammar'] ) ) : '',
+				'alt'       => isset( $row['alt'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['alt'] ) ) : '',
 			);
 		}
 		return $out;

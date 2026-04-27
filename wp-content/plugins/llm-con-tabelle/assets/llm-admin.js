@@ -260,6 +260,163 @@
 			return;
 		}
 
+		function replacePhrasesFromServer( phrases ) {
+			var $list = $( '#llm-phrases-list' );
+			var tpl   = $( '#llm-phrase-template' ).html();
+			if ( ! tpl ) {
+				return;
+			}
+			$list.empty();
+			if ( ! phrases || ! phrases.length ) {
+				addPhraseRow();
+				return;
+			}
+			phrases.forEach( function ( row, i ) {
+				var html = tpl.split( '{{IDX}}' ).join( String( i ) ).split( '{{NUM}}' ).join( String( i + 1 ) );
+				var $row = $( html );
+				var $ta  = $row.find( 'textarea' );
+				if ( $ta.length >= 4 ) {
+					$ta.eq( 0 ).val( row.interface || '' );
+					$ta.eq( 1 ).val( row.target || '' );
+					$ta.eq( 2 ).val( row.grammar || '' );
+					$ta.eq( 3 ).val( row.alt || '' );
+				}
+				$list.append( $row );
+			} );
+			renumberPhraseNames();
+			refreshMediaPositionSelects();
+		}
+
+		function llmCsvShowModal( show ) {
+			var $m = $( '#llm-phrases-csv-modal' );
+			if ( ! $m.length ) {
+				return;
+			}
+			$m.prop( 'hidden', ! show );
+			$m.attr( 'aria-hidden', show ? 'false' : 'true' );
+			if ( show ) {
+				$( document.body ).addClass( 'llm-csv-modal-open' );
+			} else {
+				$( document.body ).removeClass( 'llm-csv-modal-open' );
+			}
+		}
+
+		function llmCsvResetModal() {
+			$( '#llm-phrases-csv-preview-rows' ).empty();
+			$( '#llm-phrases-csv-warnings' ).empty();
+			$( '#llm-phrases-csv-summary' ).text( '' );
+			$( '#llm-phrases-csv-log' ).text( '' );
+			$( '#llm-phrases-csv-modal-step-preview' ).prop( 'hidden', false );
+			$( '#llm-phrases-csv-modal-step-log' ).prop( 'hidden', true );
+			$( '#llm-phrases-csv-modal-foot-preview' ).prop( 'hidden', false );
+			$( '#llm-phrases-csv-modal-foot-done' ).prop( 'hidden', true );
+			$( '#llm-phrases-csv-confirm' ).prop( 'disabled', false ).removeClass( 'disabled' );
+			$( '#llm-phrases-csv-cancel' ).prop( 'disabled', false );
+		}
+
+		function llmCsvAppendLogLines( lines, done ) {
+			var $log = $( '#llm-phrases-csv-log' );
+			$log.text( '' );
+			var i = 0;
+			function step() {
+				if ( i >= lines.length ) {
+					if ( typeof done === 'function' ) {
+						done();
+					}
+					return;
+				}
+				$log.append( ( i > 0 ? '\n' : '' ) + lines[ i ] );
+				i += 1;
+				window.setTimeout( step, 200 );
+			}
+			step();
+		}
+
+		var llmCsvPendingToken = '';
+
+		function llmCsvCollapsePastePanel() {
+			var $p = $( '#llm-phrases-csv-paste-panel' );
+			var $t = $( '#llm-phrases-csv-paste-toggle' );
+			if ( $p.length ) {
+				$p.prop( 'hidden', true );
+			}
+			if ( $t.length ) {
+				$t.attr( 'aria-expanded', 'false' );
+			}
+		}
+
+		function llmCsvBuildPreviewFormData() {
+			var fd = new FormData();
+			fd.append( 'action', llmAdmin.csvPreviewAction || 'llm_story_phrases_preview_import' );
+			fd.append( 'nonce', llmAdmin.csvNonce || '' );
+			fd.append( 'nonce_post', llmAdmin.csvNoncePost || '' );
+			fd.append( 'post_id', String( llmAdmin.postId || 0 ) );
+			return fd;
+		}
+
+		function llmCsvApplyPreviewSuccess( res ) {
+			llmCsvPendingToken = res.data.token || '';
+			var prev   = res.data.preview || [];
+			var labels = res.data.labels || {};
+			var $tb    = $( '#llm-phrases-csv-preview-rows' );
+			$tb.empty();
+			prev.forEach( function ( row ) {
+				var op = row.action === 'replace' ? ( labels.replace || 'Sostituzione' ) : ( labels.add || 'Aggiunta' );
+				var $tr = $( '<tr/>' );
+				$tr.append( $( '<td/>' ).text( String( row.position ) ) );
+				$tr.append( $( '<td/>' ).append( $( '<span class="llm-csv-badge llm-csv-badge--' + row.action + '"/>' ).text( op ) ) );
+				$tr.append( $( '<td class="llm-csv-cell-text"/>' ).text( row.interface || '' ) );
+				$tr.append( $( '<td class="llm-csv-cell-text"/>' ).text( row.target || '' ) );
+				$tr.append( $( '<td class="llm-csv-cell-text"/>' ).text( row.grammar || '' ) );
+				$tr.append( $( '<td class="llm-csv-cell-text"/>' ).text( row.alt || '' ) );
+				$tb.append( $tr );
+			} );
+			var sum = res.data.summary || { replace: 0, add: 0 };
+			var sumTpl = llmAdmin.csvSummary || '';
+			$( '#llm-phrases-csv-summary' ).text(
+				sumTpl.replace( '%1$d', String( sum.replace || 0 ) ).replace( '%2$d', String( sum.add || 0 ) )
+			);
+			var $warn = $( '#llm-phrases-csv-warnings' );
+			$warn.empty();
+			( res.data.warnings || [] ).forEach( function ( w ) {
+				$warn.append( $( '<li/>' ).text( w ) );
+			} );
+		}
+
+		function llmCsvRunPreviewRequest( fd ) {
+			llmCsvResetModal();
+			$( '#llm-phrases-csv-summary' ).text( llmAdmin.csvLoading || '…' );
+			llmCsvShowModal( true );
+
+			$.ajax( {
+				url:         llmAdmin.ajaxUrl,
+				type:        'POST',
+				data:        fd,
+				dataType:    'json',
+				processData: false,
+				contentType: false,
+			} )
+				.done( function ( res ) {
+					if ( ! res || ! res.success || ! res.data ) {
+						var msg = ( res && res.data && res.data.message ) ? res.data.message : ( llmAdmin.csvErrGeneric || 'Errore' );
+						alert( msg );
+						llmCsvCollapsePastePanel();
+						llmCsvShowModal( false );
+						return;
+					}
+					llmCsvApplyPreviewSuccess( res );
+				} )
+				.fail( function ( xhr ) {
+					var msg = llmAdmin.csvErrGeneric || 'Errore';
+					if ( xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message ) {
+						msg = xhr.responseJSON.data.message;
+					}
+					alert( msg );
+					llmCsvCollapsePastePanel();
+					llmCsvShowModal( false );
+				} );
+		}
+
 		$( '#llm-phrases-list' ).sortable( {
 			handle: '.llm-drag-handle',
 			axis:   'y',
@@ -297,6 +454,117 @@
 
 		updatePhraseLabelsAndPreviews();
 		refreshMediaPositionSelects();
+
+		if ( llmAdmin.postId && $( '#llm-phrases-csv-modal' ).length ) {
+			$( '#llm-phrases-csv-paste-toggle' ).on( 'click', function ( e ) {
+				e.preventDefault();
+				var $panel = $( '#llm-phrases-csv-paste-panel' );
+				var $btn   = $( this );
+				if ( ! $panel.length ) {
+					return;
+				}
+				var open = $panel.prop( 'hidden' );
+				$panel.prop( 'hidden', ! open );
+				$btn.attr( 'aria-expanded', open ? 'true' : 'false' );
+				if ( open ) {
+					$( '#llm-phrases-csv-paste' ).trigger( 'focus' );
+				}
+			} );
+
+			$( '#llm-phrases-csv-paste-preview' ).on( 'click', function ( e ) {
+				e.preventDefault();
+				var text = ( $( '#llm-phrases-csv-paste' ).val() || '' ).trim();
+				if ( ! text ) {
+					alert( llmAdmin.csvPasteEmpty || 'Incolla il CSV.' );
+					return;
+				}
+				var fd = llmCsvBuildPreviewFormData();
+				fd.append( 'csv_text', text );
+				llmCsvRunPreviewRequest( fd );
+			} );
+
+			$( '#llm-phrases-csv-file' ).on( 'change', function () {
+				var file = this.files && this.files[ 0 ];
+				if ( ! file ) {
+					return;
+				}
+				var fd = llmCsvBuildPreviewFormData();
+				fd.append( 'file', file );
+				llmCsvRunPreviewRequest( fd );
+				$( '#llm-phrases-csv-file' ).val( '' );
+			} );
+
+			$( '#llm-phrases-csv-cancel, #llm-phrases-csv-modal-close, .llm-csv-modal__backdrop' ).on( 'click', function ( e ) {
+				e.preventDefault();
+				llmCsvPendingToken = '';
+				llmCsvCollapsePastePanel();
+				llmCsvShowModal( false );
+			} );
+
+			$( '#llm-phrases-csv-confirm' ).on( 'click', function ( e ) {
+				e.preventDefault();
+				if ( ! llmCsvPendingToken ) {
+					return;
+				}
+				$( '#llm-phrases-csv-confirm' ).prop( 'disabled', true ).addClass( 'disabled' );
+				$( '#llm-phrases-csv-cancel' ).prop( 'disabled', true );
+
+				$( '#llm-phrases-csv-modal-step-preview' ).prop( 'hidden', true );
+				$( '#llm-phrases-csv-modal-step-log' ).prop( 'hidden', false );
+				$( '#llm-phrases-csv-modal-foot-preview' ).prop( 'hidden', true );
+				$( '#llm-phrases-csv-log' ).text( '' );
+
+				$.ajax( {
+					url:      llmAdmin.ajaxUrl,
+					type:     'POST',
+					dataType: 'json',
+					data:     {
+						action:     llmAdmin.csvCommitAction || 'llm_story_phrases_commit_import',
+						nonce:      llmAdmin.csvNonce || '',
+						nonce_post: llmAdmin.csvNoncePost || '',
+						post_id:    llmAdmin.postId,
+						token:      llmCsvPendingToken,
+					},
+				} )
+					.done( function ( res ) {
+						if ( ! res || ! res.success || ! res.data ) {
+							var msg = ( res && res.data && res.data.message ) ? res.data.message : ( llmAdmin.csvErrGeneric || 'Errore' );
+							alert( msg );
+							llmCsvResetModal();
+							llmCsvCollapsePastePanel();
+							llmCsvShowModal( false );
+							return;
+						}
+						var lines = res.data.log || [];
+						llmCsvAppendLogLines( lines, function () {
+							if ( res.data.phrases ) {
+								replacePhrasesFromServer( res.data.phrases );
+							}
+							llmCsvPendingToken = '';
+							$( '#llm-phrases-csv-paste' ).val( '' );
+							llmCsvCollapsePastePanel();
+							$( '#llm-phrases-csv-modal-foot-done' ).prop( 'hidden', false );
+						} );
+					} )
+					.fail( function ( xhr ) {
+						var msg = llmAdmin.csvErrGeneric || 'Errore';
+						if ( xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message ) {
+							msg = xhr.responseJSON.data.message;
+						}
+						alert( msg );
+						llmCsvResetModal();
+						llmCsvCollapsePastePanel();
+						llmCsvShowModal( false );
+					} );
+			} );
+
+			$( '#llm-phrases-csv-done' ).on( 'click', function ( e ) {
+				e.preventDefault();
+				llmCsvResetModal();
+				llmCsvCollapsePastePanel();
+				llmCsvShowModal( false );
+			} );
+		}
 	} );
 
 }( jQuery ) );
