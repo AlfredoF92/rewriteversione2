@@ -9,6 +9,176 @@
 		return String(s || '').replace(/<[^>]*>/g, '');
 	}
 
+	/** Testo senza tag, spazi normalizzati (TTS, confronti sulla frase letta). */
+	function plainSpeechText(s) {
+		return stripTagsHtml(s).replace(/\s+/g, ' ').trim();
+	}
+
+	/**
+	 * Spezza HTML in sequenza di tag (stringa completa) e blocchi di testo (animabili).
+	 * Non usa il tag-split naive: un maggiore in attributo tra virgolette o un minore da confronto
+	 * (es. "x < 3") romperebbero il buffer incrementale e l’analisi grammaticale resterebbe vuota.
+	 *
+	 * @param {string} html
+	 * @returns {Array<{type:string,value:string}>}
+	 */
+	function splitHtmlChunks(html) {
+		var s = String(html || '');
+		var out = [];
+		var n = s.length;
+		var i = 0;
+		while (i < n) {
+			if (s.charCodeAt(i) !== 60) {
+				var t0 = i;
+				while (i < n && s.charCodeAt(i) !== 60) {
+					i++;
+				}
+				if (i > t0) {
+					out.push({ type: 'text', value: s.slice(t0, i) });
+				}
+				continue;
+			}
+			var rest = s.slice(i);
+			var looksLikeTag =
+				/^<\s*\/\s*[a-zA-Z]/.test(rest) || /^<[a-zA-Z!?]/.test(rest);
+			if (!looksLikeTag) {
+				out.push({ type: 'text', value: '<' });
+				i++;
+				continue;
+			}
+			var j = i + 1;
+			var quote = '';
+			while (j < n) {
+				var ch = s.charAt(j);
+				if (quote) {
+					if (ch === quote) {
+						quote = '';
+					}
+				} else {
+					if (ch === '"' || ch === "'") {
+						quote = ch;
+					} else if (ch === '>') {
+						out.push({ type: 'tag', value: s.slice(i, j + 1) });
+						i = j + 1;
+						break;
+					}
+				}
+				j++;
+			}
+			if (j >= n) {
+				out.push({ type: 'text', value: s.slice(i) });
+				break;
+			}
+		}
+		return out;
+	}
+
+	/**
+	 * Typewriter su HTML: i tag compaiono interi; solo il testo viene “battuto” (innerHTML sempre sensato).
+	 *
+	 * @param {Element|null} el
+	 * @param {string} html
+	 * @param {function():boolean} isAlive
+	 * @param {number} [tickMs]
+	 * @returns {Promise<void>}
+	 */
+	function typewriterHtmlInto(el, html, isAlive, tickMs) {
+		tickMs = tickMs == null ? 30 : tickMs;
+		var fullHtml = String(html || '');
+		return new Promise(function (resolve) {
+			if (!el) {
+				resolve();
+				return;
+			}
+			function applyHtml(h) {
+				try {
+					el.innerHTML = String(h || '');
+				} catch (e) {
+					try {
+						el.textContent = stripTagsHtml(h);
+					} catch (e2) {
+						/* ignore */
+					}
+				}
+			}
+			el.innerHTML = '';
+			var chunks = splitHtmlChunks(fullHtml);
+			if (!chunks.length) {
+				resolve();
+				return;
+			}
+			var chunkIdx = 0;
+			var charInChunk = 0;
+			var buf = '';
+
+			function charsPerTickFor(len) {
+				if (len > 600) {
+					return 12;
+				}
+				if (len > 300) {
+					return 6;
+				}
+				if (len > 120) {
+					return 3;
+				}
+				return 1;
+			}
+
+			function tick() {
+				if (typeof isAlive === 'function' && !isAlive()) {
+					applyHtml(fullHtml);
+					resolve();
+					return;
+				}
+				if (chunkIdx >= chunks.length) {
+					applyHtml(fullHtml);
+					resolve();
+					return;
+				}
+				var ch = chunks[chunkIdx];
+				if (ch.type === 'tag') {
+					buf += ch.value;
+					try {
+						el.innerHTML = buf;
+					} catch (e3) {
+						applyHtml(fullHtml);
+						resolve();
+						return;
+					}
+					chunkIdx += 1;
+					charInChunk = 0;
+					window.setTimeout(tick, Math.min(14, tickMs));
+					return;
+				}
+				var tv = ch.value;
+				if (!tv.length) {
+					chunkIdx += 1;
+					charInChunk = 0;
+					window.setTimeout(tick, 0);
+					return;
+				}
+				var cpt = charsPerTickFor(tv.length);
+				var take = Math.min(cpt, tv.length - charInChunk);
+				buf += tv.slice(charInChunk, charInChunk + take);
+				charInChunk += take;
+				try {
+					el.innerHTML = buf;
+				} catch (e4) {
+					applyHtml(fullHtml);
+					resolve();
+					return;
+				}
+				if (charInChunk >= tv.length) {
+					chunkIdx += 1;
+					charInChunk = 0;
+				}
+				window.setTimeout(tick, tickMs);
+			}
+
+			tick();
+		});
+	}
+
 	function normalizeSentence(s) {
 		s = stripTagsHtml(s).toLowerCase();
 		s = s.replace(/[^\p{L}\p{N}\s]+/gu, ' ');
@@ -311,9 +481,15 @@
 			if (bravoEl) {
 				bravoEl.textContent = '';
 			}
-			grammarEl.textContent = '';
-			targetShow.textContent = '';
-			altShow.textContent = '';
+			if (grammarEl) {
+				grammarEl.innerHTML = '';
+			}
+			if (targetShow) {
+				targetShow.innerHTML = '';
+			}
+			if (altShow) {
+				altShow.innerHTML = '';
+			}
 			if (labelMainEl) {
 				labelMainEl.style.opacity = '0';
 			}
@@ -417,9 +593,9 @@
 					if (!streamAlive(run)) {
 						return;
 					}
-					return typewriterInto(grammarEl, grammar, function () {
+					return typewriterHtmlInto(grammarEl, grammar, function () {
 						return streamAlive(run);
-					});
+					}, TYPE_TICK_MS);
 				});
 				chain = chain.then(function () {
 					if (!streamAlive(run)) {
@@ -440,9 +616,9 @@
 					if (labelMainEl) {
 						labelMainEl.style.opacity = '1';
 					}
-					return typewriterInto(targetShow, target, function () {
+					return typewriterHtmlInto(targetShow, target, function () {
 						return streamAlive(run);
-					});
+					}, TYPE_TICK_MS);
 				});
 				chain = chain.then(function () {
 					if (!streamAlive(run)) {
@@ -464,9 +640,9 @@
 					if (labelAltEl) {
 						labelAltEl.style.opacity = '1';
 					}
-					return typewriterInto(altShow, alt, function () {
+					return typewriterHtmlInto(altShow, alt, function () {
 						return streamAlive(run);
-					});
+					}, TYPE_TICK_MS);
 				});
 			} else if (labelAltEl) {
 				labelAltEl.style.opacity = '1';
@@ -533,7 +709,7 @@
 		}
 		var chip = document.createElement('span');
 		chip.className = 'llm-phrase-game__story-chip';
-		chip.textContent = translationText;
+		chip.innerHTML = String(translationText);
 		lineEl.appendChild(chip);
 		return chip;
 	}
@@ -558,8 +734,8 @@
 			if (line.dataset.translation) {
 				return;
 			}
-			var text = (line.childNodes[0] && line.childNodes[0].textContent) ? line.childNodes[0].textContent : line.textContent;
-			var translation = findInterfaceForStoryLine((text || '').trim());
+			var text = plainSpeechText(line.textContent || '');
+			var translation = findInterfaceForStoryLine(text);
 			if (translation) {
 				line.dataset.translation = translation;
 			}
@@ -568,11 +744,11 @@
 
 	if (cfg.completedStoryLines && cfg.completedStoryLines.length) {
 		cfg.completedStoryLines.forEach(function (line) {
-			var block = document.createElement('p');
+			var block = document.createElement('div');
 			block.className = 'llm-phrase-game__story-line';
 			var target = typeof line === 'object' ? (line.target || '') : String(line);
 			var iface = typeof line === 'object' ? (line.interface || '') : '';
-			block.textContent = target;
+			block.innerHTML = String(target);
 			if (iface) {
 				block.dataset.translation = iface;
 			}
@@ -603,9 +779,8 @@
 		if (!line) {
 			return;
 		}
-		/* TTS */
-		var textNode = line.childNodes[0];
-		var text = (textNode && textNode.textContent ? textNode.textContent : line.textContent || '').trim();
+		/* TTS (solo testo, senza tag) */
+		var text = plainSpeechText(line.textContent || '');
 		if (text) {
 			speakTargetTranslation(text, null);
 		}
@@ -770,7 +945,7 @@
 			if (!btnEl) {
 				return;
 			}
-			var trimmed = String(text || '').trim();
+			var trimmed = plainSpeechText(text);
 			if (!trimmed) {
 				return;
 			}
@@ -803,7 +978,7 @@
 			}
 			var p = phrases[phraseIx];
 			var hasSynth = typeof window.speechSynthesis !== 'undefined' && window.speechSynthesis;
-			var hasText = p && String(p.target || '').trim();
+			var hasText = p && plainSpeechText(p.target || '');
 			var inPhase2 = phase2 && !phase2.hidden;
 			listenTargetBtn.hidden = !hasSynth || !hasText || inPhase2;
 		}
@@ -931,12 +1106,12 @@
 			if (!ifaceEl || !promptTrans) {
 				return Promise.resolve();
 			}
-			ifaceEl.textContent = '';
+			ifaceEl.innerHTML = '';
 			promptTrans.textContent = '';
 			function aliveIntro() {
 				return phraseIntroRun === introRunId;
 			}
-			return typewriterInto(ifaceEl, ifaceText, aliveIntro).then(function () {
+			return typewriterHtmlInto(ifaceEl, ifaceText, aliveIntro, TYPE_TICK_MS).then(function () {
 				if (!aliveIntro()) {
 					return;
 				}
@@ -1030,9 +1205,15 @@
 			if (bravoEl) {
 				bravoEl.textContent = '';
 			}
-			grammarEl.textContent = '';
-			targetShow.textContent = '';
-			altShow.textContent = '';
+			if (grammarEl) {
+				grammarEl.innerHTML = '';
+			}
+			if (targetShow) {
+				targetShow.innerHTML = '';
+			}
+			if (altShow) {
+				altShow.innerHTML = '';
+			}
 			if (labelMainEl) {
 				labelMainEl.style.opacity = '';
 			}
@@ -1081,7 +1262,7 @@
 				setMessagePhase2('', '');
 				input1.value = '';
 				input2.value = '';
-				ifaceEl.textContent = p.interface || '';
+				ifaceEl.innerHTML = String(p.interface || '');
 				promptTrans.textContent = t('translatePrompt', targetLang);
 				if (yourPhraseWrap) {
 					yourPhraseWrap.hidden = true;
@@ -1230,7 +1411,7 @@
 					showPhase(1);
 					var prb = phrases[phraseIx];
 					if (ifaceEl) {
-						ifaceEl.textContent = prb ? prb.interface || '' : '';
+						ifaceEl.innerHTML = String(prb ? prb.interface || '' : '');
 					}
 					if (promptTrans) {
 						promptTrans.textContent = t('translatePrompt', targetLang);
@@ -1341,7 +1522,7 @@
 						return;
 					}
 				smoothScrollStoryToCenter().then(function () {
-					var block = document.createElement('p');
+					var block = document.createElement('div');
 					block.className = 'llm-phrase-game__story-line';
 					if (d.display_interface) {
 						block.dataset.translation = d.display_interface;
@@ -1349,9 +1530,9 @@
 					storyEl.appendChild(block);
 					hydrateStoryLineTranslations();
 						var sr = ++storyStreamRun;
-						typewriterInto(block, sentence, function () {
+						typewriterHtmlInto(block, sentence, function () {
 							return storyStreamRun === sr;
-						}).then(function () {
+						}, TYPE_TICK_MS).then(function () {
 							if (storyStreamRun === sr) {
 								advanceAfterPhrase2();
 							}
