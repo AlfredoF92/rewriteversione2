@@ -161,6 +161,23 @@ function llm_tabelle_register_loop_filters_script() {
 add_action( 'wp_enqueue_scripts', 'llm_tabelle_register_loop_filters_script', 3 );
 
 /**
+ * Fix tipografia Loop Grid/Carousel Elementor: rimuove sottolineato su titoli/testo
+ * quando l’item è avvolto in un link o il tema stilizza i link con underline.
+ */
+function llm_tabelle_enqueue_elementor_loop_typography() {
+	if ( ! defined( 'ELEMENTOR_VERSION' ) ) {
+		return;
+	}
+	wp_enqueue_style(
+		'llm-elementor-loop-typography',
+		LLM_TABELLE_URL . 'assets/llm-elementor-loop-typography.css',
+		array(),
+		LLM_TABELLE_VERSION
+	);
+}
+add_action( 'wp_enqueue_scripts', 'llm_tabelle_enqueue_elementor_loop_typography', 100 );
+
+/**
  * Elementor carica prima (ordine alfabetico): l’hook elementor/loaded è già scattato
  * quando questo file viene letto. Registriamo i Dynamic Tag su plugins_loaded.
  */

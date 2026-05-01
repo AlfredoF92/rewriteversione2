@@ -1,0 +1,25 @@
+/**
+ * Loop Grid / Loop Carousel (Elementor Pro)
+ *
+ * Quando l'intero item del loop è un link (<a> che avvolge il template), molti temi
+ * applicano text-decoration: underline all'anchor e il contenuto (h2, p, span)
+ * appare tutto sottolineato. Queste regole ripristinano un aspetto “testo normale”.
+ *
+ * Scope: solo dentro .e-loop-item dei widget loop Elementor.
+ */
+
+[class*="elementor-widget-loop"] .e-loop-item a,
+[class*="elementor-widget-loop"] .e-loop-item a:link,
+[class*="elementor-widget-loop"] .e-loop-item a:visited,
+[class*="elementor-widget-loop"] .e-loop-item a:hover,
+[class*="elementor-widget-loop"] .e-loop-item a:focus,
+[class*="elementor-widget-loop"] .e-loop-item a * {
+	text-decoration: none !important;
+}
+
+/* Alcuni temi impostano colore “link” sui discendenti: mantieni il colore del widget */
+[class*="elementor-widget-loop"] .e-loop-item .elementor-heading-title,
+[class*="elementor-widget-loop"] .e-loop-item .elementor-widget-text-editor,
+[class*="elementor-widget-loop"] .e-loop-item .elementor-widget-text-editor * {
+	text-decoration: none !important;
+}

@@ -441,10 +441,13 @@ class LLM_Elementor_Homepage_Stories_Loop {
 		$cat_slug = self::get_effective_filter_cat();
 		$scope    = self::get_effective_filter_scope();
 
-		// Caso 1: Query ID coppia fissa — storie-{known}-{learning}
-		// Tutti i filtri categoria/scope rimangono attivi; la coppia lingua è forzata.
 		$pair = self::parse_pair_query_id( $widget_qid );
+
 		if ( null !== $pair ) {
+			// ── Caso 1: Query ID coppia fissa (storie-it-en, storie-en-it…) ──────────
+			// post__in filtra per lingua + scope + chip-categoria.
+			// tax_query, orderby, order impostati in Elementor vengono PRESERVATI:
+			// WordPress combina post__in e tax_query con AND automaticamente.
 			$ids = self::get_filtered_story_ids_for_scope(
 				$cat_slug,
 				$scope,
@@ -452,28 +455,44 @@ class LLM_Elementor_Homepage_Stories_Loop {
 				$pair['learning'],
 				$pair['known']
 			);
+
+			if ( empty( $ids ) ) {
+				$query_args['post__in']            = array( 0 );
+				$query_args['post_status']         = 'publish';
+				$query_args['ignore_sticky_posts'] = true;
+				return $query_args;
+			}
+
+			$query_args['post__in']            = $ids;
+			$query_args['post_status']         = 'publish';
+			$query_args['ignore_sticky_posts'] = true;
+			$query_args['posts_per_page']      = isset( $query_args['posts_per_page'] ) ? (int) $query_args['posts_per_page'] : get_option( 'posts_per_page', 10 );
+			// orderby, order e tax_query di Elementor rimangono invariati.
+
 		} elseif ( self::widget_matches_query_id( $widget_qid ) ) {
-			// Caso 2: Query ID homepage — lingue dall'utente loggato
+			// ── Caso 2: Query ID homepage — lingue dall'utente loggato ───────────────
+			// Comportamento originale: ordinamento smart (in corso → completate → nuove),
+			// category da chip GET, tax_query Elementor rimosso (gestito da post__in).
 			$ids = self::get_filtered_story_ids_for_scope( $cat_slug, $scope, get_current_user_id() );
+
+			if ( empty( $ids ) ) {
+				$query_args['post__in']            = array( 0 );
+				$query_args['post_status']         = 'publish';
+				$query_args['ignore_sticky_posts'] = true;
+				return $query_args;
+			}
+
+			$query_args['post__in']            = $ids;
+			$query_args['orderby']             = 'post__in';
+			$query_args['order']               = 'ASC';
+			$query_args['post_status']         = 'publish';
+			$query_args['ignore_sticky_posts'] = true;
+			$query_args['posts_per_page']      = isset( $query_args['posts_per_page'] ) ? (int) $query_args['posts_per_page'] : get_option( 'posts_per_page', 10 );
+			unset( $query_args['tax_query'], $query_args['category_name'], $query_args['cat'] );
+
 		} else {
 			return $query_args;
 		}
-
-		if ( empty( $ids ) ) {
-			$query_args['post__in']           = array( 0 );
-			$query_args['post_status']        = 'publish';
-			$query_args['ignore_sticky_posts'] = true;
-			return $query_args;
-		}
-
-		$query_args['post__in']            = $ids;
-		$query_args['orderby']             = 'post__in';
-		$query_args['order']               = 'ASC';
-		$query_args['post_status']         = 'publish';
-		$query_args['ignore_sticky_posts'] = true;
-		$query_args['posts_per_page']      = isset( $query_args['posts_per_page'] ) ? (int) $query_args['posts_per_page'] : get_option( 'posts_per_page', 10 );
-
-		unset( $query_args['tax_query'], $query_args['category_name'], $query_args['cat'] );
 
 		return $query_args;
 	}
