@@ -66,6 +66,8 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-user-activity-feed-shortcode.
 require_once LLM_TABELLE_DIR . 'includes/class-llm-community-feed-i18n.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-community-feed-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-bravo-balance-shortcode.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-home-redirect.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-home-redirect.php';
 
 /**
  * Aggiorna schema DB se la versione salvata è inferiore (es. da 1.1 → 2.0).
@@ -118,6 +120,8 @@ function llm_tabelle_boot() {
 	LLM_Bravo_Balance_Shortcode::init();
 	LLM_Story_Phrase_Game::init();
 	LLM_Story_Progress_Bar_Shortcode::init();
+	LLM_Home_Redirect::init();
+	LLM_Admin_Home_Redirect::init();
 }
 add_action( 'plugins_loaded', 'llm_tabelle_boot', 5 );
 

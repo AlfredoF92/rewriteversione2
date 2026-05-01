@@ -229,9 +229,10 @@ class LLM_Elementor_Homepage_Stories_Loop {
 	 * @param string   $scope       smart | active | completed | all (vuoto trattato come smart).
 	 * @param int|null $user_id     null = utente corrente.
 	 * @param string   $target_lang Forza una lingua target specifica (vuoto = auto da user meta).
+	 * @param string   $known_lang  Forza la lingua nota specifica (vuoto = auto da user meta).
 	 * @return array<int>
 	 */
-	public static function get_filtered_story_ids_for_scope( $cat_slug, $scope, $user_id = null, $target_lang = '' ) {
+	public static function get_filtered_story_ids_for_scope( $cat_slug, $scope, $user_id = null, $target_lang = '', $known_lang = '' ) {
 		if ( null === $user_id ) {
 			$user_id = get_current_user_id();
 		}
@@ -247,11 +248,11 @@ class LLM_Elementor_Homepage_Stories_Loop {
 		$lang = ( class_exists( 'LLM_Languages' ) && LLM_Languages::is_valid( $lang ) ) ? $lang : '';
 
 		/* ── Lingua nota (interfaccia utente) ────────────────── */
-		$known_lang = '';
-		if ( $uid > 0 ) {
+		$known_lang = sanitize_key( (string) $known_lang );
+		if ( $known_lang === '' && $uid > 0 ) {
 			$known_lang = sanitize_key( (string) get_user_meta( $uid, LLM_User_Meta::INTERFACE_LANG, true ) );
-			$known_lang = ( class_exists( 'LLM_Languages' ) && LLM_Languages::is_valid( $known_lang ) ) ? $known_lang : '';
 		}
+		$known_lang = ( class_exists( 'LLM_Languages' ) && LLM_Languages::is_valid( $known_lang ) ) ? $known_lang : '';
 
 		/* ── Costruzione WP_Query base ──────────────────────── */
 		$tax_query = array();
@@ -390,6 +391,33 @@ class LLM_Elementor_Homepage_Stories_Loop {
 	}
 
 	/**
+	 * Analizza un Query ID nel formato "storie-{known}-{learning}" (es. "storie-it-en").
+	 * Restituisce array ['known' => 'it', 'learning' => 'en'] se valido, null altrimenti.
+	 *
+	 * @param string $widget_qid Query ID già sanificato.
+	 * @return array{known:string,learning:string}|null
+	 */
+	public static function parse_pair_query_id( $widget_qid ) {
+		if ( ! preg_match( '/^storie-([a-z]{2})-([a-z]{2})$/i', $widget_qid, $m ) ) {
+			return null;
+		}
+		$known    = strtolower( $m[1] );
+		$learning = strtolower( $m[2] );
+		if (
+			! class_exists( 'LLM_Languages' ) ||
+			! LLM_Languages::is_valid( $known ) ||
+			! LLM_Languages::is_valid( $learning ) ||
+			$known === $learning
+		) {
+			return null;
+		}
+		return array(
+			'known'    => $known,
+			'learning' => $learning,
+		);
+	}
+
+	/**
 	 * @param array                        $query_args
 	 * @param \Elementor\Widget_Base|null $widget
 	 * @return array
@@ -406,27 +434,43 @@ class LLM_Elementor_Homepage_Stories_Loop {
 		}
 		$raw_qid    = isset( $settings[ $prefix . 'query_id' ] ) ? trim( (string) $settings[ $prefix . 'query_id' ] ) : '';
 		$widget_qid = self::sanitize_query_id( $raw_qid );
-		if ( $widget_qid === '' || ! self::widget_matches_query_id( $widget_qid ) ) {
+		if ( $widget_qid === '' ) {
 			return $query_args;
 		}
 
 		$cat_slug = self::get_effective_filter_cat();
 		$scope    = self::get_effective_filter_scope();
 
-		$ids = self::get_filtered_story_ids_for_scope( $cat_slug, $scope, get_current_user_id() );
+		// Caso 1: Query ID coppia fissa — storie-{known}-{learning}
+		// Tutti i filtri categoria/scope rimangono attivi; la coppia lingua è forzata.
+		$pair = self::parse_pair_query_id( $widget_qid );
+		if ( null !== $pair ) {
+			$ids = self::get_filtered_story_ids_for_scope(
+				$cat_slug,
+				$scope,
+				get_current_user_id(),
+				$pair['learning'],
+				$pair['known']
+			);
+		} elseif ( self::widget_matches_query_id( $widget_qid ) ) {
+			// Caso 2: Query ID homepage — lingue dall'utente loggato
+			$ids = self::get_filtered_story_ids_for_scope( $cat_slug, $scope, get_current_user_id() );
+		} else {
+			return $query_args;
+		}
 
 		if ( empty( $ids ) ) {
-			$query_args['post__in']            = array( 0 );
+			$query_args['post__in']           = array( 0 );
 			$query_args['post_status']        = 'publish';
 			$query_args['ignore_sticky_posts'] = true;
 			return $query_args;
 		}
 
-		$query_args['post__in']             = $ids;
+		$query_args['post__in']            = $ids;
 		$query_args['orderby']             = 'post__in';
 		$query_args['order']               = 'ASC';
 		$query_args['post_status']         = 'publish';
-		$query_args['ignore_sticky_posts']  = true;
+		$query_args['ignore_sticky_posts'] = true;
 		$query_args['posts_per_page']      = isset( $query_args['posts_per_page'] ) ? (int) $query_args['posts_per_page'] : get_option( 'posts_per_page', 10 );
 
 		unset( $query_args['tax_query'], $query_args['category_name'], $query_args['cat'] );

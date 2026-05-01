@@ -1,0 +1,150 @@
+/**
+ * LLM Home Redirect — selettore coppia linguistica.
+ * Dipende da llm-ui (variabili CSS e font Manrope).
+ */
+
+.llm-home-redirect {
+	display: flex;
+	flex-direction: column;
+	gap: 1.25rem;
+	font-family: var(--llm-ui-font);
+}
+
+.llm-home-redirect__title {
+	font-size: 1.25rem;
+	font-weight: 700;
+	color: var(--llm-ui-text);
+	margin: 0 0 0.25rem;
+	line-height: 1.3;
+}
+
+/* ── Form ──────────────────────────────────────────────────────────────────── */
+
+.llm-home-redirect__form {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.llm-home-redirect__row {
+	display: flex;
+	align-items: flex-end;
+	gap: 0.75rem;
+	flex-wrap: wrap;
+}
+
+/* ── Campo singolo ─────────────────────────────────────────────────────────── */
+
+.llm-home-redirect__field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	flex: 1 1 160px;
+}
+
+.llm-home-redirect__label {
+	font-size: var(--llm-ui-label-size, 0.6875rem);
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--llm-ui-muted);
+}
+
+.llm-home-redirect__select {
+	background: var(--llm-ui-surface);
+	color: var(--llm-ui-text);
+	border: 1px solid var(--llm-ui-border-strong);
+	border-radius: var(--llm-ui-radius);
+	padding: 0.5rem 2rem 0.5rem 0.75rem;
+	font-family: var(--llm-ui-font);
+	font-size: var(--llm-ui-body-size, 0.9375rem);
+	line-height: var(--llm-ui-line, 1.25);
+	cursor: pointer;
+	width: 100%;
+	min-width: 160px;
+	transition: border-color 0.15s;
+	appearance: none;
+	-webkit-appearance: none;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 0.6rem center;
+}
+
+.llm-home-redirect__select:focus {
+	outline: none;
+	border-color: var(--llm-ui-accent);
+}
+
+.llm-home-redirect__select option:disabled {
+	color: var(--llm-ui-muted);
+}
+
+/* ── Freccia divisore ──────────────────────────────────────────────────────── */
+
+.llm-home-redirect__arrow {
+	color: var(--llm-ui-muted);
+	font-size: 1.25rem;
+	padding-bottom: 0.45rem;
+	flex-shrink: 0;
+	user-select: none;
+}
+
+/* ── Azioni ────────────────────────────────────────────────────────────────── */
+
+.llm-home-redirect__actions {
+	display: flex;
+	align-items: center;
+}
+
+.llm-home-redirect__btn {
+	background: var(--llm-ui-accent);
+	color: var(--llm-ui-on-accent);
+	border: none;
+	border-radius: var(--llm-ui-radius);
+	padding: 0.55rem 1.75rem;
+	font-family: var(--llm-ui-font);
+	font-size: var(--llm-ui-body-size, 0.9375rem);
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.15s, opacity 0.15s;
+	line-height: var(--llm-ui-line, 1.25);
+}
+
+.llm-home-redirect__btn:hover {
+	background: var(--llm-ui-accent-hover);
+}
+
+.llm-home-redirect__btn:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+/* ── Messaggio errore ──────────────────────────────────────────────────────── */
+
+.llm-home-redirect__error {
+	margin: 0;
+	font-size: 0.875rem;
+	color: var(--llm-ui-danger);
+	line-height: 1.4;
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+
+@media (max-width: 520px) {
+	.llm-home-redirect__row {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.llm-home-redirect__arrow {
+		display: none;
+	}
+
+	.llm-home-redirect__field {
+		flex: none;
+	}
+
+	.llm-home-redirect__btn {
+		width: 100%;
+	}
+}
