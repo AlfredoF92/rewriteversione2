@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LLM_TABELLE_VERSION', '2.0.64' );
+define( 'LLM_TABELLE_VERSION', '2.0.67' );
 define( 'LLM_TABELLE_FILE', __FILE__ );
 define( 'LLM_TABELLE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LLM_TABELLE_URL', plugin_dir_url( __FILE__ ) );
@@ -68,6 +68,7 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-community-feed-shortcode.php'
 require_once LLM_TABELLE_DIR . 'includes/class-llm-bravo-balance-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-home-redirect.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-home-redirect.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-site-update-log-shortcodes.php';
 
 /**
  * Aggiorna schema DB se la versione salvata è inferiore (es. da 1.1 → 2.0).
@@ -122,6 +123,7 @@ function llm_tabelle_boot() {
 	LLM_Story_Progress_Bar_Shortcode::init();
 	LLM_Home_Redirect::init();
 	LLM_Admin_Home_Redirect::init();
+	LLM_Site_Update_Log_Shortcodes::init();
 }
 add_action( 'plugins_loaded', 'llm_tabelle_boot', 5 );
 

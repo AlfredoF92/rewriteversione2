@@ -32,20 +32,25 @@ const LLM_SEED_BATCH_ID = 'seed_it_for_pl_9_stories_2026_04_20';
 
 $purge = in_array( '--purge', $argv, true );
 
-$image_urls = array(
-	'http://localhost/rewrite/wp-content/uploads/2026/04/tre-porcellini.jpg',
-	'http://localhost/rewrite/wp-content/uploads/2026/04/storie-da-favola-favole-nella-storia.png',
-	'http://localhost/rewrite/wp-content/uploads/2026/04/nwFavoleCaffo-kLo-U32601013240676GkG-656x492@Corriere-Web-Sezioni.jpg',
-	'http://localhost/rewrite/wp-content/uploads/2026/04/Fiabe._cosi.png',
-	'http://localhost/rewrite/wp-content/uploads/2026/04/favole-per-bambini.jpg',
-	'http://localhost/rewrite/wp-content/uploads/2026/04/Favole.jpg',
-	'http://localhost/rewrite/wp-content/uploads/2026/04/favola.jpg',
-	'http://localhost/rewrite/wp-content/uploads/2026/04/cop-scaled-1.jpg',
-	'http://localhost/rewrite/wp-content/uploads/2026/04/6398347_Notte_da_favola2.jpg',
-	'http://localhost/rewrite/wp-content/uploads/2026/04/images.jpg',
-	'http://localhost/rewrite/wp-content/uploads/2026/04/The_Ant_and_the_Grasshopper_-_Project_Gutenberg_etext_19994.jpg',
-	'http://localhost/rewrite/wp-content/uploads/2026/04/ThumbJpeg.jpg',
+$upload_base = trailingslashit( wp_upload_dir()['baseurl'] );
+$image_files = array(
+	'tre-porcellini.jpg',
+	'storie-da-favola-favole-nella-storia.png',
+	'nwFavoleCaffo-kLo-U32601013240676GkG-656x492@Corriere-Web-Sezioni.jpg',
+	'Fiabe._cosi.png',
+	'favole-per-bambini.jpg',
+	'Favole.jpg',
+	'favola.jpg',
+	'cop-scaled-1.jpg',
+	'6398347_Notte_da_favola2.jpg',
+	'images.jpg',
+	'The_Ant_and_the_Grasshopper_-_Project_Gutenberg_etext_19994.jpg',
+	'ThumbJpeg.jpg',
 );
+$image_urls = array();
+foreach ( $image_files as $file ) {
+	$image_urls[] = $upload_base . '2026/04/' . $file;
+}
 
 /**
  * @param string $url URL immagine.

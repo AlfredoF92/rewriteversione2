@@ -39,37 +39,41 @@ class LLM_Home_Redirect {
 	 */
 	public static function render( $atts ) {
 		$atts = shortcode_atts(
-			array(
-				'fallback' => '/',
-			),
+			array(),
 			$atts,
 			self::SHORTCODE
 		);
 
-		$fallback_url = home_url( (string) $atts['fallback'] );
-		$redirect_url = $fallback_url;
-
-		if ( is_user_logged_in() ) {
-			$uid      = get_current_user_id();
-			$known    = sanitize_key( (string) get_user_meta( $uid, LLM_User_Meta::INTERFACE_LANG, true ) );
-			$learning = sanitize_key( (string) get_user_meta( $uid, LLM_User_Meta::LEARNING_LANG, true ) );
-
-			if (
-				LLM_Languages::is_valid( $known ) &&
-				LLM_Languages::is_valid( $learning ) &&
-				$known !== $learning
-			) {
-				$pair_url = self::pair_url( $known, $learning );
-				if ( '' !== $pair_url ) {
-					$redirect_url = $pair_url;
-				}
-			}
+		// Nessun utente loggato: non fare nulla.
+		if ( ! is_user_logged_in() ) {
+			return '';
 		}
 
-		$encoded_url = wp_json_encode( $redirect_url );
+		$uid      = get_current_user_id();
+		$known    = sanitize_key( (string) get_user_meta( $uid, LLM_User_Meta::INTERFACE_LANG, true ) );
+		$learning = sanitize_key( (string) get_user_meta( $uid, LLM_User_Meta::LEARNING_LANG, true ) );
+
+		// Lingue non valide o uguali: non fare nulla.
+		if (
+			! LLM_Languages::is_valid( $known ) ||
+			! LLM_Languages::is_valid( $learning ) ||
+			$known === $learning
+		) {
+			return '';
+		}
+
+		$pair_url = self::pair_url( $known, $learning );
+
+		// Nessuna pagina configurata per questa coppia: non fare nulla.
+		if ( '' === $pair_url ) {
+			return '';
+		}
+
+		// URL configurato trovato: reindirizza.
+		$encoded_url = wp_json_encode( $pair_url );
 
 		return '<script>window.location.replace(' . $encoded_url . ');</script>'
-			. '<noscript><meta http-equiv="refresh" content="0;url=' . esc_attr( $redirect_url ) . '"></noscript>';
+			. '<noscript><meta http-equiv="refresh" content="0;url=' . esc_attr( $pair_url ) . '"></noscript>';
 	}
 
 	/**

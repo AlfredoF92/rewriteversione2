@@ -1,0 +1,10 @@
+<p><strong>12 maggio 2026 — Sito online</strong><br>
+Abbiamo messo il sito online sul dominio di produzione (migrazione da ambiente locale, database e file su hosting).</p>
+
+<p><strong>12 maggio 2026 — Data ultimo aggiornamento nel footer</strong><br>
+La data mostrata accanto a «Ultima modifica» usa il momento più recente tra: ultimo file caricato in Libreria media e ultimo salvataggio di questo file di log (così anche aggiornamenti via FTP al log aggiornano la data).</p>
+
+<p><strong>Esempio — note successive</strong><br>
+Qui puoi descrivere correzioni o novità in poche righe. Puoi usare testo semplice o HTML sicuro (grassetto, link); i paragrafi vuoti creano nuovi blocchi.</p>
+
+<p>La riga «Ultimo aggiornamento del log» sopra si aggiorna da sola quando salvi questo file sul server.</p>
