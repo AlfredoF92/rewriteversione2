@@ -338,7 +338,8 @@
 		var yourPhraseText = qs(root, '.llm-phrase-game__your-phrase-text');
 		var mic1 = qs(root, '.llm-phrase-game__mic--1');
 		var mic2 = qs(root, '.llm-phrase-game__mic--2');
-		var listenTargetBtn = qs(root, '.llm-phrase-game__listen-target');
+		var listenTargetBtn      = qs(root, '.llm-phrase-game__listen-target:not(.llm-phrase-game__listen-target--phase2)');
+		var listenTargetBtnPhase2 = qs(root, '.llm-phrase-game__listen-target--phase2');
 		var composePhase1 = qs(root, '.llm-phrase-game__compose--phase1');
 		var composePhase2 = qs(root, '.llm-phrase-game__compose--phase2');
 
@@ -887,6 +888,9 @@
 			if (listenTargetBtn) {
 				listenTargetBtn.classList.remove('llm-phrase-game__listen-target--playing');
 			}
+			if (listenTargetBtnPhase2) {
+				listenTargetBtnPhase2.classList.remove('llm-phrase-game__listen-target--playing');
+			}
 		}
 
 		function normalizeLangTag(l) {
@@ -980,7 +984,9 @@
 			var hasSynth = typeof window.speechSynthesis !== 'undefined' && window.speechSynthesis;
 			var hasText = p && plainSpeechText(p.target || '');
 			var inPhase2 = phase2 && !phase2.hidden;
+			// Fase 1: pulsante visibile (con hidden) quando NON siamo in fase 2.
 			listenTargetBtn.hidden = !hasSynth || !hasText || inPhase2;
+			// Fase 2: il pulsante è dentro compose--phase2 e appare con la textarea automaticamente.
 		}
 
 		function startSpeech(textarea, micBtn) {
@@ -1088,6 +1094,17 @@
 				}
 				var p = phrases[phraseIx];
 				speakTargetTranslation(p ? p.target : '', listenTargetBtn);
+			});
+		}
+
+		if (listenTargetBtnPhase2) {
+			listenTargetBtnPhase2.addEventListener('click', function () {
+				if (listenTargetBtnPhase2.classList.contains('llm-phrase-game__listen-target--playing')) {
+					cancelTts();
+					return;
+				}
+				var p = phrases[phraseIx];
+				speakTargetTranslation(p ? p.target : '', listenTargetBtnPhase2);
 			});
 		}
 

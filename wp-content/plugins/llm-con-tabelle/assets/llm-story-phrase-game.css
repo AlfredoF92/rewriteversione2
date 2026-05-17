@@ -90,6 +90,12 @@
 	max-width: 100%;
 }
 
+/* Divider sopra il blocco fase 2 (prompt + tasto audio): molto aria sopra e sotto (+ !important vs tema). */
+.llm-phrase-game__divider--phase2-before {
+	margin-top: 2.25rem !important;
+	margin-bottom: 2.25rem !important;
+}
+
 .llm-phrase-game__card {
 	padding: 0;
 	border: none;

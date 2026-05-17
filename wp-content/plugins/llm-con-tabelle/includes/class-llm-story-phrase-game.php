@@ -158,9 +158,17 @@ class LLM_Story_Phrase_Game {
 					<div class="llm-phrase-game__alt"></div>
 				</div>
 				<div class="llm-phrase-game__phase llm-phrase-game__phase--2" hidden>
-					<p class="llm-phrase-game__prompt llm-phrase-game__prompt--rewrite"></p>
 					<label class="screen-reader-text" for="<?php echo esc_attr( $uid ); ?>-input2"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'sr_rewrite' ) ); ?></label>
 					<div class="llm-phrase-game__compose llm-phrase-game__compose--phase2">
+						<hr class="llm-phrase-game__divider llm-phrase-game__divider--phase2-before" role="presentation" aria-hidden="true" />
+						<div class="llm-phrase-game__interface-row">
+							<div class="llm-phrase-game__interface llm-phrase-game__prompt--rewrite"></div>
+							<button type="button" class="llm-phrase-game__listen-target llm-phrase-game__listen-target--phase2" aria-label="<?php echo esc_attr( $listen_target_aria ); ?>" title="<?php echo esc_attr( $listen_target_aria ); ?>">
+								<span class="llm-phrase-game__listen-target-icon" aria-hidden="true">
+									<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+								</span>
+							</button>
+						</div>
 						<div class="llm-phrase-game__input-block">
 							<div class="llm-phrase-game__input-shell">
 								<textarea id="<?php echo esc_attr( $uid ); ?>-input2" class="llm-phrase-game__input llm-phrase-game__input--2" rows="3"></textarea>
