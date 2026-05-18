@@ -123,7 +123,7 @@ class LLM_Story_Phrase_Game {
 				<div class="llm-phrase-game__phase llm-phrase-game__phase--1">
 					<div class="llm-phrase-game__interface-row">
 						<div class="llm-phrase-game__interface"></div>
-						<button type="button" class="llm-phrase-game__listen-target" hidden aria-label="<?php echo esc_attr( $listen_target_aria ); ?>" title="<?php echo esc_attr( $listen_target_aria ); ?>">
+						<button type="button" class="llm-phrase-game__listen-target llm-phrase-game__listen-target--force-hidden" hidden aria-label="<?php echo esc_attr( $listen_target_aria ); ?>" title="<?php echo esc_attr( $listen_target_aria ); ?>" aria-hidden="true">
 							<span class="llm-phrase-game__listen-target-icon" aria-hidden="true">
 								<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
 							</span>
@@ -321,12 +321,14 @@ class LLM_Story_Phrase_Game {
 				'progress'         => LLM_Phrase_Game_I18n::get( 'progress' ),
 				'ajaxError'        => LLM_Phrase_Game_I18n::get( 'ajax_error' ),
 				'restartConfirm'   => LLM_Phrase_Game_I18n::get( 'story_progress_confirm' ),
+			'introLabel'       => LLM_Phrase_Game_I18n::get( 'intro_label' ),
 			),
 				'gameFinished'        => $game_finished,
 				'savedPhraseIndex'    => $saved_phrase_ix,
 				'savedStep'           => $saved_step,
 				'resumeAnalysis'      => $resume_analysis,
 				'completedStoryLines' => $completed_targets,
+				'storyIntro'          => wp_strip_all_tags( (string) get_post_field( 'post_content', $story_id ) ),
 				'speechLang'          => self::speech_locale( $target_code ),
 				'validation'          => array(
 					'phase1MinRatio'     => self::PHASE1_MIN_RATIO,

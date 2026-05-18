@@ -343,6 +343,38 @@
 		var composePhase1 = qs(root, '.llm-phrase-game__compose--phase1');
 		var composePhase2 = qs(root, '.llm-phrase-game__compose--phase2');
 
+		/* Intro storia: typewriter alla prima visita — blocca pulsante ascolto fino al termine */
+		var pendingStoryIntroTypewriter =
+			!!(cfg.storyIntro && storyEl) &&
+			!(cfg.completedStoryLines && cfg.completedStoryLines.length > 0);
+		var introComplete = !pendingStoryIntroTypewriter;
+		var introReady = Promise.resolve();
+
+		function setListenTargetVisible(visible) {
+			if (!listenTargetBtn) {
+				return;
+			}
+			var show = !!visible;
+			listenTargetBtn.hidden = !show;
+			listenTargetBtn.classList.toggle(
+				'llm-phrase-game__listen-target--force-hidden',
+				!show
+			);
+			if (show) {
+				listenTargetBtn.removeAttribute('aria-hidden');
+			} else {
+				listenTargetBtn.setAttribute('aria-hidden', 'true');
+			}
+		}
+
+		if (pendingStoryIntroTypewriter) {
+			root.classList.add('llm-phrase-game--story-intro-active');
+			setListenTargetVisible(false);
+			if (cardEl) {
+				cardEl.hidden = true;
+			}
+		}
+
 		function setComposePhaseVisible(phaseNum, visible) {
 			var el = phaseNum === 1 ? composePhase1 : composePhase2;
 			if (!el) {
@@ -684,13 +716,6 @@
 			});
 		}
 
-		if (window.speechSynthesis) {
-			window.speechSynthesis.onvoiceschanged = function () {
-				syncListenTargetUi();
-			};
-			window.speechSynthesis.getVoices();
-		}
-
 	var openStoryChip = null;
 
 	function closeOpenStoryChip() {
@@ -741,6 +766,44 @@
 				line.dataset.translation = translation;
 			}
 		});
+	}
+
+	/* ── Blocco introduzione storia (post_content), prima delle frasi completate ── */
+	if (cfg.storyIntro && storyEl) {
+		var introWrap = document.createElement('div');
+		introWrap.className = 'llm-phrase-game__story-intro';
+		var introLabel = document.createElement('span');
+		introLabel.className = 'llm-phrase-game__story-intro-label';
+		introLabel.textContent = i18n.introLabel || 'Introduzione:';
+		var introText = document.createElement('div');
+		introText.className = 'llm-phrase-game__story-intro-text';
+		introWrap.appendChild(introLabel);
+		introWrap.appendChild(introText);
+		if (storyEl.firstChild) {
+			storyEl.insertBefore(introWrap, storyEl.firstChild);
+		} else {
+			storyEl.appendChild(introWrap);
+		}
+		var hasCompleted = cfg.completedStoryLines && cfg.completedStoryLines.length > 0;
+		if (hasCompleted) {
+			/* Frasi già presenti: fade-in rapido, loadPhrase non aspetta */
+			introText.textContent = String(cfg.storyIntro);
+			requestAnimationFrame(function () {
+				requestAnimationFrame(function () {
+					introWrap.classList.add('llm-phrase-game__story-intro--visible');
+				});
+			});
+		} else if (pendingStoryIntroTypewriter) {
+			/* Prima visita: typewriter — loadPhrase e pulsante ascolto aspettano */
+			introWrap.classList.add('llm-phrase-game__story-intro--visible');
+			var introStreamRun2 = ++storyStreamRun;
+			introReady = typewriterInto(introText, String(cfg.storyIntro), function () {
+				return storyStreamRun === introStreamRun2;
+			}).then(function () {
+				introComplete = true;
+				root.classList.remove('llm-phrase-game--story-intro-active');
+			});
+		}
 	}
 
 	if (cfg.completedStoryLines && cfg.completedStoryLines.length) {
@@ -984,9 +1047,18 @@
 			var hasSynth = typeof window.speechSynthesis !== 'undefined' && window.speechSynthesis;
 			var hasText = p && plainSpeechText(p.target || '');
 			var inPhase2 = phase2 && !phase2.hidden;
-			// Fase 1: pulsante visibile (con hidden) quando NON siamo in fase 2.
-			listenTargetBtn.hidden = !hasSynth || !hasText || inPhase2;
+			// Fase 1: pulsante visibile solo se intro finita e testo disponibile.
+			var show =
+				introComplete && hasSynth && hasText && !inPhase2;
+			setListenTargetVisible(show);
 			// Fase 2: il pulsante è dentro compose--phase2 e appare con la textarea automaticamente.
+		}
+
+		if (window.speechSynthesis) {
+			window.speechSynthesis.onvoiceschanged = function () {
+				syncListenTargetUi();
+			};
+			window.speechSynthesis.getVoices();
 		}
 
 		function startSpeech(textarea, micBtn) {
@@ -1212,7 +1284,10 @@
 					mic1.removeAttribute('tabindex');
 				}
 			}
-			syncListenTargetUi();
+			/* Fase 1: il pulsante ascolto si mostra solo a fine typewriter frase (non qui). */
+			if (n === 2) {
+				syncListenTargetUi();
+			}
 		}
 
 		function resetAnalysis() {
@@ -1558,9 +1633,14 @@
 				});
 		});
 
-		var startResume =
-			parseInt(cfg.savedStep, 10) === 2 && cfg.resumeAnalysis;
+	var startResume =
+		parseInt(cfg.savedStep, 10) === 2 && cfg.resumeAnalysis;
+	introReady.then(function () {
+		if (pendingStoryIntroTypewriter && cardEl) {
+			cardEl.hidden = false;
+		}
 		loadPhrase(!!startResume);
+	});
 	}
 
 	document.addEventListener('DOMContentLoaded', function () {

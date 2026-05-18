@@ -64,6 +64,37 @@
 	margin-bottom: 0;
 }
 
+/* Blocco introduzione storia (testo articolo) */
+.llm-phrase-game__story-intro {
+	margin: 0 0 1.25rem;
+	padding: 0;
+	opacity: 0;
+}
+
+/* Visibile: con transizione (fade usato solo quando ci sono già frasi completate) */
+.llm-phrase-game__story-intro--visible {
+	opacity: 1;
+	transition: opacity 0.7s ease;
+}
+
+.llm-phrase-game__story-intro-label {
+	display: block;
+	margin-bottom: 0.25rem;
+	font-size: 0.78rem;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: #6b7280;
+}
+
+.llm-phrase-game__story-intro-text {
+	font-size: 0.95rem;
+	font-weight: 400;
+	line-height: 1.6;
+	color: #1a1a1a;
+	white-space: pre-wrap;
+}
+
 .llm-phrase-game__story-chip {
 	display: block;
 	margin: 0.45rem 0 0;
@@ -144,6 +175,26 @@
 
 .llm-phrase-game__interface p:first-child {
 	margin-top: 0;
+}
+
+/* hidden + tema Elementor: forza sparizione completa del pulsante */
+.llm-phrase-game__listen-target[hidden],
+.llm-phrase-game__listen-target.llm-phrase-game__listen-target--force-hidden,
+.llm-phrase-game--story-intro-active .llm-phrase-game__listen-target:not(.llm-phrase-game__listen-target--phase2) {
+	display: none !important;
+	visibility: hidden !important;
+	width: 0 !important;
+	height: 0 !important;
+	min-width: 0 !important;
+	min-height: 0 !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+	overflow: hidden !important;
+	opacity: 0 !important;
+	pointer-events: none !important;
+	position: absolute !important;
+	clip: rect(0, 0, 0, 0) !important;
 }
 
 .llm-phrase-game__listen-target {

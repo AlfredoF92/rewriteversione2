@@ -33,10 +33,14 @@ class LLM_Elementor_Dynamic_Tags {
 		require_once LLM_TABELLE_DIR . 'includes/elementor/class-llm-elementor-tag-story-text.php';
 		require_once LLM_TABELLE_DIR . 'includes/elementor/class-llm-elementor-tag-story-url.php';
 		require_once LLM_TABELLE_DIR . 'includes/elementor/class-llm-elementor-tag-story-image.php';
+		require_once LLM_TABELLE_DIR . 'includes/elementor/class-llm-elementor-tag-story-known-lang.php';
+		require_once LLM_TABELLE_DIR . 'includes/elementor/class-llm-elementor-tag-story-target-lang.php';
 
 		$dynamic_tags_manager->register( new LLM_Elementor_Tag_Story_Text() );
 		$dynamic_tags_manager->register( new LLM_Elementor_Tag_Story_Url() );
 		$dynamic_tags_manager->register( new LLM_Elementor_Tag_Story_Image() );
+		$dynamic_tags_manager->register( new LLM_Elementor_Tag_Story_Known_Lang() );
+		$dynamic_tags_manager->register( new LLM_Elementor_Tag_Story_Target_Lang() );
 
 		// Hero homepage tags
 		$dynamic_tags_manager->register_group(

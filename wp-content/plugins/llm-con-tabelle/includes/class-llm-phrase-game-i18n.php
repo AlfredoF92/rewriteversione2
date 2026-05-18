@@ -140,9 +140,10 @@ class LLM_Phrase_Game_I18n {
 				'story_progress_restart' => 'Ricomincia storia',
 				'story_progress_guest'  => 'Accedi per vedere i progressi e ricominciare la storia.',
 				'story_progress_confirm' => 'Ricominciare dalla prima frase? Il gioco riparte da capo; le frasi già completate restano salvate (e i coin non cambiano).',
-				'story_progress_sr'     => 'Progresso storia: %1$d frasi su %2$d completate',
-			),
-			'en' => array(
+			'story_progress_sr'     => 'Progresso storia: %1$d frasi su %2$d completate',
+			'intro_label'           => 'Introduzione:',
+		),
+		'en' => array(
 				'lang_names'            => $names_en,
 				'story_unavailable'     => 'Story unavailable.',
 				'no_phrases'            => 'No phrases configured for this story.',
@@ -179,9 +180,10 @@ class LLM_Phrase_Game_I18n {
 				'story_progress_restart' => 'Restart story',
 				'story_progress_guest'  => 'Log in to see progress and restart the story.',
 				'story_progress_confirm' => 'Start again from the first phrase? The game restarts from the beginning; completed phrases stay saved. Your coins will not change.',
-				'story_progress_sr'     => 'Story progress: %1$d of %2$d phrases completed',
-			),
-			'pl' => array(
+			'story_progress_sr'     => 'Story progress: %1$d of %2$d phrases completed',
+			'intro_label'           => 'Introduction:',
+		),
+		'pl' => array(
 				'lang_names'            => $names_pl,
 				'story_unavailable'     => 'Opowieść jest niedostępna.',
 				'no_phrases'            => 'Brak zdań skonfigurowanych dla tej opowieści.',
@@ -218,9 +220,10 @@ class LLM_Phrase_Game_I18n {
 				'story_progress_restart' => 'Zacznij od nowa',
 				'story_progress_guest'  => 'Zaloguj się, aby zobaczyć postęp i zacząć opowieść od nowa.',
 				'story_progress_confirm' => 'Zacząć od pierwszego zdania? Gra wraca na początek; ukończone zdania pozostają zapisane. Monety się nie zmienią.',
-				'story_progress_sr'     => 'Postęp: ukończono %1$d z %2$d zdań',
-			),
-			'es' => array(
+			'story_progress_sr'     => 'Postęp: ukończono %1$d z %2$d zdań',
+			'intro_label'           => 'Wstęp:',
+		),
+		'es' => array(
 				'lang_names'            => $names_es,
 				'story_unavailable'     => 'Historia no disponible.',
 				'no_phrases'            => 'No hay frases configuradas para esta historia.',
@@ -257,9 +260,10 @@ class LLM_Phrase_Game_I18n {
 				'story_progress_restart' => 'Reiniciar historia',
 				'story_progress_guest'  => 'Inicia sesión para ver el progreso y reiniciar la historia.',
 				'story_progress_confirm' => '¿Volver a la primera frase? El juego empieza de nuevo; las frases completadas siguen guardadas. Las monedas no cambian.',
-				'story_progress_sr'     => 'Progreso: %1$d de %2$d frases completadas',
-			),
-		);
+			'story_progress_sr'     => 'Progreso: %1$d de %2$d frases completadas',
+			'intro_label'           => 'Introducción:',
+		),
+	);
 
 		return $cache;
 	}
