@@ -368,13 +368,16 @@ class LLM_Story_Phrase_Game {
 		}
 
 		if ( 1 === $phase ) {
-			$ratio = self::reference_words_found_ratio( $user, $target );
-			if ( $ratio < self::PHASE1_MIN_RATIO ) {
-				wp_send_json_error(
-					array(
-						'message' => LLM_Phrase_Game_I18n::get( 'phase1_fail' ),
-					)
-				);
+			$bypass_phase1 = isset( $_POST['phase1_bypass'] ) && '1' === $_POST['phase1_bypass'];
+			if ( ! $bypass_phase1 ) {
+				$ratio = self::reference_words_found_ratio( $user, $target );
+				if ( $ratio < self::PHASE1_MIN_RATIO ) {
+					wp_send_json_error(
+						array(
+							'message' => LLM_Phrase_Game_I18n::get( 'phase1_fail' ),
+						)
+					);
+				}
 			}
 
 			if ( is_user_logged_in() ) {

@@ -1358,6 +1358,7 @@
 
 	function loadPhrase(resumeStep2) {
 		micWordsThisPhrase = 0;
+		phase1WarnActive = false;
 		cancelTts();
 		cancelAnalysisStream();
 			cancelStoryStream();
@@ -1463,7 +1464,7 @@
 			});
 		}
 
-	function postCheck(phase, userText, micUsed, cb) {
+	function postCheck(phase, userText, micUsed, cb, bypass) {
 		if (typeof micUsed === 'function') {
 			cb = micUsed;
 			micUsed = false;
@@ -1476,6 +1477,7 @@
 		body.set('phase', String(phase));
 		body.set('user_text', userText);
 		body.set('mic_used', micUsed ? '1' : '0');
+		body.set('phase1_bypass', bypass ? '1' : '0');
 
 			fetch(ajaxUrl, {
 				method: 'POST',
@@ -1498,6 +1500,15 @@
 				});
 		}
 
+		var phase1WarnActive = false;
+
+		input1.addEventListener('input', function () {
+			if (phase1WarnActive) {
+				setMessage('');
+				phase1WarnActive = false;
+			}
+		});
+
 		btn1.addEventListener('click', function () {
 			stopSpeech();
 			cancelTts();
@@ -1508,9 +1519,19 @@
 			}
 			var p = phrases[phraseIx];
 			var targetRef = p && p.target != null ? String(p.target) : '';
+			var bypassPhase1 = false;
 			if (!phase1PassesLocal(txt, targetRef, PHASE1_MIN)) {
-				setMessage(i18n.phase1Fail || '', true);
-				return;
+				if (phase1WarnActive) {
+					/* Seconda pressione con feedback visibile: si procede comunque */
+					bypassPhase1 = true;
+					phase1WarnActive = false;
+				} else {
+					setMessage(i18n.phase1Fail || '', true);
+					phase1WarnActive = true;
+					return;
+				}
+			} else {
+				phase1WarnActive = false;
 			}
 			setMessage('');
 			setMessagePhase2('', '');
@@ -1561,7 +1582,7 @@
 					);
 					return;
 				}
-			});
+			}, bypassPhase1);
 		});
 
 		btn2.addEventListener('click', function () {
