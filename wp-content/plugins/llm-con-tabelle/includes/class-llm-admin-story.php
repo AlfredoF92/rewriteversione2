@@ -159,6 +159,7 @@ class LLM_Admin_Story {
 		$target  = get_post_meta( $post->ID, LLM_Story_Meta::TARGET_LANG, true );
 		$title_t = get_post_meta( $post->ID, LLM_Story_Meta::TITLE_TARGET, true );
 		$plot    = get_post_meta( $post->ID, LLM_Story_Meta::STORY_PLOT, true );
+		$finale  = get_post_meta( $post->ID, LLM_Story_Meta::STORY_FINALE, true );
 		$cost    = (int) get_post_meta( $post->ID, LLM_Story_Meta::COIN_COST, true );
 		$reward  = (int) get_post_meta( $post->ID, LLM_Story_Meta::COIN_REWARD, true );
 
@@ -189,6 +190,11 @@ class LLM_Admin_Story {
 		<div class="llm-field-row">
 			<label for="llm_story_plot"><strong><?php esc_html_e( 'Trama della storia', 'llm-con-tabelle' ); ?></strong></label>
 			<textarea name="llm_story_plot" id="llm_story_plot" class="widefat" rows="5"><?php echo esc_textarea( is_string( $plot ) ? $plot : '' ); ?></textarea>
+		</div>
+		<div class="llm-field-row">
+			<label for="llm_story_finale"><strong><?php esc_html_e( 'Finale della storia', 'llm-con-tabelle' ); ?></strong></label>
+			<p class="description"><?php esc_html_e( 'Appare dopo che l\'utente completa l\'ultima frase, con animazione typewriter.', 'llm-con-tabelle' ); ?></p>
+			<textarea name="llm_story_finale" id="llm_story_finale" class="widefat" rows="4"><?php echo esc_textarea( is_string( $finale ) ? $finale : '' ); ?></textarea>
 		</div>
 		<hr />
 		<div class="llm-field-row llm-field-inline">
@@ -598,6 +604,11 @@ class LLM_Admin_Story {
 			$post_id,
 			LLM_Story_Meta::STORY_PLOT,
 			isset( $_POST['llm_story_plot'] ) ? LLM_Story_Meta::sanitize_plot( wp_unslash( $_POST['llm_story_plot'] ) ) : ''
+		);
+		update_post_meta(
+			$post_id,
+			LLM_Story_Meta::STORY_FINALE,
+			isset( $_POST['llm_story_finale'] ) ? LLM_Story_Meta::sanitize_plot( wp_unslash( $_POST['llm_story_finale'] ) ) : ''
 		);
 
 		$cost   = isset( $_POST['llm_story_coin_cost'] ) ? LLM_Story_Meta::sanitize_coin( wp_unslash( $_POST['llm_story_coin_cost'] ) ) : 0;

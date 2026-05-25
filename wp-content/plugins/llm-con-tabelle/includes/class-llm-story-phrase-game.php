@@ -255,21 +255,18 @@ class LLM_Story_Phrase_Game {
 						}
 					}
 				}
-			} else {
-				$prog_row = LLM_Story_Game_Progress::get_row( $uid, $story_id );
-				$run      = ( is_array( $prog_row ) && isset( $prog_row['run_completions'] ) ) ? (int) $prog_row['run_completions'] : 0;
-				if ( $run > 0 ) {
-					$show = min( $run, $n_phrases );
-					for ( $ix = 0; $ix < $show; $ix++ ) {
-						if ( isset( $phrases[ $ix ]['target'] ) ) {
-							$completed_targets[] = array(
-								'target'    => (string) $phrases[ $ix ]['target'],
-								'interface' => isset( $phrases[ $ix ]['interface'] ) ? (string) $phrases[ $ix ]['interface'] : '',
-							);
-						}
-					}
+		} else {
+			// Mostra tutte le frasi dall'indice 0 al checkpoint: phrase_done è la fonte di verità.
+			$show = min( $saved_phrase_ix, $n_phrases );
+			for ( $ix = 0; $ix < $show; $ix++ ) {
+				if ( isset( $phrases[ $ix ]['target'] ) ) {
+					$completed_targets[] = array(
+						'target'    => (string) $phrases[ $ix ]['target'],
+						'interface' => isset( $phrases[ $ix ]['interface'] ) ? (string) $phrases[ $ix ]['interface'] : '',
+					);
 				}
 			}
+		}
 		}
 
 		wp_register_style(
@@ -323,12 +320,14 @@ class LLM_Story_Phrase_Game {
 				'restartConfirm'   => LLM_Phrase_Game_I18n::get( 'story_progress_confirm' ),
 			'introLabel'       => LLM_Phrase_Game_I18n::get( 'intro_label' ),
 			),
-				'gameFinished'        => $game_finished,
-				'savedPhraseIndex'    => $saved_phrase_ix,
+			'gameFinished'        => $game_finished,
+			'savedPhraseIndex'    => $saved_phrase_ix,
+			'savedPhrasesCount'   => $game_finished ? $n_phrases : $saved_phrase_ix,
 				'savedStep'           => $saved_step,
 				'resumeAnalysis'      => $resume_analysis,
 				'completedStoryLines' => $completed_targets,
 				'storyIntro'          => wp_strip_all_tags( (string) get_post_field( 'post_content', $story_id ) ),
+			'storyFinale'         => sanitize_textarea_field( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_FINALE, true ) ),
 				'speechLang'          => self::speech_locale( $target_code ),
 				'validation'          => array(
 					'phase1MinRatio'     => self::PHASE1_MIN_RATIO,

@@ -1,3 +1,14 @@
+/* Login — [llm_login_form] */
+.llm-login-form {
+	max-width: 24rem;
+	margin: 0 auto 2rem;
+}
+
+.llm-login-form .llm-user-profile__label input[type="checkbox"] {
+	margin-right: 0.35rem;
+	vertical-align: middle;
+}
+
 /* Area personale — [llm_user_profile] */
 .llm-user-profile {
 	max-width: 28rem;

@@ -1,0 +1,92 @@
+/* llm-story-settings.css */
+
+.llm-story-settings {
+	display: inline-block;
+	position: relative;
+}
+
+.llm-story-settings__toggle {
+	background: none;
+	border: none;
+	padding: 0;
+	margin: 0;
+	cursor: pointer;
+	font-size: 0.7rem;
+	font-weight: 400;
+	color: #fff;
+	opacity: 0.7;
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25em;
+	line-height: 1;
+	transition: opacity 0.2s ease;
+}
+
+.llm-story-settings__toggle:hover,
+.llm-story-settings__toggle:focus-visible {
+	opacity: 1;
+	font-weight: 600;
+	outline: none;
+}
+
+.llm-story-settings__arrow {
+	font-size: 0.55rem;
+	display: inline-block;
+	transition: transform 0.2s ease;
+}
+
+.llm-story-settings__toggle[aria-expanded="true"] .llm-story-settings__arrow {
+	transform: rotate(180deg);
+}
+
+.llm-story-settings__panel {
+	margin-top: 0.5rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+	animation: llm-settings-fadein 0.2s ease both;
+}
+
+.llm-story-settings__panel[hidden] {
+	display: none !important;
+}
+
+@keyframes llm-settings-fadein {
+	from { opacity: 0; transform: translateY(-4px); }
+	to   { opacity: 1; transform: translateY(0); }
+}
+
+.llm-story-settings__restart-btn {
+	background: none;
+	border: 1px solid rgba(255, 255, 255, 0.45);
+	border-radius: 4px;
+	padding: 0.3em 0.75em;
+	cursor: pointer;
+	font-size: 0.72rem;
+	font-weight: 500;
+	color: #fff;
+	transition: background 0.2s ease, border-color 0.2s ease;
+	align-self: flex-start;
+}
+
+.llm-story-settings__restart-btn:hover,
+.llm-story-settings__restart-btn:focus-visible {
+	background: rgba(255, 255, 255, 0.08);
+	border-color: rgba(255, 255, 255, 0.6);
+	outline: none;
+}
+
+.llm-story-settings__restart-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.llm-story-settings__msg {
+	margin: 0;
+	font-size: 0.68rem;
+	color: #fff;
+	opacity: 0.85;
+	min-height: 1em;
+}

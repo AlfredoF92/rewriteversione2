@@ -361,6 +361,34 @@ class LLM_User_Stats {
 		);
 	}
 
+	/**
+	 * Reset completo per replay: cancella phrase_done per questa storia e azzera il checkpoint.
+	 * I coin guadagnati e il ledger vengono mantenuti.
+	 *
+	 * @param int $user_id  ID utente.
+	 * @param int $story_id ID storia.
+	 */
+	public static function reset_story_for_replay( $user_id, $story_id ) {
+		global $wpdb;
+		$user_id  = absint( $user_id );
+		$story_id = absint( $story_id );
+		if ( ! $user_id || ! $story_id ) {
+			return;
+		}
+
+		$table = LLM_Tabelle_Database::table( 'llm_user_phrase_done' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->delete( $table, array( 'user_id' => $user_id, 'story_id' => $story_id ), array( '%d', '%d' ) );
+
+		LLM_Story_Game_Progress::upsert(
+			$user_id,
+			$story_id,
+			0,
+			LLM_Story_Game_Progress::STEP_TRANSLATE,
+			0
+		);
+	}
+
 	public static function set_balance_admin( $user_id, $new_balance, $note = '' ) {
 		$new_balance = max( 0, (int) $new_balance );
 		$old         = self::get_balance( $user_id );

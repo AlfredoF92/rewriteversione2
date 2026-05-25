@@ -205,16 +205,28 @@ class LLM_Story_Game_Progress {
 		if ( ! $user_id || ! $story_id || $total < 1 ) {
 			return 0;
 		}
+
+		// Conta sequenziale da phrase_done: quante frasi consecutive partendo da 0 sono completate.
+		$map      = LLM_User_Stats::get_phrase_map( $user_id );
+		$key      = (string) $story_id;
+		$done_set = array();
+		if ( isset( $map[ $key ] ) && is_array( $map[ $key ] ) ) {
+			$done_set = array_flip( array_map( 'intval', $map[ $key ] ) );
+		}
+		$sequential_done = 0;
+		for ( $i = 0; $i < $total; $i++ ) {
+			if ( isset( $done_set[ $i ] ) ) {
+				$sequential_done++;
+			} else {
+				break;
+			}
+		}
+
 		$row = self::get_row( $user_id, $story_id );
-		if ( is_array( $row ) && isset( $row['run_completions'] ) ) {
-			return min( (int) $row['run_completions'], $total );
-		}
-		$map = LLM_User_Stats::get_phrase_map( $user_id );
-		$key = (string) $story_id;
-		if ( isset( $map[ $key ] ) && is_array( $map[ $key ] ) && count( $map[ $key ] ) >= $total ) {
-			return $total;
-		}
-		return 0;
+		$run = ( is_array( $row ) && isset( $row['run_completions'] ) ) ? (int) $row['run_completions'] : 0;
+
+		// La barra non scende mai sotto le frasi sequenzialmente completate in phrase_done.
+		return min( max( $run, $sequential_done ), $total );
 	}
 
 	public static function delete( $user_id, $story_id ) {

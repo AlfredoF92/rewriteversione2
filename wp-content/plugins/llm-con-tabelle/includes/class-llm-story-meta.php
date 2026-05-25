@@ -17,6 +17,7 @@ class LLM_Story_Meta {
 	const COIN_COST    = '_llm_story_coin_cost';
 	const COIN_REWARD  = '_llm_story_coin_reward';
 	const STORY_PLOT   = '_llm_story_plot';
+	const STORY_FINALE = '_llm_story_finale';
 
 	public static function init() {
 		add_action( 'init', array( __CLASS__, 'register_meta' ), 11 );
@@ -35,6 +36,7 @@ class LLM_Story_Meta {
 		register_post_meta( $pt, self::TARGET_LANG, array_merge( $scalar_string, array( 'sanitize_callback' => 'sanitize_key' ) ) );
 		register_post_meta( $pt, self::TITLE_TARGET, array_merge( $scalar_string, array( 'sanitize_callback' => 'sanitize_text_field' ) ) );
 		register_post_meta( $pt, self::STORY_PLOT, array_merge( $scalar_string, array( 'sanitize_callback' => array( __CLASS__, 'sanitize_plot' ) ) ) );
+		register_post_meta( $pt, self::STORY_FINALE, array_merge( $scalar_string, array( 'sanitize_callback' => array( __CLASS__, 'sanitize_plot' ) ) ) );
 
 		register_post_meta(
 			$pt,

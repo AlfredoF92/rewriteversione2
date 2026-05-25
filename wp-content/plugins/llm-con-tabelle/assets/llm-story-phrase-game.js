@@ -902,20 +902,45 @@
 			});
 		}
 
-		if (cfg.gameFinished) {
-			cardEl.hidden = true;
-			doneEl.hidden = false;
-			return;
+	if (cfg.gameFinished) {
+		cardEl.hidden = true;
+		if (cfg.storyFinale && storyEl) {
+			var finaleWrapFinished = document.createElement('div');
+			finaleWrapFinished.className = 'llm-phrase-game__story-finale';
+			var finaleTextFinished = document.createElement('div');
+			finaleTextFinished.className = 'llm-phrase-game__story-finale-text';
+			finaleTextFinished.textContent = String(cfg.storyFinale);
+			finaleWrapFinished.appendChild(finaleTextFinished);
+			storyEl.appendChild(finaleWrapFinished);
+			requestAnimationFrame(function () {
+				requestAnimationFrame(function () {
+					finaleWrapFinished.classList.add('llm-phrase-game__story-finale--visible');
+				});
+			});
 		}
+		doneEl.hidden = false;
+		return;
+	}
 
-		if (cfg.savedPhraseIndex !== undefined && cfg.savedPhraseIndex !== null) {
-			phraseIx = parseInt(cfg.savedPhraseIndex, 10);
-			if (isNaN(phraseIx)) {
-				phraseIx = 0;
-			}
+	if (cfg.savedPhraseIndex !== undefined && cfg.savedPhraseIndex !== null) {
+		phraseIx = parseInt(cfg.savedPhraseIndex, 10);
+		if (isNaN(phraseIx)) {
+			phraseIx = 0;
 		}
+	}
 
-		function stopSpeech() {
+	/* Inizializza barra al caricamento usando phrase_done come fonte di verità. */
+	if (typeof window.llmUpdateStoryProgressBar === 'function' && phrases.length > 0) {
+		var initDone = cfg.savedPhrasesCount !== undefined && cfg.savedPhrasesCount !== null
+			? parseInt(cfg.savedPhrasesCount, 10)
+			: phraseIx;
+		if (isNaN(initDone)) {
+			initDone = 0;
+		}
+		window.llmUpdateStoryProgressBar(String(storyId), initDone, phrases.length);
+	}
+
+	function stopSpeech() {
 			if (speechRec) {
 				try {
 					speechRec.stop();
@@ -1337,11 +1362,31 @@
 		cancelAnalysisStream();
 			cancelStoryStream();
 			cancelPhraseIntro();
-			if (phraseIx >= phrases.length) {
-				cardEl.hidden = true;
+		if (phraseIx >= phrases.length) {
+			cardEl.hidden = true;
+			if (cfg.storyFinale && storyEl && !storyEl.querySelector('.llm-phrase-game__story-finale')) {
+				var finaleWrap = document.createElement('div');
+				finaleWrap.className = 'llm-phrase-game__story-finale';
+				var finaleText = document.createElement('div');
+				finaleText.className = 'llm-phrase-game__story-finale-text';
+				finaleWrap.appendChild(finaleText);
+				storyEl.appendChild(finaleWrap);
+				smoothScrollStoryToCenter().then(function () {
+					finaleWrap.classList.add('llm-phrase-game__story-finale--visible');
+					var sr = ++storyStreamRun;
+					typewriterInto(finaleText, String(cfg.storyFinale), function () {
+						return storyStreamRun === sr;
+					}).then(function () {
+						if (doneEl) {
+							doneEl.hidden = false;
+						}
+					});
+				});
+			} else {
 				doneEl.hidden = false;
-				return;
 			}
+			return;
+		}
 			var p = phrases[phraseIx];
 			var useResume =
 				resumeStep2 &&
