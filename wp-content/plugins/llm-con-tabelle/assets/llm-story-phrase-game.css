@@ -641,8 +641,13 @@
 	line-height: 1.55;
 }
 
-.llm-phrase-game__grammar p:first-child {
+.llm-phrase-game__grammar p:first-child,
+.llm-phrase-game__grammar-block:first-child {
 	margin-top: 0;
+}
+
+.llm-phrase-game__grammar-block {
+	line-height: 1.55;
 }
 
 .llm-phrase-game__label-main,

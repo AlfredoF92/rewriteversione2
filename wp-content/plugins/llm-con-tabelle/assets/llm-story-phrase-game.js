@@ -510,211 +510,183 @@
 			});
 		}
 
-		function prepareAnalysisStreamLayout() {
-			if (bravoEl) {
-				bravoEl.textContent = '';
-			}
-			if (grammarEl) {
-				grammarEl.innerHTML = '';
-			}
-			if (targetShow) {
-				targetShow.innerHTML = '';
-			}
-			if (altShow) {
-				altShow.innerHTML = '';
-			}
-			if (labelMainEl) {
-				labelMainEl.style.opacity = '0';
-			}
-			if (labelAltEl) {
-				labelAltEl.style.opacity = '0';
-			}
-			if (promptRewrite) {
-				promptRewrite.textContent = '';
+	function prepareAnalysisStreamLayout() {
+		if (bravoEl) {
+			bravoEl.textContent = '';
+		}
+		if (grammarEl) {
+			grammarEl.innerHTML = '';
+		}
+		if (targetShow) {
+			targetShow.innerHTML = '';
+		}
+		if (altShow) {
+			altShow.innerHTML = '';
+			altShow.style.opacity = '0';
+		}
+		if (labelMainEl) {
+			labelMainEl.style.opacity = '0';
+		}
+		if (labelAltEl) {
+			labelAltEl.style.opacity = '0';
+		}
+		if (promptRewrite) {
+			promptRewrite.textContent = '';
+			promptRewrite.style.opacity = '0';
+		}
+	}
+
+	/**
+	 * Splitta HTML della grammatica in blocchi: usa <p> tag se presenti,
+	 * altrimenti \n\n, altrimenti \n.
+	 */
+	function splitGrammarBlocks(html) {
+		var s = String(html || '').trim();
+		if (!s) { return []; }
+		if (/<p[\s>]/i.test(s)) {
+			var div = document.createElement('div');
+			try { div.innerHTML = s; } catch (e) { return [s]; }
+			var pNodes = div.querySelectorAll('p');
+			if (pNodes.length > 1) {
+				var arr = [];
+				pNodes.forEach(function (n) {
+					var t = n.innerHTML.trim();
+					if (t) { arr.push(t); }
+				});
+				if (arr.length > 1) { return arr; }
 			}
 		}
+		var blocks = s.split(/\n\n+/).map(function (b) { return b.trim(); }).filter(Boolean);
+		if (blocks.length > 1) { return blocks; }
+		blocks = s.split(/\n/).map(function (b) { return b.trim(); }).filter(Boolean);
+		if (blocks.length > 1) { return blocks; }
+		return [s];
+	}
 
-		function runAnalysisTypestream(opts) {
-			var run = ++analysisStreamRun;
-			var yourText = opts.yourText != null ? String(opts.yourText) : '';
-			var skipYour = !!opts.skipYourPhrase;
-			var skipBravo = !!opts.skipBravo;
-			var grammar = opts.grammar != null ? String(opts.grammar) : '';
-			var target = opts.target != null ? String(opts.target) : '';
-			var alt = opts.alt != null ? String(opts.alt) : '';
-			var hasBravo = !skipBravo && bravoEl && bravoSourceText;
+	function runAnalysisTypestream(opts) {
+		var run = ++analysisStreamRun;
+		var yourText  = opts.yourText  != null ? String(opts.yourText)  : '';
+		var skipYour  = !!opts.skipYourPhrase;
+		var skipBravo = !!opts.skipBravo;
+		var grammar   = opts.grammar   != null ? String(opts.grammar)   : '';
+		var target    = opts.target    != null ? String(opts.target)    : '';
+		var alt       = opts.alt       != null ? String(opts.alt)       : '';
+		var hasBravo  = !skipBravo && bravoEl && bravoSourceText;
 
-			prepareAnalysisStreamLayout();
-			setComposePhaseVisible(2, false);
+		var FADE_DUR     = 480;   /* durata fade grammatica */
+		var FADE_GAP     = 120;   /* pausa dopo ogni blocco */
+		var ELEMENT_GAP  = 120;   /* pausa tra elementi diversi */
 
-			var chain = Promise.resolve();
+		prepareAnalysisStreamLayout();
+		setComposePhaseVisible(2, false);
 
-			if (skipYour && skipBravo) {
-				chain = chain.then(function () {
-					if (!streamAlive(run)) {
-						return;
-					}
-					var nextResume = grammar
-						? grammarEl
-						: target
-							? targetShow
-							: alt
-								? altShow
-								: null;
-					if (nextResume) {
-						return streamGap(run, nextResume);
-					}
+		function alive() { return streamAlive(run); }
+
+		/** Fade lento: elemento inizia opacity 0, transisce a 1. */
+		function fadeReveal(el, dur) {
+			var d = dur || FADE_DUR;
+			return new Promise(function (resolve) {
+				if (!el) { resolve(); return; }
+				el.style.opacity = '0';
+				el.style.transition = 'opacity ' + d + 'ms ease';
+				requestAnimationFrame(function () {
+					requestAnimationFrame(function () {
+						el.style.opacity = '1';
+						setTimeout(resolve, d);
+					});
 				});
-			}
+			});
+		}
 
-			if (!skipYour && yourPhraseText && yourPhraseWrap) {
+		var chain = Promise.resolve();
+
+		function addStep(fn, gapMs) {
+			chain = chain.then(function () {
+				if (!alive()) { return; }
+				return fn();
+			}).then(function () {
+				if (!alive()) { return; }
+				return sleepMs(gapMs != null ? gapMs : ELEMENT_GAP);
+			});
+		}
+
+		/* ── La tua frase → typewriter ─────────────────────────────── */
+		if (!skipYour && yourPhraseText && yourPhraseWrap) {
+			addStep(function () {
+				if (!alive()) { return; }
 				yourPhraseWrap.hidden = false;
-				chain = chain.then(function () {
-					if (!streamAlive(run)) {
-						return;
-					}
-					return streamGap(run, yourPhraseText);
-				});
-				chain = chain.then(function () {
-					return typewriterInto(yourPhraseText, yourText, function () {
-						return streamAlive(run);
-					});
-				});
-				chain = chain.then(function () {
-					if (!streamAlive(run)) {
-						return;
-					}
-					if (hasBravo || grammar || target || alt) {
-						var nextAfterYour = hasBravo
-							? bravoEl
-							: grammar
-								? grammarEl
-								: target
-									? targetShow
-									: altShow;
-						return streamGap(run, nextAfterYour);
-					}
-				});
-			}
-
-			if (hasBravo) {
-				chain = chain.then(function () {
-					if (!streamAlive(run)) {
-						return;
-					}
-					return typewriterInto(bravoEl, bravoSourceText, function () {
-						return streamAlive(run);
-					});
-				});
-				chain = chain.then(function () {
-					if (!streamAlive(run)) {
-						return;
-					}
-					if (grammar || target || alt) {
-						var nextAfterBravo = grammar
-							? grammarEl
-							: target
-								? targetShow
-								: altShow;
-						return streamGap(run, nextAfterBravo);
-					}
-				});
-			}
-
-			if (grammar) {
-				chain = chain.then(function () {
-					if (!streamAlive(run)) {
-						return;
-					}
-					return typewriterHtmlInto(grammarEl, grammar, function () {
-						return streamAlive(run);
-					}, TYPE_TICK_MS);
-				});
-				chain = chain.then(function () {
-					if (!streamAlive(run)) {
-						return;
-					}
-					if (target || alt) {
-						var nextAfterGrammar = target ? targetShow : altShow;
-						return streamGap(run, nextAfterGrammar);
-					}
-				});
-			}
-
-			if (target) {
-				chain = chain.then(function () {
-					if (!streamAlive(run)) {
-						return;
-					}
-					if (labelMainEl) {
-						labelMainEl.style.opacity = '1';
-					}
-					return typewriterHtmlInto(targetShow, target, function () {
-						return streamAlive(run);
-					}, TYPE_TICK_MS);
-				});
-				chain = chain.then(function () {
-					if (!streamAlive(run)) {
-						return;
-					}
-					if (alt) {
-						return streamGap(run, altShow);
-					}
-				});
-			} else if (labelMainEl) {
-				labelMainEl.style.opacity = '1';
-			}
-
-			if (alt) {
-				chain = chain.then(function () {
-					if (!streamAlive(run)) {
-						return;
-					}
-					if (labelAltEl) {
-						labelAltEl.style.opacity = '1';
-					}
-					return typewriterHtmlInto(altShow, alt, function () {
-						return streamAlive(run);
-					}, TYPE_TICK_MS);
-				});
-			} else if (labelAltEl) {
-				labelAltEl.style.opacity = '1';
-			}
-
-			chain = chain.then(function () {
-				if (!streamAlive(run)) {
-					return;
-				}
-				if (!promptRewrite) {
-					return;
-				}
-				return streamGap(run, promptRewrite);
-			});
-			chain = chain.then(function () {
-				if (!streamAlive(run)) {
-					return;
-				}
-				if (!promptRewrite) {
-					return;
-				}
-				return typewriterInto(promptRewrite, i18n.rewritePrompt || '', function () {
-					return streamAlive(run);
-				});
-			});
-
-			return chain.then(function () {
-				if (!streamAlive(run)) {
-					return;
-				}
-				setComposePhaseVisible(2, true);
-				if (btn2) {
-					btn2.disabled = false;
-				}
-				if (input2) {
-					input2.readOnly = false;
-				}
+				return typewriterInto(yourPhraseText, yourText, alive);
 			});
 		}
+
+		/* ── Bravo → typewriter ─────────────────────────────────────── */
+		if (hasBravo) {
+			addStep(function () {
+				if (!alive()) { return; }
+				return typewriterInto(bravoEl, bravoSourceText, alive);
+			});
+		}
+
+		/* ── Grammatica → fade lento per paragrafo ──────────────────── */
+		if (grammar) {
+			var blocks = splitGrammarBlocks(grammar);
+			blocks.forEach(function (blockHtml) {
+				addStep((function (bHtml) {
+					return function () {
+						if (!alive()) { return; }
+						var p = document.createElement('p');
+						p.className = 'llm-phrase-game__grammar-block';
+						try { p.innerHTML = bHtml; } catch (e) { p.textContent = bHtml; }
+						p.style.margin = '0 0 0.45em';
+						grammarEl.appendChild(p);
+						return fadeReveal(p);
+					};
+				})(blockHtml), FADE_GAP);
+			});
+		}
+
+		/* ── Frase corretta → typewriter ────────────────────────────── */
+		if (target) {
+			addStep(function () {
+				if (!alive()) { return; }
+				if (labelMainEl) { labelMainEl.style.opacity = '1'; }
+				return typewriterHtmlInto(targetShow, target, alive, TYPE_TICK_MS);
+			});
+		} else if (labelMainEl) {
+			labelMainEl.style.opacity = '1';
+		}
+
+		/* ── Alternativa → fade ─────────────────────────────────────── */
+		if (alt) {
+			addStep(function () {
+				if (!alive()) { return; }
+				try { altShow.innerHTML = alt; } catch (e) { altShow.textContent = alt; }
+				if (labelAltEl) {
+					labelAltEl.style.transition = 'opacity 400ms ease';
+					labelAltEl.style.opacity = '1';
+				}
+				return fadeReveal(altShow, 400);
+			});
+		} else if (labelAltEl) {
+			labelAltEl.style.opacity = '1';
+		}
+
+		/* ── Prompt riscrivi → fade ─────────────────────────────────── */
+		if (promptRewrite) {
+			addStep(function () {
+				if (!alive()) { return; }
+				promptRewrite.textContent = i18n.rewritePrompt || '';
+				return fadeReveal(promptRewrite, 350);
+			});
+		}
+
+		return chain.then(function () {
+			if (!alive()) { return; }
+			setComposePhaseVisible(2, true);
+			if (btn2) { btn2.disabled = false; }
+			if (input2) { input2.readOnly = false; }
+		});
+	}
 
 	var openStoryChip = null;
 
@@ -1315,34 +1287,42 @@
 			}
 		}
 
-		function resetAnalysis() {
-			cancelAnalysisStream();
-			cancelPhase2MessageStream();
-			analysisEl.hidden = true;
-			if (bravoEl) {
-				bravoEl.textContent = '';
-			}
-			if (grammarEl) {
-				grammarEl.innerHTML = '';
-			}
-			if (targetShow) {
-				targetShow.innerHTML = '';
-			}
-			if (altShow) {
-				altShow.innerHTML = '';
-			}
-			if (labelMainEl) {
-				labelMainEl.style.opacity = '';
-			}
-			if (labelAltEl) {
-				labelAltEl.style.opacity = '';
-			}
-			if (yourPhraseWrap) {
-				yourPhraseWrap.hidden = true;
-			}
-			if (yourPhraseText) {
-				yourPhraseText.textContent = '';
-			}
+	function resetAnalysis() {
+		cancelAnalysisStream();
+		cancelPhase2MessageStream();
+		analysisEl.hidden = true;
+		if (bravoEl) {
+			bravoEl.textContent = '';
+		}
+		if (grammarEl) {
+			grammarEl.innerHTML = '';
+		}
+		if (targetShow) {
+			targetShow.innerHTML = '';
+		}
+		if (altShow) {
+			altShow.innerHTML = '';
+			altShow.style.opacity = '';
+			altShow.style.transition = '';
+		}
+		if (labelMainEl) {
+			labelMainEl.style.opacity = '';
+			labelMainEl.style.transition = '';
+		}
+		if (labelAltEl) {
+			labelAltEl.style.opacity = '';
+			labelAltEl.style.transition = '';
+		}
+		if (yourPhraseWrap) {
+			yourPhraseWrap.hidden = true;
+		}
+		if (yourPhraseText) {
+			yourPhraseText.textContent = '';
+		}
+		if (promptRewrite) {
+			promptRewrite.style.opacity = '';
+			promptRewrite.style.transition = '';
+		}
 			if (input2) {
 				input2.readOnly = false;
 			}
