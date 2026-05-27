@@ -329,11 +329,12 @@ class LLM_Story_Phrase_Game {
 				'storyIntro'          => wp_strip_all_tags( (string) get_post_field( 'post_content', $story_id ) ),
 			'storyFinale'         => sanitize_textarea_field( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_FINALE, true ) ),
 				'speechLang'          => self::speech_locale( $target_code ),
-				'validation'          => array(
-					'phase1MinRatio'     => self::PHASE1_MIN_RATIO,
-					'phase2MinSimilar'   => self::PHASE2_MIN_SIMILAR,
-					'phase2MinWordRatio' => self::PHASE2_MIN_WORD_RATIO,
-				),
+			'strictAccents'       => is_user_logged_in() ? LLM_User_Meta::get_strict_accents( get_current_user_id() ) : true,
+			'validation'          => array(
+				'phase1MinRatio'     => self::PHASE1_MIN_RATIO,
+				'phase2MinSimilar'   => self::PHASE2_MIN_SIMILAR,
+				'phase2MinWordRatio' => self::PHASE2_MIN_WORD_RATIO,
+			),
 			)
 		);
 	}
@@ -399,14 +400,19 @@ class LLM_Story_Phrase_Game {
 			);
 		}
 
-		if ( 2 === $phase ) {
-			if ( ! self::phase2_passes( $user, $target ) ) {
-				wp_send_json_error(
-					array(
-						'message' => LLM_Phrase_Game_I18n::get( 'phase2_fail' ),
-					)
-				);
-			}
+	if ( 2 === $phase ) {
+		$client_strict = isset( $_POST['strict_accents'] ) ? ( '1' === $_POST['strict_accents'] ) : null;
+		if ( ! self::phase2_passes( $user, $target, $client_strict ) ) {
+			$strict_used = null !== $client_strict ? $client_strict : ( is_user_logged_in() ? LLM_User_Meta::get_strict_accents( get_current_user_id() ) : true );
+			wp_send_json_error(
+				array(
+					'message'      => LLM_Phrase_Game_I18n::get( 'phase2_fail' ),
+					'debug_u'      => self::normalize_sentence( $user, $strict_used ),
+					'debug_r'      => self::normalize_sentence( $target, $strict_used ),
+					'debug_strict' => $strict_used,
+				)
+			);
+		}
 
 			$next       = null !== LLM_Story_Repository::get_phrase_at( $story_id, $index + 1 );
 			$phrases    = LLM_Story_Repository::get_phrases( $story_id );
@@ -473,9 +479,15 @@ class LLM_Story_Phrase_Game {
 	 * @param string $user_text    Testo utente.
 	 * @param string $reference_text Modello.
 	 */
-	public static function phase2_passes( $user_text, $reference_text ) {
-		$u = self::normalize_sentence( $user_text );
-		$r = self::normalize_sentence( $reference_text );
+	public static function phase2_passes( $user_text, $reference_text, $strict_accents = null ) {
+		if ( null === $strict_accents ) {
+			$strict_accents = is_user_logged_in()
+				? LLM_User_Meta::get_strict_accents( get_current_user_id() )
+				: true;
+		}
+
+		$u = self::normalize_sentence( $user_text, $strict_accents );
+		$r = self::normalize_sentence( $reference_text, $strict_accents );
 		if ( '' === $r ) {
 			return true;
 		}
@@ -486,12 +498,59 @@ class LLM_Story_Phrase_Game {
 	}
 
 	/**
-	 * @param string $s Testo.
+	 * Rimuove i diacritici (accenti, ogonek, cedille ecc.) da una stringa UTF-8.
+	 * Usa Normalizer (NFD) se disponibile, altrimenti una mappa manuale.
+	 *
+	 * @param string $s
 	 * @return string
 	 */
-	public static function normalize_sentence( $s ) {
+	private static function strip_diacritics( $s ) {
+		if ( class_exists( 'Normalizer' ) ) {
+			$nfd = \Normalizer::normalize( $s, \Normalizer::FORM_D );
+			if ( false !== $nfd ) {
+				return preg_replace( '/\p{M}/u', '', $nfd );
+			}
+		}
+		/* Mappa manuale: copre IT, FR, ES, PL, DE, più comuni */
+		$map = array(
+			'à' => 'a', 'á' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a', 'å' => 'a',
+			'ą' => 'a', 'ā' => 'a', 'ă' => 'a',
+			'è' => 'e', 'é' => 'e', 'ê' => 'e', 'ë' => 'e', 'ę' => 'e', 'ě' => 'e',
+			'ē' => 'e', 'ĕ' => 'e',
+			'ì' => 'i', 'í' => 'i', 'î' => 'i', 'ï' => 'i', 'ī' => 'i', 'ĭ' => 'i',
+			'ò' => 'o', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'o', 'ø' => 'o',
+			'ő' => 'o', 'ō' => 'o',
+			'ù' => 'u', 'ú' => 'u', 'û' => 'u', 'ü' => 'u', 'ű' => 'u', 'ū' => 'u',
+			'ý' => 'y', 'ÿ' => 'y',
+			'ç' => 'c', 'ć' => 'c', 'č' => 'c',
+			'ñ' => 'n', 'ń' => 'n', 'ň' => 'n',
+			'ł' => 'l', 'ľ' => 'l',
+			'ś' => 's', 'š' => 's', 'ş' => 's',
+			'ź' => 'z', 'ż' => 'z', 'ž' => 'z',
+			'ď' => 'd', 'ð' => 'd',
+			'ř' => 'r',
+			'ť' => 't', 'þ' => 'th',
+			'ß' => 'ss',
+			'æ' => 'ae', 'œ' => 'oe',
+		);
+		$upper = array();
+		foreach ( $map as $from => $to ) {
+			$upper[ mb_strtoupper( $from, 'UTF-8' ) ] = mb_strtoupper( $to, 'UTF-8' );
+		}
+		return strtr( $s, array_merge( $map, $upper ) );
+	}
+
+	/**
+	 * @param string    $s             Testo.
+	 * @param bool      $keep_accents  Se false, rimuove i diacritici.
+	 * @return string
+	 */
+	public static function normalize_sentence( $s, $keep_accents = true ) {
 		$s = wp_strip_all_tags( (string) $s );
-		$s = strtolower( $s );
+		$s = mb_strtolower( $s, 'UTF-8' );
+		if ( ! $keep_accents ) {
+			$s = self::strip_diacritics( $s );
+		}
 		$s = preg_replace( '/[^\p{L}\p{N}\s]+/u', ' ', $s );
 		$s = preg_replace( '/\s+/u', ' ', $s );
 		return trim( $s );

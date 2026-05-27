@@ -179,8 +179,16 @@
 		});
 	}
 
+	function removeAccents(s) {
+		return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+	}
+
 	function normalizeSentence(s) {
 		s = stripTagsHtml(s).toLowerCase();
+		var strict = window.llmPhraseGame && window.llmPhraseGame.strictAccents !== false;
+		if (!strict) {
+			s = removeAccents(s);
+		}
 		s = s.replace(/[^\p{L}\p{N}\s]+/gu, ' ');
 		s = s.replace(/\s+/g, ' ').trim();
 		return s;
@@ -1458,6 +1466,8 @@
 		body.set('user_text', userText);
 		body.set('mic_used', micUsed ? '1' : '0');
 		body.set('phase1_bypass', bypass ? '1' : '0');
+		var strictAccents = window.llmPhraseGame && window.llmPhraseGame.strictAccents !== false;
+		body.set('strict_accents', strictAccents ? '1' : '0');
 
 			fetch(ajaxUrl, {
 				method: 'POST',
@@ -1568,6 +1578,11 @@
 		btn2.addEventListener('click', function () {
 			stopSpeech();
 			cancelTts();
+			/* Sincronizza strictAccents direttamente dal DOM per evitare disallineamenti */
+			var accentsToggleEl = document.querySelector('.llm-story-settings__accents-input');
+			if (accentsToggleEl && window.llmPhraseGame) {
+				window.llmPhraseGame.strictAccents = accentsToggleEl.checked;
+			}
 			var txt = (input2.value || '').trim();
 			if (!txt) {
 				setMessagePhase2Typewriter(i18n.empty || '', 'error');
@@ -1575,6 +1590,14 @@
 			}
 			var p2 = phrases[phraseIx];
 			var targetRef2 = p2 && p2.target != null ? String(p2.target) : '';
+			var strictNow = window.llmPhraseGame && window.llmPhraseGame.strictAccents !== false;
+			console.group('%c[LLM Debug] btn2 click - fase 2', 'color:#8e148e;font-weight:bold');
+			console.log('strictAccents (JS):', strictNow);
+			console.log('Utente raw:        ', JSON.stringify(txt));
+			console.log('Target raw:        ', JSON.stringify(targetRef2));
+			console.log('Utente normaliz.:  ', JSON.stringify(normalizeSentence(txt)));
+			console.log('Target normaliz.:  ', JSON.stringify(normalizeSentence(targetRef2)));
+			console.groupEnd();
 			if (!phase2PassesLocal(txt, targetRef2, PHASE2_SIM, PHASE2_WR)) {
 				setMessagePhase2Typewriter(i18n.phase2Fail || '', 'error');
 				return;
@@ -1618,17 +1641,25 @@
 			return Promise.all([ajaxPromise, sleepMs(3000)]);
 		})
 				.then(function (pair) {
-					var json = pair && pair[0];
-					if (!json || !json.success) {
-						btn2.disabled = false;
-						if (input2) {
-							input2.readOnly = false;
-						}
-						var msg =
-							(json && json.data && json.data.message) || i18n.phase2Fail || '';
-						setMessagePhase2Typewriter(msg, 'error');
-						return;
+			var json = pair && pair[0];
+				if (!json || !json.success) {
+					btn2.disabled = false;
+					if (input2) {
+						input2.readOnly = false;
 					}
+					var dbg = json && json.data;
+					if (dbg && (dbg.debug_u !== undefined || dbg.debug_r !== undefined)) {
+						console.group('%c[LLM Debug] Fase 2 - confronto normalizzato', 'color:#8e148e;font-weight:bold');
+						console.log('Utente  (debug_u):', JSON.stringify(dbg.debug_u));
+						console.log('Attesa  (debug_r):', JSON.stringify(dbg.debug_r));
+						console.log('Strict accents:  ', dbg.debug_strict);
+						console.groupEnd();
+					}
+					var msg =
+						(json && json.data && json.data.message) || i18n.phase2Fail || '';
+					setMessagePhase2Typewriter(msg, 'error');
+					return;
+				}
 					var d = json.data || {};
 					if (typeof window.llmUpdateStoryProgressBar === 'function' && d.phrases_total != null) {
 						var doneBar = parseInt(d.phrases_done, 10);
