@@ -346,7 +346,10 @@
 		var yourPhraseText = qs(root, '.llm-phrase-game__your-phrase-text');
 		var mic1 = qs(root, '.llm-phrase-game__mic--1');
 		var mic2 = qs(root, '.llm-phrase-game__mic--2');
-		var listenTargetBtn      = qs(root, '.llm-phrase-game__listen-target:not(.llm-phrase-game__listen-target--phase2)');
+		var phase2RecapCounter   = qs(root, '.llm-phrase-game__phase2-recap__counter');
+	var phase2RecapIface     = qs(root, '.llm-phrase-game__phase2-recap__interface');
+	var phase2RecapPrompt    = qs(root, '.llm-phrase-game__phase2-recap__prompt');
+	var listenTargetBtn      = qs(root, '.llm-phrase-game__listen-target:not(.llm-phrase-game__listen-target--phase2)');
 		var listenTargetBtnPhase2 = qs(root, '.llm-phrase-game__listen-target--phase2');
 		var composePhase1 = qs(root, '.llm-phrase-game__compose--phase1');
 		var composePhase2 = qs(root, '.llm-phrase-game__compose--phase2');
@@ -688,13 +691,28 @@
 			});
 		}
 
-		return chain.then(function () {
-			if (!alive()) { return; }
-			setComposePhaseVisible(2, true);
-			if (btn2) { btn2.disabled = false; }
-			if (input2) { input2.readOnly = false; }
-		});
-	}
+	return chain.then(function () {
+		if (!alive()) { return; }
+		/* Popola il recap fase-1 visibile dentro il blocco fase-2 */
+		var p = phrases[phraseIx];
+		if (phase2RecapCounter) {
+			var ctr = (i18n.progress || '%1$d / %2$d')
+				.replace('%1$d', String(phraseIx + 1))
+				.replace('%2$d', String(phrases.length));
+			phase2RecapCounter.textContent = ctr;
+		}
+		if (phase2RecapIface) {
+			phase2RecapIface.textContent = p && p.interface ? p.interface : '';
+		}
+		if (phase2RecapPrompt) {
+			var tpl = i18n.translatePrompt || '';
+			phase2RecapPrompt.textContent = tpl.replace('%s', cfg.targetLangLabel || '');
+		}
+		setComposePhaseVisible(2, true);
+		if (btn2) { btn2.disabled = false; }
+		if (input2) { input2.readOnly = false; }
+	});
+}
 
 	var openStoryChip = null;
 

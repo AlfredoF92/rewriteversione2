@@ -169,10 +169,15 @@ class LLM_Story_Phrase_Game {
 								</span>
 							</button>
 						</div>
-						<div class="llm-phrase-game__input-block">
-							<div class="llm-phrase-game__input-shell">
-								<textarea id="<?php echo esc_attr( $uid ); ?>-input2" class="llm-phrase-game__input llm-phrase-game__input--2" rows="3"></textarea>
-							</div>
+					<div class="llm-phrase-game__phase2-recap" aria-hidden="true">
+						<p class="llm-phrase-game__phase2-recap__counter"></p>
+						<p class="llm-phrase-game__phase2-recap__interface"></p>
+						<p class="llm-phrase-game__phase2-recap__prompt"></p>
+					</div>
+					<div class="llm-phrase-game__input-block">
+						<div class="llm-phrase-game__input-shell">
+							<textarea id="<?php echo esc_attr( $uid ); ?>-input2" class="llm-phrase-game__input llm-phrase-game__input--2" rows="3"></textarea>
+						</div>
 							<button type="button" class="llm-phrase-game__mic llm-phrase-game__mic--2" aria-label="<?php echo esc_attr( LLM_Phrase_Game_I18n::get( 'sr_mic' ) . ' ' . $mic_btn_text ); ?>">
 								<span class="llm-phrase-game__mic-icon" aria-hidden="true">&#127908;</span>
 								<span class="llm-phrase-game__mic-text"><?php echo esc_html( $mic_btn_text ); ?></span>

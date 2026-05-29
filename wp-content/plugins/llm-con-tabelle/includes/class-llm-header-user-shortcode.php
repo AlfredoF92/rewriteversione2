@@ -32,6 +32,8 @@ class LLM_Header_User_Shortcode {
 			array(
 				'login_path'    => '/login',
 				'account_path'  => '/area-personale',
+				'guest_path'    => '/',
+				'guest_label'   => 'Ciao!',
 				'login_label'   => '',
 				'greeting'      => '',
 			),
@@ -46,14 +48,14 @@ class LLM_Header_User_Shortcode {
 			LLM_TABELLE_VERSION
 		);
 
-		$login_path   = self::normalize_path( (string) $atts['login_path'] );
 		$account_path = self::normalize_path( (string) $atts['account_path'] );
-		$login_url    = esc_url( home_url( $login_path ) );
+		$guest_path   = self::normalize_path( (string) $atts['guest_path'] );
+		$guest_url    = esc_url( home_url( $guest_path ) );
 		$account_url  = esc_url( home_url( $account_path ) );
 
-		$login_label = (string) $atts['login_label'];
-		if ( $login_label === '' ) {
-			$login_label = __( 'Accedi', 'llm-con-tabelle' );
+		$guest_label = trim( (string) $atts['guest_label'] );
+		if ( '' === $guest_label ) {
+			$guest_label = 'Ciao!';
 		}
 
 		$greeting_tpl = (string) $atts['greeting'];
@@ -61,9 +63,9 @@ class LLM_Header_User_Shortcode {
 		if ( ! is_user_logged_in() ) {
 			return sprintf(
 				'<span class="llm-header-user"><a class="llm-header-user__login" href="%1$s"><span class="llm-header-user__icon">%3$s</span><span class="llm-header-user__text">%2$s</span></a></span>',
-				$login_url,
-				esc_html( $login_label ),
-				LLM_Header_UI_Icons::login() // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG statico.
+				$guest_url,
+				esc_html( $guest_label ),
+				LLM_Header_UI_Icons::user() // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG statico.
 			);
 		}
 

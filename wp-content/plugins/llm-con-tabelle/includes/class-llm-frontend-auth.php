@@ -17,8 +17,8 @@ class LLM_Frontend_Auth {
 	/** Dopo login riuscito. */
 	const DEFAULT_AFTER_LOGIN_PATH = '/area-personale';
 
-	/** Dopo logout. */
-	const DEFAULT_AFTER_LOGOUT_PATH = '/logout';
+	/** Dopo logout (stessa pagina del login con [llm_login_form]). */
+	const DEFAULT_AFTER_LOGOUT_PATH = '/login';
 
 	public static function init() {
 		add_filter( 'show_admin_bar', '__return_false' );
@@ -56,7 +56,7 @@ class LLM_Frontend_Auth {
 	 * @return string
 	 */
 	public static function after_logout_path() {
-		$path = apply_filters( 'llm_auth_after_logout_path', self::DEFAULT_AFTER_LOGOUT_PATH );
+		$path = apply_filters( 'llm_auth_after_logout_path', '/' );
 		return self::normalize_path( (string) $path );
 	}
 
@@ -94,22 +94,11 @@ class LLM_Frontend_Auth {
 			return $redirect_to;
 		}
 
-		// Amministratori: accesso backend (wp-admin) invariato.
-		if ( user_can( $user, 'manage_options' ) ) {
-			if ( self::is_safe_internal_url( $requested_redirect_to ) && self::url_targets_wp_admin( $requested_redirect_to ) ) {
-				return $requested_redirect_to;
-			}
-			if ( self::is_safe_internal_url( $redirect_to ) && self::url_targets_wp_admin( $redirect_to ) ) {
-				return $redirect_to;
-			}
-			return admin_url();
-		}
-
 		if ( self::is_safe_internal_url( $requested_redirect_to ) && ! self::url_targets_wp_admin( $requested_redirect_to ) ) {
 			return $requested_redirect_to;
 		}
 
-		return self::after_login_url();
+		return self::get_language_home_url( $user->ID );
 	}
 
 	/**
@@ -121,19 +110,12 @@ class LLM_Frontend_Auth {
 	 * @return string
 	 */
 	public static function logout_redirect( $redirect_to, $requested_redirect_to, $user ) {
-		unset( $redirect_to );
-
-		// Amministratori: dopo logout tornano alla login WordPress (backend).
-		if ( $user instanceof WP_User && user_can( $user, 'manage_options' ) ) {
-			return wp_login_url();
-		}
-
-		unset( $requested_redirect_to, $user );
+		unset( $redirect_to, $requested_redirect_to, $user );
 		return self::after_logout_url();
 	}
 
 	/**
-	 * Utente già loggato sulla pagina login → area personale.
+	 * Utente già loggato sulla pagina login → home per coppia linguistica.
 	 */
 	public static function maybe_redirect_logged_in_from_login() {
 		if ( ! is_user_logged_in() || is_admin() ) {
@@ -142,9 +124,34 @@ class LLM_Frontend_Auth {
 
 		$req_path = self::current_request_path();
 		if ( $req_path === self::login_path() ) {
-			wp_safe_redirect( self::after_login_url() );
+			wp_safe_redirect( self::get_language_home_url( get_current_user_id() ) );
 			exit;
 		}
+	}
+
+	/**
+	 * Restituisce l'URL home per la coppia linguistica dell'utente,
+	 * con fallback alla home del sito.
+	 *
+	 * @param int $user_id
+	 * @return string
+	 */
+	public static function get_language_home_url( $user_id ) {
+		$user_id  = absint( $user_id );
+		$known    = sanitize_key( (string) get_user_meta( $user_id, LLM_User_Meta::INTERFACE_LANG, true ) );
+		$learning = sanitize_key( (string) get_user_meta( $user_id, LLM_User_Meta::LEARNING_LANG, true ) );
+
+		if (
+			$known && $learning && $known !== $learning &&
+			class_exists( 'LLM_Home_Redirect' )
+		) {
+			$url = LLM_Home_Redirect::pair_url( $known, $learning );
+			if ( '' !== $url ) {
+				return $url;
+			}
+		}
+
+		return home_url( '/' );
 	}
 
 	/**
@@ -182,11 +189,7 @@ class LLM_Frontend_Auth {
 		}
 
 		if ( is_user_logged_in() ) {
-			if ( current_user_can( 'manage_options' ) ) {
-				wp_safe_redirect( admin_url() );
-				exit;
-			}
-			wp_safe_redirect( self::after_login_url() );
+			wp_safe_redirect( self::get_language_home_url( get_current_user_id() ) );
 			exit;
 		}
 

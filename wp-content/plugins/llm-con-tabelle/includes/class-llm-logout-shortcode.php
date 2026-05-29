@@ -31,7 +31,7 @@ class LLM_Logout_Shortcode {
 
 		$atts = shortcode_atts(
 			array(
-				'redirect_path' => '/logout',
+				'redirect_path' => '',
 			),
 			$atts,
 			self::SHORTCODE
@@ -46,7 +46,7 @@ class LLM_Logout_Shortcode {
 
 		$path = trim( (string) $atts['redirect_path'] );
 		if ( '' === $path ) {
-			$path = class_exists( 'LLM_Frontend_Auth' ) ? LLM_Frontend_Auth::after_logout_path() : '/logout';
+			$path = '/';
 		}
 		if ( isset( $path[0] ) && '/' !== $path[0] ) {
 			$path = '/' . $path;

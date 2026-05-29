@@ -22,6 +22,47 @@ class LLM_Login_Form_Shortcode {
 	public static function init() {
 		add_shortcode( self::SHORTCODE, array( __CLASS__, 'render' ) );
 		add_action( 'init', array( __CLASS__, 'maybe_process_login' ), 5 );
+		add_action( 'template_redirect', array( __CLASS__, 'maybe_redirect_logged_in_visitor' ), 5 );
+	}
+
+	/**
+	 * Utente loggato su una pagina con [llm_login_form] → home per coppia linguistica.
+	 */
+	public static function maybe_redirect_logged_in_visitor() {
+		if ( ! is_user_logged_in() || is_admin() ) {
+			return;
+		}
+		if ( ! is_singular() ) {
+			return;
+		}
+		$post = get_queried_object();
+		if ( ! $post instanceof WP_Post ) {
+			return;
+		}
+		if ( ! self::page_has_login_shortcode( $post->ID ) ) {
+			return;
+		}
+		wp_safe_redirect( self::redirect_url_for_current_user() );
+		exit;
+	}
+
+	/**
+	 * @param int $post_id ID pagina.
+	 * @return bool
+	 */
+	private static function page_has_login_shortcode( $post_id ) {
+		$post = get_post( $post_id );
+		if ( ! $post ) {
+			return false;
+		}
+		if ( has_shortcode( $post->post_content, self::SHORTCODE ) ) {
+			return true;
+		}
+		$elementor_data = get_post_meta( $post_id, '_elementor_data', true );
+		if ( is_string( $elementor_data ) && false !== strpos( $elementor_data, self::SHORTCODE ) ) {
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -92,13 +133,15 @@ class LLM_Login_Form_Shortcode {
 		$lang = LLM_User_Settings_I18n::lang();
 
 		if ( is_user_logged_in() ) {
-			$account_url = class_exists( 'LLM_Frontend_Auth' )
-				? LLM_Frontend_Auth::after_login_url()
-				: home_url( '/area-personale' );
-			return '<div class="llm-login-form llm-user-profile llm-user-profile--guest">' .
-				'<p class="llm-user-profile__guest-msg">' . esc_html( LLM_User_Settings_I18n::get( 'login_already_in', $lang ) ) . '</p>' .
-				'<p><a class="llm-user-profile__guest-link" href="' . esc_url( $account_url ) . '">' .
-				esc_html( LLM_User_Settings_I18n::get( 'login_go_account', $lang ) ) . '</a></p></div>';
+			/* Fallback se template_redirect non ha potuto reindirizzare (es. output già avviato). */
+			$url = self::redirect_url_for_current_user();
+			if ( ! headers_sent() ) {
+				wp_safe_redirect( $url );
+				exit;
+			}
+			$encoded = wp_json_encode( $url );
+			return '<script>window.location.replace(' . $encoded . ');</script>'
+				. '<noscript><meta http-equiv="refresh" content="0;url=' . esc_attr( $url ) . '"></noscript>';
 		}
 
 		$error = self::$last_error;
@@ -156,13 +199,10 @@ class LLM_Login_Form_Shortcode {
 	 * @return string URL.
 	 */
 	private static function redirect_url_for_user( $user ) {
-		if ( class_exists( 'LLM_Frontend_Auth' ) && user_can( $user, 'manage_options' ) ) {
-			return admin_url();
-		}
 		if ( class_exists( 'LLM_Frontend_Auth' ) ) {
-			return LLM_Frontend_Auth::after_login_url();
+			return LLM_Frontend_Auth::get_language_home_url( (int) $user->ID );
 		}
-		return home_url( '/area-personale' );
+		return home_url( '/' );
 	}
 
 	/**

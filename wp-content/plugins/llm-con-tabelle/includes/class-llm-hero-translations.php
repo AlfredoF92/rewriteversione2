@@ -59,22 +59,22 @@ class LLM_Hero_Translations {
 		return array(
 			'it' => array(
 				'badge'    => 'Impara {lingua-selezionata} una frase alla volta',
-				'title'    => 'Bentornato in MinePhrases',
+				'title'    => 'Bentornato in LoveRewrite...',
 				'subtitle' => 'Imparare {lingua-selezionata} utilizzando MinePhrases significa imparare una nuova lingua traducendo frasi, analizzando l\'analisi grammaticale e ripetendo la frase con la giusta pronuncia. Hai tutto ciò che ti serve per imparare una nuova lingua.',
 			),
 			'en' => array(
 				'badge'    => 'Learn {lingua-selezionata} one phrase at a time',
-				'title'    => 'Welcome back to MinePhrases',
+				'title'    => 'Welcome back to LoveRewrite...',
 				'subtitle' => 'Learning {lingua-selezionata} with MinePhrases means learning a new language by translating phrases, analysing grammar, and repeating each sentence with the right pronunciation. You have everything you need to learn a new language.',
 			),
 			'pl' => array(
 				'badge'    => 'Ucz sie {lingua-selezionata} zdanie po zdaniu',
-				'title'    => 'Witaj ponownie w MinePhrases',
+				'title'    => 'Witaj ponownie w LoveRewrite...',
 				'subtitle' => 'Nauka {lingua-selezionata} z MinePhrases to nauka nowego jezyka przez tlumaczenie zdan, analize gramatyki i powtarzanie zdan z wlasciwa wymowa. Masz wszystko, czego potrzebujesz, aby nauczyc sie nowego jezyka.',
 			),
 			'es' => array(
 				'badge'    => 'Aprende {lingua-selezionata} una frase a la vez',
-				'title'    => 'Bienvenido de nuevo a MinePhrases',
+				'title'    => 'Bienvenido de nuevo a LoveRewrite...',
 				'subtitle' => 'Aprender {lingua-selezionata} con MinePhrases significa aprender un nuevo idioma traduciendo frases, analizando la gramatica y repitiendo cada frase con la pronunciacion correcta. Tienes todo lo que necesitas para aprender un nuevo idioma.',
 			),
 		);
@@ -94,6 +94,14 @@ class LLM_Hero_Translations {
 				if ( empty( $saved[ $lang ][ $key ] ) ) {
 					$saved[ $lang ][ $key ] = $default_val;
 				}
+			}
+			/* Aggiorna titoli salvati con il vecchio brand MinePhrases. */
+			if (
+				! empty( $saved[ $lang ]['title'] ) &&
+				false !== stripos( (string) $saved[ $lang ]['title'], 'MinePhrases' ) &&
+				isset( $defaults[ $lang ]['title'] )
+			) {
+				$saved[ $lang ]['title'] = $defaults[ $lang ]['title'];
 			}
 		}
 		return $saved;

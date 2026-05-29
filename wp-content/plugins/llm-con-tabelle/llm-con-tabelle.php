@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       LLM CON TABELLE
  * Description:       Storie, utenti e community in tabelle MySQL (no JSON strutturato). Parallelo a LLS, senza migrazione.
- * Version:           2.0.95
+ * Version:           2.1.4
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            LLM CON TABELLE
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LLM_TABELLE_VERSION', '2.0.95' );
+define( 'LLM_TABELLE_VERSION', '2.1.4' );
 define( 'LLM_TABELLE_FILE', __FILE__ );
 define( 'LLM_TABELLE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LLM_TABELLE_URL', plugin_dir_url( __FILE__ ) );
@@ -56,6 +56,7 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-learning-lang-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-logout-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-frontend-auth.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-login-form-shortcode.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-guest-home-redirect-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-settings-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-elementor-group-control-related-unlocked.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-elementor-homepage-stories-loop.php';
@@ -118,6 +119,7 @@ function llm_tabelle_boot() {
 	LLM_Logout_Shortcode::init();
 	LLM_Frontend_Auth::init();
 	LLM_Login_Form_Shortcode::init();
+	LLM_Guest_Home_Redirect_Shortcode::init();
 	LLM_Story_Settings_Shortcode::init();
 	LLM_Elementor_Homepage_Stories_Loop::init();
 	LLM_Elementor_Unlocked_Stories_Loop::init();

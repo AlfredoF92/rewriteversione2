@@ -265,6 +265,32 @@
 	color: #aaa;
 }
 
+.llm-phrase-game__phase2-recap {
+	margin-bottom: 1.1rem;
+}
+
+.llm-phrase-game__phase2-recap__counter {
+	font-size: 0.85rem;
+	color: #555;
+	margin: 0 0 1.25rem;
+	font-weight: 500;
+}
+
+.llm-phrase-game__phase2-recap__interface {
+	font-size: 1.05rem;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	margin: 0 0 0.5rem;
+}
+
+.llm-phrase-game__phase2-recap__prompt {
+	font-style: italic;
+	font-weight: 400;
+	font-size: 0.82em;
+	color: #aaa;
+	margin: 0;
+}
+
 .llm-phrase-game__compose {
 	opacity: 0;
 	visibility: hidden;
