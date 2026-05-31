@@ -408,11 +408,9 @@
 	var activeMicTa = null;
 	var activeMicBtn = null;
 	var micWordsThisPhrase = 0;
-	var micState = 'idle'; // 'idle' | 'pending' | 'listening' | 'grace'
-	var micGraceTimer = null;
+	var micState = 'idle'; // 'idle' | 'pending' | 'listening'
 	var micLastFinalIndex = 0;
 	var micPermissionGranted = false;
-	var MIC_GRACE_MS = 3000;
 
 		var TTS_SLOW_RATE = 0.78;
 
@@ -942,13 +940,6 @@
 		window.llmUpdateStoryProgressBar(String(storyId), initDone, phrases.length);
 	}
 
-	function clearMicGraceTimer() {
-		if (micGraceTimer !== null) {
-			clearTimeout(micGraceTimer);
-			micGraceTimer = null;
-		}
-	}
-
 	function restoreMicBtnText(btn) {
 		if (!btn || !btn._llmMicOrigText) { return; }
 		var el = btn.querySelector('.llm-phrase-game__mic-text');
@@ -967,8 +958,7 @@
 		el.classList.remove(
 			'llm-phrase-game__mic-status--visible',
 			'llm-phrase-game__mic-status--pending',
-			'llm-phrase-game__mic-status--listening',
-			'llm-phrase-game__mic-status--grace'
+			'llm-phrase-game__mic-status--listening'
 		);
 		if (state === 'idle') {
 			el.textContent = '';
@@ -980,11 +970,7 @@
 		} else if (state === 'listening') {
 			el.textContent = i18n.micListening || '…';
 			el.classList.add('llm-phrase-game__mic-status--listening');
-		} else if (state === 'grace') {
-			el.textContent = i18n.micGrace || '…';
-			el.classList.add('llm-phrase-game__mic-status--grace');
 		}
-		/* Trigger CSS transition by adding visible class on next frame */
 		requestAnimationFrame(function () {
 			el.classList.add('llm-phrase-game__mic-status--visible');
 		});
@@ -998,8 +984,7 @@
 			btnEl.classList.remove(
 				'llm-phrase-game__mic--active',
 				'llm-phrase-game__mic--pending',
-				'llm-phrase-game__mic--listening',
-				'llm-phrase-game__mic--grace'
+				'llm-phrase-game__mic--listening'
 			);
 		}
 		if (taEl) { taEl.classList.remove('llm-phrase-game__input--listening'); }
@@ -1018,17 +1003,11 @@
 			if (taEl) { taEl.classList.add('llm-phrase-game__input--listening'); }
 			if (shell) { shell.classList.add('llm-phrase-game__input-shell--listening'); }
 			setMicBtnText(btnEl, i18n.micListening || '…');
-		} else if (micState === 'grace') {
-			if (btnEl) { btnEl.classList.add('llm-phrase-game__mic--grace'); }
-			if (taEl) { taEl.classList.add('llm-phrase-game__input--listening'); }
-			if (shell) { shell.classList.add('llm-phrase-game__input-shell--listening'); }
-			setMicBtnText(btnEl, i18n.micGrace || '…');
 		}
 		updateMicStatusEl(btnEl, micState);
 	}
 
 	function stopSpeech() {
-		clearMicGraceTimer();
 		micState = 'idle';
 		micLastFinalIndex = 0;
 		if (speechRec) {
@@ -1038,17 +1017,6 @@
 		applyMicStateClasses();
 		activeMicTa = null;
 		activeMicBtn = null;
-	}
-
-	function startGrace() {
-		if (micState === 'idle') { return; }
-		micState = 'grace';
-		applyMicStateClasses();
-		clearMicGraceTimer();
-		micGraceTimer = setTimeout(function () {
-			micGraceTimer = null;
-			stopSpeech();
-		}, MIC_GRACE_MS);
 	}
 
 	function showMicError(btn, msg) {
@@ -1186,14 +1154,6 @@
 		var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
 		if (!Rec) { return; }
 
-		/* If in grace for the same textarea, cancel timer and resume listening */
-		if (micState === 'grace' && activeMicTa === textarea) {
-			clearMicGraceTimer();
-			micState = 'listening';
-			applyMicStateClasses();
-			return;
-		}
-
 		/* Already active for a different textarea — stop first */
 		if (micState !== 'idle') { stopSpeech(); }
 
@@ -1306,7 +1266,7 @@
 
 		function onUp() {
 			if (activeMicTa === textarea && micState !== 'idle') {
-				startGrace();
+				stopSpeech();
 			}
 		}
 
@@ -1327,8 +1287,7 @@
 	document.addEventListener('pointerup', function (e) {
 		if (micState === 'idle') { return; }
 		if (activeMicBtn && activeMicBtn.contains(e.target)) { return; }
-		/* Finger lifted outside the mic button — enter grace period */
-		startGrace();
+		stopSpeech();
 	});
 
 		bindMic(mic1, input1);

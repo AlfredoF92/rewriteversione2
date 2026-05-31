@@ -806,12 +806,12 @@
 	background-clip: unset;
 }
 
-/* mic-text had color:transparent for the gradient trick; override with parent color */
+/* mic-text had color:transparent for the gradient trick; force black in active states */
 .llm-phrase-game__mic--pending .llm-phrase-game__mic-text,
 .llm-phrase-game__mic--listening .llm-phrase-game__mic-text,
 .llm-phrase-game__mic--grace .llm-phrase-game__mic-text {
-	color: inherit;
-	-webkit-text-fill-color: inherit;
+	color: #111;
+	-webkit-text-fill-color: #111;
 }
 
 /* mic-icon uses currentColor which already works (no transparent base) */
