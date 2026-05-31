@@ -346,6 +346,8 @@
 		var yourPhraseText = qs(root, '.llm-phrase-game__your-phrase-text');
 		var mic1 = qs(root, '.llm-phrase-game__mic--1');
 		var mic2 = qs(root, '.llm-phrase-game__mic--2');
+		var clear1 = qs(root, '.llm-phrase-game__clear-input--1');
+		var clear2 = qs(root, '.llm-phrase-game__clear-input--2');
 		var phase2RecapCounter   = qs(root, '.llm-phrase-game__phase2-recap__counter');
 	var phase2RecapIface     = qs(root, '.llm-phrase-game__phase2-recap__interface');
 	var phase2RecapPrompt    = qs(root, '.llm-phrase-game__phase2-recap__prompt');
@@ -1340,6 +1342,9 @@
 				micWordsThisPhrase += countNewWords(prevFinals, speechFinals);
 				interim = trimInterimOverlap(speechFinals, interim);
 				textarea.value = speechBase + speechFinals + interim;
+				if (typeof textarea._llmSyncClearBtn === 'function') {
+					textarea._llmSyncClearBtn();
+				}
 			};
 
 			rec.onerror = function (ev) {
@@ -1426,6 +1431,49 @@
 
 		bindMic(mic1, input1);
 		bindMic(mic2, input2);
+
+		var phase1WarnActive = false;
+
+		function syncClearInputVisibility(textarea, clearBtn) {
+			if (!textarea || !clearBtn) {
+				return;
+			}
+			clearBtn.hidden = !(textarea.value || '').trim();
+		}
+
+		function bindClearInput(clearBtn, textarea, onClear) {
+			if (!clearBtn || !textarea) {
+				return;
+			}
+			function sync() {
+				syncClearInputVisibility(textarea, clearBtn);
+			}
+			textarea._llmSyncClearBtn = sync;
+			textarea.addEventListener('input', sync);
+			sync();
+			clearBtn.addEventListener('click', function () {
+				stopSpeech();
+				textarea.value = '';
+				sync();
+				if (typeof onClear === 'function') {
+					onClear();
+				}
+				textarea.focus();
+			});
+		}
+
+		bindClearInput(clear1, input1, function () {
+			if (phase1WarnActive) {
+				setMessage('');
+				phase1WarnActive = false;
+			}
+		});
+		bindClearInput(clear2, input2, function () {
+			if (messagePhase2El) {
+				setMessagePhase2('', '');
+			}
+		});
+
 		if (input2) {
 			input2.addEventListener('input', function () {
 				if (!messagePhase2El) {
@@ -1665,6 +1713,8 @@
 				setMessagePhase2('', '');
 				input1.value = '';
 				input2.value = '';
+				if (input1 && input1._llmSyncClearBtn) { input1._llmSyncClearBtn(); }
+				if (input2 && input2._llmSyncClearBtn) { input2._llmSyncClearBtn(); }
 				ifaceEl.innerHTML = String(p.interface || '');
 				promptTrans.textContent = t('translatePrompt', targetLang);
 				if (yourPhraseWrap) {
@@ -1695,6 +1745,8 @@
 			resetAnalysis();
 			input1.value = '';
 			input2.value = '';
+			if (input1 && input1._llmSyncClearBtn) { input1._llmSyncClearBtn(); }
+			if (input2 && input2._llmSyncClearBtn) { input2._llmSyncClearBtn(); }
 			setMessage('');
 			setMessagePhase2('', '');
 			showPhase(1);
@@ -1766,8 +1818,6 @@
 					cb({ success: false, data: { message: i18n.ajaxError || '' } });
 				});
 		}
-
-		var phase1WarnActive = false;
 
 		input1.addEventListener('input', function () {
 			if (phase1WarnActive) {

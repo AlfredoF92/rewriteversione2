@@ -70,6 +70,22 @@ class LLM_Story_Phrase_Game {
 	}
 
 	/**
+	 * Pulsante per svuotare la textarea (fase 1 o 2).
+	 *
+	 * @param string $suffix Suffisso classe (--1 / --2).
+	 * @return string
+	 */
+	private static function render_clear_input_button( $suffix ) {
+		$label = LLM_Phrase_Game_I18n::get( 'clear_input' );
+		return '<button type="button" class="llm-phrase-game__clear-input llm-phrase-game__clear-input--' . esc_attr( $suffix ) . ' button" hidden aria-label="' . esc_attr( $label ) . '">'
+			. '<span class="llm-phrase-game__clear-input-icon" aria-hidden="true">'
+			. '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>'
+			. '</span>'
+			. '<span class="llm-phrase-game__clear-input-text">' . esc_html( $label ) . '</span>'
+			. '</button>';
+	}
+
+	/**
 	 * @param array<string, string> $atts Attributi shortcode.
 	 * @return string
 	 */
@@ -130,6 +146,7 @@ class LLM_Story_Phrase_Game {
 					<label class="screen-reader-text" for="<?php echo esc_attr( $uid ); ?>-input1"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'sr_your_translation' ) ); ?></label>
 					<div class="llm-phrase-game__compose llm-phrase-game__compose--phase1">
 						<div class="llm-phrase-game__input-block">
+							<?php echo self::render_clear_input_button( '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 							<div class="llm-phrase-game__input-shell">
 								<textarea id="<?php echo esc_attr( $uid ); ?>-input1" class="llm-phrase-game__input llm-phrase-game__input--1" rows="3"></textarea>
 							</div>
@@ -172,6 +189,7 @@ class LLM_Story_Phrase_Game {
 						<p class="llm-phrase-game__phase2-recap__prompt"></p>
 					</div>
 					<div class="llm-phrase-game__input-block">
+						<?php echo self::render_clear_input_button( '2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 						<div class="llm-phrase-game__input-shell">
 							<textarea id="<?php echo esc_attr( $uid ); ?>-input2" class="llm-phrase-game__input llm-phrase-game__input--2" rows="3"></textarea>
 						</div>

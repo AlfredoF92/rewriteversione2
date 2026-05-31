@@ -149,6 +149,7 @@ class LLM_Phrase_Game_I18n {
 			'mic_denied'            => 'Microfono non autorizzato. Abilita il microfono nelle impostazioni del browser.',
 			'mic_unavailable'       => 'Microfono non disponibile sul dispositivo.',
 			'mic_no_audio'          => 'Nessun audio rilevato. Riprova.',
+			'clear_input'           => 'Ricomincia da capo',
 		),
 		'en' => array(
 				'lang_names'            => $names_en,
@@ -196,6 +197,7 @@ class LLM_Phrase_Game_I18n {
 			'mic_denied'            => 'Microphone not allowed. Enable it in your browser settings.',
 			'mic_unavailable'       => 'Microphone not available on this device.',
 			'mic_no_audio'          => 'No audio detected. Try again.',
+			'clear_input'           => 'Start over',
 		),
 		'pl' => array(
 				'lang_names'            => $names_pl,
@@ -243,6 +245,7 @@ class LLM_Phrase_Game_I18n {
 			'mic_denied'            => 'Brak dostępu do mikrofonu. Włącz go w ustawieniach przeglądarki.',
 			'mic_unavailable'       => 'Mikrofon niedostępny na tym urządzeniu.',
 			'mic_no_audio'          => 'Nie wykryto dźwięku. Spróbuj ponownie.',
+			'clear_input'           => 'Zacznij od nowa',
 		),
 		'es' => array(
 				'lang_names'            => $names_es,
@@ -290,6 +293,7 @@ class LLM_Phrase_Game_I18n {
 			'mic_denied'            => 'Micrófono no autorizado. Actívalo en la configuración del navegador.',
 			'mic_unavailable'       => 'Micrófono no disponible en este dispositivo.',
 			'mic_no_audio'          => 'No se detectó audio. Inténtalo de nuevo.',
+			'clear_input'           => 'Empezar de nuevo',
 		),
 	);
 

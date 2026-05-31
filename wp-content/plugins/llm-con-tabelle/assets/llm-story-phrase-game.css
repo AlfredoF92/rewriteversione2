@@ -342,6 +342,68 @@
 	margin-bottom: 1rem;
 }
 
+/* Ricomincia da capo — sopra la textarea, compatto e grigio */
+.llm-phrase-game__clear-input {
+	align-self: flex-end;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+	margin: 0 0 0.15rem;
+	padding: 0.12rem 0.38rem !important;
+	min-height: 0 !important;
+	font-size: 0.62rem !important;
+	line-height: 1.15 !important;
+	font-weight: 600 !important;
+	letter-spacing: 0.01em;
+	border-radius: 2px !important;
+	color: #5c5c5c !important;
+	background: linear-gradient(180deg, #ececec 0%, #d8d8d8 100%) !important;
+	border: 1px solid #b0b0b0 !important;
+	box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset !important;
+	cursor: pointer;
+	transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.llm-phrase-game__clear-input[hidden] {
+	display: none !important;
+}
+
+.llm-phrase-game__clear-input-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	line-height: 1;
+	opacity: 0.85;
+}
+
+.llm-phrase-game__clear-input-icon svg {
+	display: block;
+	width: 0.72rem;
+	height: 0.72rem;
+}
+
+.llm-phrase-game__clear-input-text {
+	white-space: nowrap;
+}
+
+.llm-phrase-game .button.llm-phrase-game__clear-input:hover,
+.llm-phrase-game .button.llm-phrase-game__clear-input:focus,
+.llm-phrase-game__clear-input.button:hover,
+.llm-phrase-game__clear-input.button:focus {
+	color: #3a3a3a !important;
+	background: linear-gradient(180deg, #f4f4f4 0%, #e2e2e2 100%) !important;
+	border-color: #9a9a9a !important;
+	box-shadow: 0 1px 0 rgba(255, 255, 255, 0.75) inset !important;
+	outline: none;
+}
+
+.llm-phrase-game .button.llm-phrase-game__clear-input:focus-visible,
+.llm-phrase-game__clear-input.button:focus-visible {
+	box-shadow:
+		0 1px 0 rgba(255, 255, 255, 0.75) inset,
+		0 0 0 2px rgba(140, 140, 140, 0.35) !important;
+}
+
 .llm-phrase-game__input-shell {
 	--llm-input-radius: 8px;
 	border: 1px solid #c3c4c7;
