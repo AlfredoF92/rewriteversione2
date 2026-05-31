@@ -412,7 +412,7 @@
 	var micState = 'idle'; // 'idle' | 'pending' | 'listening'
 	var micLastFinalIndex = 0;
 	var micPermissionGranted = false;
-	var MIC_SESSION_MS = 4000;
+	var MIC_SESSION_MS = 5000;
 	var micSessionActive = false;
 	var micSessionTimer = null;
 

@@ -887,7 +887,7 @@
 }
 
 .llm-phrase-game__mic-countdown--active .llm-phrase-game__mic-countdown__bar {
-	animation: llm-mic-countdown 4s linear forwards;
+	animation: llm-mic-countdown 5s linear forwards;
 }
 
 @keyframes llm-mic-countdown {
