@@ -810,8 +810,11 @@
 .llm-phrase-game__mic--pending .llm-phrase-game__mic-text,
 .llm-phrase-game__mic--listening .llm-phrase-game__mic-text,
 .llm-phrase-game__mic--grace .llm-phrase-game__mic-text {
-	color: #111;
-	-webkit-text-fill-color: #111;
+	color: #111 !important;
+	-webkit-text-fill-color: #111 !important;
+	background: none !important;
+	-webkit-background-clip: unset !important;
+	background-clip: unset !important;
 }
 
 /* mic-icon uses currentColor which already works (no transparent base) */
