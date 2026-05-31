@@ -412,6 +412,9 @@
 	var micState = 'idle'; // 'idle' | 'pending' | 'listening'
 	var micLastFinalIndex = 0;
 	var micPermissionGranted = false;
+	var MIC_SESSION_MS = 4000;
+	var micSessionActive = false;
+	var micSessionTimer = null;
 
 	/** Unisce testo finale evitando duplicati (motori mobile spesso inviano frasi cumulative). */
 	function mergeFinalTranscript(existing, chunk) {
@@ -1017,6 +1020,28 @@
 		window.llmUpdateStoryProgressBar(String(storyId), initDone, phrases.length);
 	}
 
+	function showMicCountdown(btn) {
+		var wrap = btn && btn._llmMicCountdownWrap;
+		var bar = btn && btn._llmMicCountdownBar;
+		if (!wrap || !bar) {
+			return;
+		}
+		wrap.hidden = false;
+		wrap.classList.add('llm-phrase-game__mic-countdown--active');
+		bar.style.animation = 'none';
+		void bar.offsetWidth;
+		bar.style.animation = 'llm-mic-countdown ' + (MIC_SESSION_MS / 1000) + 's linear forwards';
+	}
+
+	function hideMicCountdown(btn) {
+		if (!btn || !btn._llmMicCountdownWrap || !btn._llmMicCountdownBar) {
+			return;
+		}
+		btn._llmMicCountdownWrap.hidden = true;
+		btn._llmMicCountdownWrap.classList.remove('llm-phrase-game__mic-countdown--active');
+		btn._llmMicCountdownBar.style.animation = 'none';
+	}
+
 	function restoreMicBtnText(btn) {
 		if (!btn || !btn._llmMicOrigText) { return; }
 		var el = btn.querySelector('.llm-phrase-game__mic-text');
@@ -1053,6 +1078,11 @@
 		});
 	}
 
+	function setMicButtonsDisabled(disabled) {
+		if (mic1) { mic1.disabled = disabled; }
+		if (mic2) { mic2.disabled = disabled; }
+	}
+
 	function applyMicStateClasses() {
 		var btnEl = activeMicBtn;
 		var taEl = activeMicTa;
@@ -1061,30 +1091,41 @@
 			btnEl.classList.remove(
 				'llm-phrase-game__mic--active',
 				'llm-phrase-game__mic--pending',
-				'llm-phrase-game__mic--listening'
+				'llm-phrase-game__mic--listening',
+				'llm-phrase-game__mic--session'
 			);
 		}
 		if (taEl) { taEl.classList.remove('llm-phrase-game__input--listening'); }
 		if (shell) { shell.classList.remove('llm-phrase-game__input-shell--listening'); }
 
 		if (micState === 'idle') {
-			restoreMicBtnText(btnEl);
+			setMicButtonsDisabled(false);
+			if (btnEl) {
+				hideMicCountdown(btnEl);
+			}
 			updateMicStatusEl(btnEl, 'idle');
 			return;
 		}
+		setMicButtonsDisabled(true);
+		if (btnEl) {
+			btnEl.classList.add('llm-phrase-game__mic--session');
+		}
 		if (micState === 'pending') {
 			if (btnEl) { btnEl.classList.add('llm-phrase-game__mic--pending'); }
-			setMicBtnText(btnEl, i18n.micPending || '…');
 		} else if (micState === 'listening') {
 			if (btnEl) { btnEl.classList.add('llm-phrase-game__mic--listening'); }
 			if (taEl) { taEl.classList.add('llm-phrase-game__input--listening'); }
 			if (shell) { shell.classList.add('llm-phrase-game__input-shell--listening'); }
-			setMicBtnText(btnEl, i18n.micListening || '…');
 		}
-		updateMicStatusEl(btnEl, micState);
+		updateMicStatusEl(btnEl, micState === 'pending' ? 'pending' : 'listening');
 	}
 
 	function stopSpeech() {
+		micSessionActive = false;
+		if (micSessionTimer !== null) {
+			clearTimeout(micSessionTimer);
+			micSessionTimer = null;
+		}
 		micState = 'idle';
 		micLastFinalIndex = 0;
 		speechFinals = '';
@@ -1092,17 +1133,34 @@
 			try { speechRec.stop(); } catch (e) { /* ignore */ }
 			speechRec = null;
 		}
+		if (activeMicBtn) {
+			hideMicCountdown(activeMicBtn);
+		}
+		setMicButtonsDisabled(false);
 		applyMicStateClasses();
 		activeMicTa = null;
 		activeMicBtn = null;
 	}
 
+	function finishMicSession() {
+		stopSpeech();
+	}
+
 	function showMicError(btn, msg) {
 		if (!btn || !msg) { return; }
-		setMicBtnText(btn, msg);
-		var capturedBtn = btn;
+		var status = btn._llmMicStatusEl;
+		if (!status) { return; }
+		status.textContent = msg;
+		status.classList.add(
+			'llm-phrase-game__mic-status--visible',
+			'llm-phrase-game__mic-status--error'
+		);
 		setTimeout(function () {
-			restoreMicBtnText(capturedBtn);
+			status.textContent = '';
+			status.classList.remove(
+				'llm-phrase-game__mic-status--visible',
+				'llm-phrase-game__mic-status--error'
+			);
 		}, 3500);
 	}
 
@@ -1228,40 +1286,43 @@
 			window.speechSynthesis.getVoices();
 		}
 
-	function startSpeech(textarea, micBtn) {
+	function startMicSession(textarea, micBtn) {
 		var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
-		if (!Rec) { return; }
+		if (!Rec || micSessionActive) { return; }
 
-		/* Already active for a different textarea — stop first */
-		if (micState !== 'idle') { stopSpeech(); }
-
+		stopSpeech();
 		cancelTts();
+
+		micSessionActive = true;
 		activeMicTa = textarea;
 		activeMicBtn = micBtn;
 		speechBase = textarea.value;
 		if (speechBase.length && !/\s$/.test(speechBase)) { speechBase += ' '; }
 		speechFinals = '';
 		micLastFinalIndex = 0;
-
 		micState = 'pending';
+
+		micBtn.disabled = true;
+		if (micBtn !== mic1 && mic1) { mic1.disabled = true; }
+		if (micBtn !== mic2 && mic2) { mic2.disabled = true; }
+		showMicCountdown(micBtn);
 		applyMicStateClasses();
 
-		function doStart() {
-			if (micState === 'idle') { return; } /* aborted before start */
-			speechRec = new Rec();
-			speechRec.lang = speechLang;
-			speechRec.continuous = false;
-			speechRec.interimResults = true;
+		micSessionTimer = setTimeout(function () {
+			finishMicSession();
+		}, MIC_SESSION_MS);
 
-			speechRec.onstart = function () {
+		function attachSpeechHandlers(rec) {
+			rec.onstart = function () {
+				if (!micSessionActive) { return; }
 				if (micState === 'pending') {
 					micState = 'listening';
 					applyMicStateClasses();
 				}
 			};
 
-			/* Solo risultati nuovi (resultIndex); merge anti-duplicati sui finali */
-			speechRec.onresult = function (ev) {
+			rec.onresult = function (ev) {
+				if (!micSessionActive) { return; }
 				var interim = '';
 				var prevFinals = speechFinals;
 				var i;
@@ -1281,33 +1342,39 @@
 				textarea.value = speechBase + speechFinals + interim;
 			};
 
-			speechRec.onerror = function (ev) {
+			rec.onerror = function (ev) {
 				var code = ev && ev.error;
 				if (code === 'not-allowed' || code === 'service-not-allowed') {
 					micPermissionGranted = false;
-					showMicError(activeMicBtn, i18n.micDenied || '');
-				} else if (code === 'no-speech') {
-					showMicError(activeMicBtn, i18n.micNoAudio || '');
+					finishMicSession();
+					showMicError(micBtn, i18n.micDenied || '');
 				}
-				stopSpeech();
 			};
 
-			speechRec.onend = function () {
-				if (micState !== 'idle') { stopSpeech(); }
+			rec.onend = function () {
+				if (!micSessionActive) { return; }
+				try {
+					rec.start();
+				} catch (e) {
+					/* Il timer da 4 secondi chiude la sessione */
+				}
 			};
+		}
 
+		function doStart() {
+			if (!micSessionActive) { return; }
+			speechRec = new Rec();
+			speechRec.lang = speechLang;
+			speechRec.continuous = true;
+			speechRec.interimResults = true;
+			attachSpeechHandlers(speechRec);
 			try {
 				speechRec.start();
 			} catch (e) {
-				speechRec = null;
-				micState = 'idle';
-				applyMicStateClasses();
-				activeMicTa = null;
-				activeMicBtn = null;
+				finishMicSession();
 			}
 		}
 
-		/* Check mic permission via getUserMedia before starting recognition */
 		if (!micPermissionGranted && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
 			navigator.mediaDevices.getUserMedia({ audio: true })
 				.then(function (stream) {
@@ -1316,8 +1383,8 @@
 					doStart();
 				})
 				.catch(function () {
+					finishMicSession();
 					showMicError(micBtn, i18n.micDenied || '');
-					stopSpeech();
 				});
 		} else {
 			doStart();
@@ -1331,11 +1398,9 @@
 			return;
 		}
 
-		/* Save original label text for later restore */
 		var origTextEl = micBtn.querySelector('.llm-phrase-game__mic-text');
 		micBtn._llmMicOrigText = origTextEl ? origTextEl.textContent : '';
 
-		/* Create status label above the button */
 		var statusEl = document.createElement('p');
 		statusEl.className = 'llm-phrase-game__mic-status';
 		statusEl.setAttribute('aria-live', 'polite');
@@ -1343,31 +1408,21 @@
 		micBtn.parentNode.insertBefore(statusEl, micBtn);
 		micBtn._llmMicStatusEl = statusEl;
 
-		function onUp() {
-			if (activeMicTa === textarea && micState !== 'idle') {
-				stopSpeech();
-			}
-		}
+		var countdownWrap = document.createElement('div');
+		countdownWrap.className = 'llm-phrase-game__mic-countdown';
+		countdownWrap.hidden = true;
+		countdownWrap.innerHTML = '<div class="llm-phrase-game__mic-countdown__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"></div>';
+		micBtn.parentNode.insertBefore(countdownWrap, micBtn);
+		micBtn._llmMicCountdownWrap = countdownWrap;
+		micBtn._llmMicCountdownBar = countdownWrap.querySelector('.llm-phrase-game__mic-countdown__bar');
 
-		micBtn.addEventListener('pointerdown', function (e) {
-			e.preventDefault();
-			startSpeech(textarea, micBtn);
-		});
-		micBtn.addEventListener('pointerup', onUp);
-		micBtn.addEventListener('pointercancel', function () {
-			if (activeMicTa === textarea) { stopSpeech(); }
-		});
-		micBtn.addEventListener('pointerleave', function (e) {
-			/* On touch, pointerup handles it; on mouse, act on button-release */
-			if (e.pointerType !== 'touch' && e.buttons === 0) { onUp(); }
+		micBtn.addEventListener('click', function () {
+			if (micSessionActive || micBtn.disabled) {
+				return;
+			}
+			startMicSession(textarea, micBtn);
 		});
 	}
-
-	document.addEventListener('pointerup', function (e) {
-		if (micState === 'idle') { return; }
-		if (activeMicBtn && activeMicBtn.contains(e.target)) { return; }
-		stopSpeech();
-	});
 
 		bindMic(mic1, input1);
 		bindMic(mic2, input2);

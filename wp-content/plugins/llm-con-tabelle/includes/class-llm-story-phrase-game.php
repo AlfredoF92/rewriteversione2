@@ -102,10 +102,7 @@ class LLM_Story_Phrase_Game {
 		$uid = 'llm-phrase-game-' . uniqid( '', false );
 
 		$target_code_shortcode = (string) get_post_meta( $story_id, LLM_Story_Meta::TARGET_LANG, true );
-		$mic_btn_text          = LLM_Phrase_Game_I18n::format(
-			'mic_button',
-			LLM_Phrase_Game_I18n::target_lang_label_for_ui( $target_code_shortcode )
-		);
+		$mic_btn_text          = LLM_Phrase_Game_I18n::get( 'mic_button' );
 		$listen_target_aria    = LLM_Phrase_Game_I18n::format(
 			'listen_target_aria',
 			LLM_Phrase_Game_I18n::target_lang_label_for_ui( $target_code_shortcode )

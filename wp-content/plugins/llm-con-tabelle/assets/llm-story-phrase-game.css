@@ -858,6 +858,52 @@
 	border: 1px solid #90c4e8;
 }
 
+.llm-phrase-game__mic-status--error {
+	background: #fde8e8;
+	color: #8b1a1a;
+	border: 1px solid #e8a0a0;
+}
+
+/* ─── Countdown bar (4 secondi) ──────────────────────────────────────── */
+
+.llm-phrase-game__mic-countdown {
+	width: 100%;
+	height: 5px;
+	background: rgba(0, 0, 0, 0.1);
+	border-radius: 3px;
+	overflow: hidden;
+	margin: 0 0 0.4rem;
+}
+
+.llm-phrase-game__mic-countdown[hidden] {
+	display: none;
+}
+
+.llm-phrase-game__mic-countdown__bar {
+	height: 100%;
+	width: 100%;
+	background: linear-gradient(90deg, #2271b1, #8e148e);
+	transform-origin: left center;
+}
+
+.llm-phrase-game__mic-countdown--active .llm-phrase-game__mic-countdown__bar {
+	animation: llm-mic-countdown 4s linear forwards;
+}
+
+@keyframes llm-mic-countdown {
+	from { transform: scaleX(1); }
+	to   { transform: scaleX(0); }
+}
+
+.llm-phrase-game__mic:disabled,
+.llm-phrase-game__mic--session:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+	pointer-events: none;
+	transform: translateY(2px) scale(0.97);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15) inset;
+}
+
 .llm-phrase-game__mic-status--grace {
 	background: #d4edda;
 	color: #0f4d23;
