@@ -405,10 +405,14 @@
 
 	var speechRec = null;
 	var speechBase = '';
-	var speechFinals = '';
 	var activeMicTa = null;
 	var activeMicBtn = null;
 	var micWordsThisPhrase = 0;
+	var micState = 'idle'; // 'idle' | 'pending' | 'listening' | 'grace'
+	var micGraceTimer = null;
+	var micLastFinalIndex = 0;
+	var micPermissionGranted = false;
+	var MIC_GRACE_MS = 3000;
 
 		var TTS_SLOW_RATE = 0.78;
 
@@ -938,29 +942,92 @@
 		window.llmUpdateStoryProgressBar(String(storyId), initDone, phrases.length);
 	}
 
-	function stopSpeech() {
-			if (speechRec) {
-				try {
-					speechRec.stop();
-				} catch (e) {
-					/* ignore */
-				}
-				speechRec = null;
-			}
-			if (activeMicTa) {
-				activeMicTa.classList.remove('llm-phrase-game__input--listening');
-				var sh = activeMicTa.closest('.llm-phrase-game__input-shell');
-				if (sh) {
-					sh.classList.remove('llm-phrase-game__input-shell--listening');
-				}
-			}
-			if (activeMicBtn) {
-				activeMicBtn.classList.remove('llm-phrase-game__mic--active');
-			}
-			activeMicTa = null;
-			activeMicBtn = null;
-			speechFinals = '';
+	function clearMicGraceTimer() {
+		if (micGraceTimer !== null) {
+			clearTimeout(micGraceTimer);
+			micGraceTimer = null;
 		}
+	}
+
+	function restoreMicBtnText(btn) {
+		if (!btn || !btn._llmMicOrigText) { return; }
+		var el = btn.querySelector('.llm-phrase-game__mic-text');
+		if (el) { el.textContent = btn._llmMicOrigText; }
+	}
+
+	function setMicBtnText(btn, text) {
+		if (!btn) { return; }
+		var el = btn.querySelector('.llm-phrase-game__mic-text');
+		if (el) { el.textContent = text; }
+	}
+
+	function applyMicStateClasses() {
+		var btnEl = activeMicBtn;
+		var taEl = activeMicTa;
+		var shell = taEl ? taEl.closest('.llm-phrase-game__input-shell') : null;
+		if (btnEl) {
+			btnEl.classList.remove(
+				'llm-phrase-game__mic--active',
+				'llm-phrase-game__mic--pending',
+				'llm-phrase-game__mic--listening',
+				'llm-phrase-game__mic--grace'
+			);
+		}
+		if (taEl) { taEl.classList.remove('llm-phrase-game__input--listening'); }
+		if (shell) { shell.classList.remove('llm-phrase-game__input-shell--listening'); }
+
+		if (micState === 'idle') {
+			restoreMicBtnText(btnEl);
+			return;
+		}
+		if (micState === 'pending') {
+			if (btnEl) { btnEl.classList.add('llm-phrase-game__mic--pending'); }
+			setMicBtnText(btnEl, i18n.micPending || '…');
+		} else if (micState === 'listening') {
+			if (btnEl) { btnEl.classList.add('llm-phrase-game__mic--listening'); }
+			if (taEl) { taEl.classList.add('llm-phrase-game__input--listening'); }
+			if (shell) { shell.classList.add('llm-phrase-game__input-shell--listening'); }
+			setMicBtnText(btnEl, i18n.micListening || '…');
+		} else if (micState === 'grace') {
+			if (btnEl) { btnEl.classList.add('llm-phrase-game__mic--grace'); }
+			if (taEl) { taEl.classList.add('llm-phrase-game__input--listening'); }
+			if (shell) { shell.classList.add('llm-phrase-game__input-shell--listening'); }
+			setMicBtnText(btnEl, i18n.micGrace || '…');
+		}
+	}
+
+	function stopSpeech() {
+		clearMicGraceTimer();
+		micState = 'idle';
+		micLastFinalIndex = 0;
+		if (speechRec) {
+			try { speechRec.stop(); } catch (e) { /* ignore */ }
+			speechRec = null;
+		}
+		applyMicStateClasses();
+		activeMicTa = null;
+		activeMicBtn = null;
+	}
+
+	function startGrace() {
+		if (micState === 'idle') { return; }
+		micState = 'grace';
+		applyMicStateClasses();
+		clearMicGraceTimer();
+		micGraceTimer = setTimeout(function () {
+			micGraceTimer = null;
+			stopSpeech();
+		}, MIC_GRACE_MS);
+	}
+
+	function showMicError(btn, msg) {
+		if (!btn || !msg) { return; }
+		setMicBtnText(btn, msg);
+		var capturedBtn = btn;
+		setTimeout(function () {
+			restoreMicBtnText(capturedBtn);
+		}, 3500);
+	}
 
 		function cancelTts() {
 			if (!window.speechSynthesis) {
@@ -1084,86 +1151,146 @@
 			window.speechSynthesis.getVoices();
 		}
 
-		function startSpeech(textarea, micBtn) {
-			var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
-			if (!Rec || speechRec) {
-				return;
-			}
-			stopSpeech();
-			cancelTts();
-			speechBase = textarea.value;
-			if (speechBase.length && !/\s$/.test(speechBase)) {
-				speechBase += ' ';
-			}
-			speechFinals = '';
+	function startSpeech(textarea, micBtn) {
+		var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+		if (!Rec) { return; }
+
+		/* If in grace for the same textarea, cancel timer and resume listening */
+		if (micState === 'grace' && activeMicTa === textarea) {
+			clearMicGraceTimer();
+			micState = 'listening';
+			applyMicStateClasses();
+			return;
+		}
+
+		/* Already active for a different textarea — stop first */
+		if (micState !== 'idle') { stopSpeech(); }
+
+		cancelTts();
+		activeMicTa = textarea;
+		activeMicBtn = micBtn;
+		speechBase = textarea.value;
+		if (speechBase.length && !/\s$/.test(speechBase)) { speechBase += ' '; }
+		micLastFinalIndex = 0;
+
+		micState = 'pending';
+		applyMicStateClasses();
+
+		function doStart() {
+			if (micState === 'idle') { return; } /* aborted before start */
 			speechRec = new Rec();
 			speechRec.lang = speechLang;
 			speechRec.continuous = true;
 			speechRec.interimResults = true;
-		speechRec.onresult = function (ev) {
-			var interim = '';
-			var i;
-			for (i = ev.resultIndex; i < ev.results.length; i++) {
-				var tr = ev.results[i][0].transcript;
-				if (ev.results[i].isFinal) {
-					speechFinals += tr;
-					micWordsThisPhrase += tokenizeWords(tr).length;
-				} else {
-					interim += tr;
+
+			speechRec.onstart = function () {
+				if (micState === 'pending') {
+					micState = 'listening';
+					applyMicStateClasses();
 				}
-			}
-			textarea.value = speechBase + speechFinals + interim;
-		};
-			speechRec.onerror = function () {
+			};
+
+			/* Rebuild full text from all results to avoid duplication */
+			speechRec.onresult = function (ev) {
+				var finals = '';
+				var interim = '';
+				var newWords = 0;
+				for (var i = 0; i < ev.results.length; i++) {
+					var tr = ev.results[i][0].transcript;
+					if (ev.results[i].isFinal) {
+						finals += tr;
+						if (i >= micLastFinalIndex) {
+							newWords += tokenizeWords(tr).length;
+							micLastFinalIndex = i + 1;
+						}
+					} else {
+						interim += tr;
+					}
+				}
+				micWordsThisPhrase += newWords;
+				textarea.value = speechBase + finals + interim;
+			};
+
+			speechRec.onerror = function (ev) {
+				var code = ev && ev.error;
+				if (code === 'not-allowed' || code === 'service-not-allowed') {
+					micPermissionGranted = false;
+					showMicError(activeMicBtn, i18n.micDenied || '');
+				} else if (code === 'no-speech') {
+					showMicError(activeMicBtn, i18n.micNoAudio || '');
+				}
 				stopSpeech();
 			};
+
+			speechRec.onend = function () {
+				if (micState !== 'idle') { stopSpeech(); }
+			};
+
 			try {
 				speechRec.start();
 			} catch (e) {
 				speechRec = null;
-				return;
+				micState = 'idle';
+				applyMicStateClasses();
+				activeMicTa = null;
+				activeMicBtn = null;
 			}
-			activeMicTa = textarea;
-			activeMicBtn = micBtn;
-			textarea.classList.add('llm-phrase-game__input--listening');
-			var shell = textarea.closest('.llm-phrase-game__input-shell');
-			if (shell) {
-				shell.classList.add('llm-phrase-game__input-shell--listening');
-			}
-			micBtn.classList.add('llm-phrase-game__mic--active');
 		}
 
-		function bindMic(micBtn, textarea) {
-			if (!micBtn || !textarea) {
-				return;
-			}
-			if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
-				micBtn.hidden = true;
-				return;
-			}
-
-			function onUp() {
-				if (activeMicTa === textarea) {
+		/* Check mic permission via getUserMedia before starting recognition */
+		if (!micPermissionGranted && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+			navigator.mediaDevices.getUserMedia({ audio: true })
+				.then(function (stream) {
+					micPermissionGranted = true;
+					stream.getTracks().forEach(function (t) { t.stop(); });
+					doStart();
+				})
+				.catch(function () {
+					showMicError(micBtn, i18n.micDenied || '');
 					stopSpeech();
-				}
-			}
+				});
+		} else {
+			doStart();
+		}
+	}
 
-			micBtn.addEventListener('pointerdown', function (e) {
-				e.preventDefault();
-				startSpeech(textarea, micBtn);
-			});
-			micBtn.addEventListener('pointerup', onUp);
-			micBtn.addEventListener('pointercancel', onUp);
-			micBtn.addEventListener('pointerleave', function (e) {
-				if (e.buttons === 0) {
-					onUp();
-				}
-			});
+	function bindMic(micBtn, textarea) {
+		if (!micBtn || !textarea) { return; }
+		if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
+			micBtn.hidden = true;
+			return;
 		}
 
-		document.addEventListener('pointerup', function () {
-			stopSpeech();
+		/* Save original label text for later restore */
+		var origTextEl = micBtn.querySelector('.llm-phrase-game__mic-text');
+		micBtn._llmMicOrigText = origTextEl ? origTextEl.textContent : '';
+
+		function onUp() {
+			if (activeMicTa === textarea && micState !== 'idle') {
+				startGrace();
+			}
+		}
+
+		micBtn.addEventListener('pointerdown', function (e) {
+			e.preventDefault();
+			startSpeech(textarea, micBtn);
 		});
+		micBtn.addEventListener('pointerup', onUp);
+		micBtn.addEventListener('pointercancel', function () {
+			if (activeMicTa === textarea) { stopSpeech(); }
+		});
+		micBtn.addEventListener('pointerleave', function (e) {
+			/* On touch, pointerup handles it; on mouse, act on button-release */
+			if (e.pointerType !== 'touch' && e.buttons === 0) { onUp(); }
+		});
+	}
+
+	document.addEventListener('pointerup', function (e) {
+		if (micState === 'idle') { return; }
+		if (activeMicBtn && activeMicBtn.contains(e.target)) { return; }
+		/* Finger lifted outside the mic button — enter grace period */
+		startGrace();
+	});
 
 		bindMic(mic1, input1);
 		bindMic(mic2, input2);
@@ -1608,15 +1735,7 @@
 			}
 			var p2 = phrases[phraseIx];
 			var targetRef2 = p2 && p2.target != null ? String(p2.target) : '';
-			var strictNow = window.llmPhraseGame && window.llmPhraseGame.strictAccents !== false;
-			console.group('%c[LLM Debug] btn2 click - fase 2', 'color:#8e148e;font-weight:bold');
-			console.log('strictAccents (JS):', strictNow);
-			console.log('Utente raw:        ', JSON.stringify(txt));
-			console.log('Target raw:        ', JSON.stringify(targetRef2));
-			console.log('Utente normaliz.:  ', JSON.stringify(normalizeSentence(txt)));
-			console.log('Target normaliz.:  ', JSON.stringify(normalizeSentence(targetRef2)));
-			console.groupEnd();
-			if (!phase2PassesLocal(txt, targetRef2, PHASE2_SIM, PHASE2_WR)) {
+		if (!phase2PassesLocal(txt, targetRef2, PHASE2_SIM, PHASE2_WR)) {
 				setMessagePhase2Typewriter(i18n.phase2Fail || '', 'error');
 				return;
 			}
@@ -1662,18 +1781,10 @@
 			var json = pair && pair[0];
 				if (!json || !json.success) {
 					btn2.disabled = false;
-					if (input2) {
-						input2.readOnly = false;
-					}
-					var dbg = json && json.data;
-					if (dbg && (dbg.debug_u !== undefined || dbg.debug_r !== undefined)) {
-						console.group('%c[LLM Debug] Fase 2 - confronto normalizzato', 'color:#8e148e;font-weight:bold');
-						console.log('Utente  (debug_u):', JSON.stringify(dbg.debug_u));
-						console.log('Attesa  (debug_r):', JSON.stringify(dbg.debug_r));
-						console.log('Strict accents:  ', dbg.debug_strict);
-						console.groupEnd();
-					}
-					var msg =
+				if (input2) {
+					input2.readOnly = false;
+				}
+				var msg =
 						(json && json.data && json.data.message) || i18n.phase2Fail || '';
 					setMessagePhase2Typewriter(msg, 'error');
 					return;

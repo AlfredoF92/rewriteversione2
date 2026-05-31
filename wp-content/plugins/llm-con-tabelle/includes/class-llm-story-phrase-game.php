@@ -324,6 +324,13 @@ class LLM_Story_Phrase_Game {
 				'ajaxError'        => LLM_Phrase_Game_I18n::get( 'ajax_error' ),
 				'restartConfirm'   => LLM_Phrase_Game_I18n::get( 'story_progress_confirm' ),
 			'introLabel'       => LLM_Phrase_Game_I18n::get( 'intro_label' ),
+			'micHint'          => LLM_Phrase_Game_I18n::get( 'mic_hint' ),
+			'micPending'       => LLM_Phrase_Game_I18n::get( 'mic_pending' ),
+			'micListening'     => LLM_Phrase_Game_I18n::get( 'mic_listening' ),
+			'micGrace'         => LLM_Phrase_Game_I18n::get( 'mic_grace' ),
+			'micDenied'        => LLM_Phrase_Game_I18n::get( 'mic_denied' ),
+			'micUnavailable'   => LLM_Phrase_Game_I18n::get( 'mic_unavailable' ),
+			'micNoAudio'       => LLM_Phrase_Game_I18n::get( 'mic_no_audio' ),
 			),
 			'gameFinished'        => $game_finished,
 			'savedPhraseIndex'    => $saved_phrase_ix,
@@ -408,13 +415,9 @@ class LLM_Story_Phrase_Game {
 	if ( 2 === $phase ) {
 		$client_strict = isset( $_POST['strict_accents'] ) ? ( '1' === $_POST['strict_accents'] ) : null;
 		if ( ! self::phase2_passes( $user, $target, $client_strict ) ) {
-			$strict_used = null !== $client_strict ? $client_strict : ( is_user_logged_in() ? LLM_User_Meta::get_strict_accents( get_current_user_id() ) : true );
 			wp_send_json_error(
 				array(
-					'message'      => LLM_Phrase_Game_I18n::get( 'phase2_fail' ),
-					'debug_u'      => self::normalize_sentence( $user, $strict_used ),
-					'debug_r'      => self::normalize_sentence( $target, $strict_used ),
-					'debug_strict' => $strict_used,
+					'message' => LLM_Phrase_Game_I18n::get( 'phase2_fail' ),
 				)
 			);
 		}
