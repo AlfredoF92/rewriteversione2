@@ -405,12 +405,89 @@
 
 	var speechRec = null;
 	var speechBase = '';
+	var speechFinals = '';
 	var activeMicTa = null;
 	var activeMicBtn = null;
 	var micWordsThisPhrase = 0;
 	var micState = 'idle'; // 'idle' | 'pending' | 'listening'
 	var micLastFinalIndex = 0;
 	var micPermissionGranted = false;
+
+	/** Unisce testo finale evitando duplicati (motori mobile spesso inviano frasi cumulative). */
+	function mergeFinalTranscript(existing, chunk) {
+		chunk = String(chunk || '');
+		if (!chunk) {
+			return existing;
+		}
+		if (!existing) {
+			return chunk;
+		}
+		var ex = existing.replace(/\s+/g, ' ').trim();
+		var ch = chunk.replace(/\s+/g, ' ').trim();
+		if (!ex) {
+			return chunk;
+		}
+		if (!ch) {
+			return existing;
+		}
+		if (ch === ex || existing.indexOf(chunk) !== -1) {
+			return existing;
+		}
+		/* Chunk cumulativo: contiene già tutto il testo precedente */
+		if (ch.indexOf(ex) === 0) {
+			return chunk;
+		}
+		if (ex.indexOf(ch) === 0) {
+			return existing;
+		}
+		if (existing.slice(-chunk.length) === chunk || existing.endsWith(ch)) {
+			return existing;
+		}
+		return existing + (/\s$/.test(existing) ? '' : ' ') + chunk;
+	}
+
+	function countNewWords(oldText, newText) {
+		var oldLen = tokenizeWords(oldText).length;
+		var newLen = tokenizeWords(newText).length;
+		return Math.max(0, newLen - oldLen);
+	}
+
+	function trimInterimOverlap(finals, interim) {
+		interim = String(interim || '');
+		if (!interim) {
+			return '';
+		}
+		if (!finals) {
+			return dedupeRepeatedPhrase(interim);
+		}
+		var f = finals.replace(/\s+/g, ' ').trim();
+		var it = interim.replace(/\s+/g, ' ').trim();
+		if (it.indexOf(f) === 0) {
+			var tail = it.slice(f.length).replace(/^\s+/, '');
+			return tail ? dedupeRepeatedPhrase(tail) : '';
+		}
+		if (f.indexOf(it) === 0 || f.endsWith(it)) {
+			return '';
+		}
+		return dedupeRepeatedPhrase(interim);
+	}
+
+	function dedupeRepeatedPhrase(text) {
+		text = String(text || '').replace(/\s+/g, ' ').trim();
+		if (!text) {
+			return '';
+		}
+		var words = text.split(/\s+/);
+		var w;
+		for (w = Math.floor(words.length / 2); w >= 1; w--) {
+			var first = words.slice(0, w).join(' ');
+			var second = words.slice(w, w * 2).join(' ');
+			if (first && first === second) {
+				return first;
+			}
+		}
+		return text;
+	}
 
 		var TTS_SLOW_RATE = 0.78;
 
@@ -1010,6 +1087,7 @@
 	function stopSpeech() {
 		micState = 'idle';
 		micLastFinalIndex = 0;
+		speechFinals = '';
 		if (speechRec) {
 			try { speechRec.stop(); } catch (e) { /* ignore */ }
 			speechRec = null;
@@ -1162,6 +1240,7 @@
 		activeMicBtn = micBtn;
 		speechBase = textarea.value;
 		if (speechBase.length && !/\s$/.test(speechBase)) { speechBase += ' '; }
+		speechFinals = '';
 		micLastFinalIndex = 0;
 
 		micState = 'pending';
@@ -1171,7 +1250,7 @@
 			if (micState === 'idle') { return; } /* aborted before start */
 			speechRec = new Rec();
 			speechRec.lang = speechLang;
-			speechRec.continuous = true;
+			speechRec.continuous = false;
 			speechRec.interimResults = true;
 
 			speechRec.onstart = function () {
@@ -1181,25 +1260,25 @@
 				}
 			};
 
-			/* Rebuild full text from all results to avoid duplication */
+			/* Solo risultati nuovi (resultIndex); merge anti-duplicati sui finali */
 			speechRec.onresult = function (ev) {
-				var finals = '';
 				var interim = '';
-				var newWords = 0;
-				for (var i = 0; i < ev.results.length; i++) {
+				var prevFinals = speechFinals;
+				var i;
+				for (i = ev.resultIndex; i < ev.results.length; i++) {
 					var tr = ev.results[i][0].transcript;
 					if (ev.results[i].isFinal) {
-						finals += tr;
 						if (i >= micLastFinalIndex) {
-							newWords += tokenizeWords(tr).length;
+							speechFinals = mergeFinalTranscript(speechFinals, tr);
 							micLastFinalIndex = i + 1;
 						}
 					} else {
 						interim += tr;
 					}
 				}
-				micWordsThisPhrase += newWords;
-				textarea.value = speechBase + finals + interim;
+				micWordsThisPhrase += countNewWords(prevFinals, speechFinals);
+				interim = trimInterimOverlap(speechFinals, interim);
+				textarea.value = speechBase + speechFinals + interim;
 			};
 
 			speechRec.onerror = function (ev) {
