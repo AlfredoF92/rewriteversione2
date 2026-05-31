@@ -801,10 +801,64 @@
 .llm-phrase-game__mic--grace .llm-phrase-game__mic-icon,
 .llm-phrase-game__mic--grace .llm-phrase-game__mic-text {
 	animation: none;
-	-webkit-text-fill-color: currentColor;
 	background: none;
 	-webkit-background-clip: unset;
 	background-clip: unset;
+}
+
+/* mic-text had color:transparent for the gradient trick; override with parent color */
+.llm-phrase-game__mic--pending .llm-phrase-game__mic-text,
+.llm-phrase-game__mic--listening .llm-phrase-game__mic-text,
+.llm-phrase-game__mic--grace .llm-phrase-game__mic-text {
+	color: inherit;
+	-webkit-text-fill-color: inherit;
+}
+
+/* mic-icon uses currentColor which already works (no transparent base) */
+.llm-phrase-game__mic--pending .llm-phrase-game__mic-icon,
+.llm-phrase-game__mic--listening .llm-phrase-game__mic-icon,
+.llm-phrase-game__mic--grace .llm-phrase-game__mic-icon {
+	-webkit-text-fill-color: currentColor;
+}
+
+/* ─── Status label above the mic button ─────────────────────────────── */
+
+.llm-phrase-game__mic-status {
+	display: block;
+	font-size: 0.78rem;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	text-align: center;
+	margin: 0 0 0.35rem;
+	padding: 0.18rem 0.55rem;
+	border-radius: 4px;
+	opacity: 0;
+	transform: translateY(4px);
+	transition: opacity 0.18s ease, transform 0.18s ease;
+	pointer-events: none;
+}
+
+.llm-phrase-game__mic-status--visible {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+.llm-phrase-game__mic-status--pending {
+	background: #fff3cd;
+	color: #7a4a00;
+	border: 1px solid #f0c040;
+}
+
+.llm-phrase-game__mic-status--listening {
+	background: #dbeeff;
+	color: #063a5c;
+	border: 1px solid #90c4e8;
+}
+
+.llm-phrase-game__mic-status--grace {
+	background: #d4edda;
+	color: #0f4d23;
+	border: 1px solid #7fbb90;
 }
 
 /* ─── Mobile: larger tap target ──────────────────────────────────────── */

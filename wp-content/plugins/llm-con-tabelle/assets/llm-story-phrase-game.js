@@ -961,6 +961,35 @@
 		if (el) { el.textContent = text; }
 	}
 
+	function updateMicStatusEl(btnEl, state) {
+		var el = btnEl && btnEl._llmMicStatusEl;
+		if (!el) { return; }
+		el.classList.remove(
+			'llm-phrase-game__mic-status--visible',
+			'llm-phrase-game__mic-status--pending',
+			'llm-phrase-game__mic-status--listening',
+			'llm-phrase-game__mic-status--grace'
+		);
+		if (state === 'idle') {
+			el.textContent = '';
+			return;
+		}
+		if (state === 'pending') {
+			el.textContent = i18n.micPending || '…';
+			el.classList.add('llm-phrase-game__mic-status--pending');
+		} else if (state === 'listening') {
+			el.textContent = i18n.micListening || '…';
+			el.classList.add('llm-phrase-game__mic-status--listening');
+		} else if (state === 'grace') {
+			el.textContent = i18n.micGrace || '…';
+			el.classList.add('llm-phrase-game__mic-status--grace');
+		}
+		/* Trigger CSS transition by adding visible class on next frame */
+		requestAnimationFrame(function () {
+			el.classList.add('llm-phrase-game__mic-status--visible');
+		});
+	}
+
 	function applyMicStateClasses() {
 		var btnEl = activeMicBtn;
 		var taEl = activeMicTa;
@@ -978,6 +1007,7 @@
 
 		if (micState === 'idle') {
 			restoreMicBtnText(btnEl);
+			updateMicStatusEl(btnEl, 'idle');
 			return;
 		}
 		if (micState === 'pending') {
@@ -994,6 +1024,7 @@
 			if (shell) { shell.classList.add('llm-phrase-game__input-shell--listening'); }
 			setMicBtnText(btnEl, i18n.micGrace || '…');
 		}
+		updateMicStatusEl(btnEl, micState);
 	}
 
 	function stopSpeech() {
@@ -1264,6 +1295,14 @@
 		/* Save original label text for later restore */
 		var origTextEl = micBtn.querySelector('.llm-phrase-game__mic-text');
 		micBtn._llmMicOrigText = origTextEl ? origTextEl.textContent : '';
+
+		/* Create status label above the button */
+		var statusEl = document.createElement('p');
+		statusEl.className = 'llm-phrase-game__mic-status';
+		statusEl.setAttribute('aria-live', 'polite');
+		statusEl.setAttribute('aria-atomic', 'true');
+		micBtn.parentNode.insertBefore(statusEl, micBtn);
+		micBtn._llmMicStatusEl = statusEl;
 
 		function onUp() {
 			if (activeMicTa === textarea && micState !== 'idle') {
