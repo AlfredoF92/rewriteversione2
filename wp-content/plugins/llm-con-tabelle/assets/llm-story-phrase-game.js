@@ -5,6 +5,10 @@
 		return root.querySelector(sel);
 	}
 
+	function qsa(root, sel) {
+		return Array.prototype.slice.call(root.querySelectorAll(sel));
+	}
+
 	function stripTagsHtml(s) {
 		return String(s || '').replace(/<[^>]*>/g, '');
 	}
@@ -202,6 +206,14 @@
 		return n.split(/\s+/).filter(Boolean);
 	}
 
+	/** Come tokenizeWords ma rimuove sempre gli accenti, indipendentemente da strictAccents. */
+	function tokenizeWordsNoAccents(s) {
+		var n = removeAccents(s.toLowerCase());
+		n = n.replace(/[^\p{L}\p{N}\s]+/gu, ' ').replace(/\s+/g, ' ').trim();
+		if (!n) { return []; }
+		return n.split(/\s+/).filter(Boolean);
+	}
+
 	/** Allineato a PHP similar_text (somma caratteri comuni ricorsiva). */
 	function similarTextMatches(first, second) {
 		var pos1 = 0;
@@ -257,8 +269,8 @@
 	}
 
 	function referenceWordsFoundRatio(userText, referenceText) {
-		var refWords = tokenizeWords(referenceText);
-		var userWords = tokenizeWords(userText);
+		var refWords = tokenizeWordsNoAccents(referenceText);
+		var userWords = tokenizeWordsNoAccents(userText);
 		if (!refWords.length) {
 			return 1;
 		}
@@ -276,6 +288,26 @@
 		return hits / refWords.length;
 	}
 
+	function countReferenceWordHits(userText, referenceText) {
+		var refWords = tokenizeWordsNoAccents(referenceText);
+		var userWords = tokenizeWordsNoAccents(userText);
+		if (!refWords.length) {
+			return { hits: 0, total: 0, heard: userWords.length };
+		}
+		var userSet = {};
+		var i;
+		for (i = 0; i < userWords.length; i++) {
+			userSet[userWords[i]] = true;
+		}
+		var hits = 0;
+		for (i = 0; i < refWords.length; i++) {
+			if (userSet[refWords[i]]) {
+				hits++;
+			}
+		}
+		return { hits: hits, total: refWords.length, heard: userWords.length };
+	}
+
 	function phase1PassesLocal(userText, targetText, minRatio) {
 		return referenceWordsFoundRatio(userText, targetText) >= minRatio;
 	}
@@ -290,6 +322,152 @@
 			return false;
 		}
 		return u === r;
+	}
+
+	/* ── Parole random di aiuto ──────────────────────────────────────────
+	 * Le esche sostituiscono lettere simili restando nella stessa classe
+	 * (vocale con vocale, consonante con consonante), così la parola sbagliata
+	 * si distingue solo leggendo con attenzione.
+	 */
+
+	var VOWEL_SWAPS = {
+		a: 'eo', e: 'ai', i: 'ey', o: 'au', u: 'oy', y: 'iu'
+	};
+
+	var CONSONANT_SWAPS = {
+		b: 'dp', c: 'gs', d: 'bp', f: 'lt', g: 'cq', h: 'kb', j: 'gz',
+		k: 'hc', l: 'ft', m: 'nw', n: 'mr', p: 'bq', q: 'gp', r: 'ns',
+		s: 'zc', t: 'fl', v: 'wb', w: 'mv', x: 'sk', z: 'sx'
+	};
+
+	/** Lettere che NFD non scompone perché il segno fa parte del glifo. */
+	var STANDALONE_LETTERS = { 'ł': 'l', 'ø': 'o', 'đ': 'd', 'ß': 's', 'æ': 'a', 'œ': 'o' };
+
+	var WORD_EDGE_RE = /^[^0-9A-Za-zÀ-ÖØ-öø-ÿĀ-ſ]+|[^0-9A-Za-zÀ-ÖØ-öø-ÿĀ-ſ]+$/g;
+
+	function baseLetter(ch) {
+		if (STANDALONE_LETTERS[ch]) {
+			return STANDALONE_LETTERS[ch];
+		}
+		if (typeof ''.normalize !== 'function') {
+			return ch;
+		}
+		return ch.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+	}
+
+	/** Accento, tilde, ogonek, ł, ø…: queste lettere restano intatte anche nell'esca. */
+	function hasDiacritic(ch) {
+		var lower = ch.toLowerCase();
+		if (STANDALONE_LETTERS[lower]) {
+			return true;
+		}
+		if (typeof ''.normalize !== 'function') {
+			return lower !== baseLetter(lower);
+		}
+		return lower.normalize('NFD').length > 1;
+	}
+
+	function shuffled(list) {
+		var out = list.slice();
+		for (var i = out.length - 1; i > 0; i--) {
+			var j = Math.floor(Math.random() * (i + 1));
+			var tmp = out[i];
+			out[i] = out[j];
+			out[j] = tmp;
+		}
+		return out;
+	}
+
+	/** Lettera simile della stessa classe, o null se non sostituibile. */
+	function swapLetter(ch) {
+		var lower = ch.toLowerCase();
+		if (hasDiacritic(ch)) {
+			return null;
+		}
+		var base = baseLetter(lower);
+		var pool = VOWEL_SWAPS[base] || CONSONANT_SWAPS[base] || '';
+		if (!pool) {
+			return null;
+		}
+		var next = pool.charAt(Math.floor(Math.random() * pool.length));
+		var isUpper = ch !== lower && ch === ch.toUpperCase();
+		return isUpper ? next.toUpperCase() : next;
+	}
+
+	/**
+	 * Variante alterata di una parola: cambia una sola lettera, mai una
+	 * con accento o diacritico. Tocca le lettere interne; nelle parole di
+	 * una o due lettere agisce sull'ultima.
+	 *
+	 * @param {string} word
+	 * @returns {string|null} null se nessuna lettera è sostituibile.
+	 */
+	function mutateWord(word) {
+		var chars = word.split('');
+		var positions = [];
+		if (chars.length <= 2) {
+			positions.push(chars.length - 1);
+		} else {
+			for (var i = 1; i < chars.length - 1; i++) {
+				positions.push(i);
+			}
+		}
+		positions = shuffled(positions);
+
+		for (var p = 0; p < positions.length; p++) {
+			var ix = positions[p];
+			var next = swapLetter(chars[ix]);
+			if (next && next !== chars[ix]) {
+				chars[ix] = next;
+				return chars.join('');
+			}
+		}
+		return null;
+	}
+
+	function stripMarkup(html) {
+		var holder = document.createElement('div');
+		holder.innerHTML = String(html || '');
+		return holder.textContent || '';
+	}
+
+	function splitHelperWords(text) {
+		return String(text || '')
+			.split(/\s+/)
+			.map(function (word) {
+				return word.replace(WORD_EDGE_RE, '');
+			})
+			.filter(function (word) {
+				return word.length > 0;
+			});
+	}
+
+	/**
+	 * Parole della soluzione più una esca ciascuna, tutte mescolate.
+	 *
+	 * Il confronto dei doppioni ignora le maiuscole: un'esca che coincide con
+	 * una parola corretta a meno del caso verrebbe accettata dalla validazione,
+	 * quindi non sarebbe più un'esca.
+	 */
+	function buildRandomWords(target) {
+		var words = splitHelperWords(stripMarkup(target));
+		var out = words.slice();
+		var seen = words.map(function (word) {
+			return word.toLowerCase();
+		});
+
+		words.forEach(function (word) {
+			for (var tries = 0; tries < 6; tries++) {
+				var decoy = mutateWord(word);
+				if (decoy && seen.indexOf(decoy.toLowerCase()) === -1) {
+					out.push(decoy);
+					seen.push(decoy.toLowerCase());
+					break;
+				}
+			}
+		});
+
+		return shuffled(out);
 	}
 
 	function init(root) {
@@ -326,20 +504,28 @@
 		var phase2 = qs(root, '.llm-phrase-game__phase--2');
 		var ifaceEl = qs(root, '.llm-phrase-game__interface');
 		var promptTrans = qs(root, '.llm-phrase-game__prompt--translate');
+		var promptTransText = qs(root, '.llm-phrase-game__prompt-text:not(.llm-phrase-game__prompt-text--rewrite)');
 		var promptRewrite = qs(root, '.llm-phrase-game__prompt--rewrite');
+		var promptRewriteText = qs(root, '.llm-phrase-game__prompt-text--rewrite');
 		var input1 = qs(root, '.llm-phrase-game__input--1');
 		var input2 = qs(root, '.llm-phrase-game__input--2');
 		var btn1 = qs(root, '.llm-phrase-game__btn--continue1');
 		var btn2 = qs(root, '.llm-phrase-game__btn--continue2');
 		var messageEl = qs(root, '.llm-phrase-game__message');
-		var messagePhase2El = qs(root, '.llm-phrase-game__message-phase2');
+		var messageSoloEl = qs(root, '.llm-phrase-game__message-solo');
+		/* Non usare il primo .message-phase2: in DOM arriva prima .message-solo (nascosto in LoveRewrite). */
+		var messagePhase2El =
+			qs(root, '.llm-phrase-game__phase--2 .llm-phrase-game__message-phase2') ||
+			qs(root, '.llm-phrase-game__message-phase2:not(.llm-phrase-game__message-solo)');
 		var analysisEl = qs(root, '.llm-phrase-game__analysis');
 		var grammarEl = qs(root, '.llm-phrase-game__grammar');
 		var targetShow = qs(root, '.llm-phrase-game__target');
+		var targetPeekBtn = qs(root, '.llm-phrase-game__peek-target');
 		var altShow = qs(root, '.llm-phrase-game__alt');
 		var bravoEl = qs(root, '.llm-phrase-game__bravo');
 		var labelMainEl = qs(root, '.llm-phrase-game__label-main');
 		var labelAltEl = qs(root, '.llm-phrase-game__label-alt');
+		var altToggleBtn = qs(root, '.llm-phrase-game__alt-toggle');
 		var doneEl = qs(root, '.llm-phrase-game__done');
 		var cardEl = qs(root, '.llm-phrase-game__card');
 		var yourPhraseWrap = qs(root, '.llm-phrase-game__your-phrase-wrap');
@@ -351,10 +537,163 @@
 		var phase2RecapCounter   = qs(root, '.llm-phrase-game__phase2-recap__counter');
 	var phase2RecapIface     = qs(root, '.llm-phrase-game__phase2-recap__interface');
 	var phase2RecapPrompt    = qs(root, '.llm-phrase-game__phase2-recap__prompt');
-	var listenTargetBtn      = qs(root, '.llm-phrase-game__listen-target:not(.llm-phrase-game__listen-target--phase2)');
+	var listenTargetBtn      = qs(root, '.llm-phrase-game__listen-target:not(.llm-phrase-game__listen-target--phase2):not(.llm-phrase-game__peek-target):not(.llm-phrase-game__notes-toggle):not(.llm-phrase-game__random-words-toggle)');
 		var listenTargetBtnPhase2 = qs(root, '.llm-phrase-game__listen-target--phase2');
 		var composePhase1 = qs(root, '.llm-phrase-game__compose--phase1');
 		var composePhase2 = qs(root, '.llm-phrase-game__compose--phase2');
+	var feedbackEl      = qs(root, '.llm-phrase-game__phase1-feedback');
+	var loadingNotesEl  = qs(root, '.llm-phrase-game__loading-notes');
+	var dbStatusEl      = qs(root, '.llm-phrase-game__db-status');
+	var notesWrap       = qs(root, '.llm-phrase-game__notes');
+	var notesToggleBtn  = qs(root, '.llm-phrase-game__notes-toggle');
+	var notesToggleText = qs(root, '.llm-phrase-game__notes-toggle-text');
+	var notesPanel      = qs(root, '.llm-phrase-game__notes-panel');
+	var invertedHintBtn = qs(root, '.llm-phrase-game__inverted-hint');
+	var invertedHintLabel = qs(root, '.llm-phrase-game__inverted-hint-text-label');
+	var invertedHintPanel = qs(root, '.llm-phrase-game__inverted-hint-panel');
+
+	function randomWordsBlock(suffix, inputEl) {
+		var wrap = qs(root, '.llm-phrase-game__random-words--' + suffix);
+		return {
+			wrap: wrap,
+			input: inputEl,
+			toggle: wrap ? qs(wrap, '.llm-phrase-game__random-words-toggle') : null,
+			list: wrap ? qs(wrap, '.llm-phrase-game__random-words-list') : null
+		};
+	}
+
+	var randomWordsBlocks = [randomWordsBlock('1', input1), randomWordsBlock('2', input2)]
+		.filter(function (block) {
+			return block.wrap && block.toggle && block.list;
+		});
+
+	function extraCharsBlock(suffix, inputEl) {
+		var wrap = qs(root, '.llm-phrase-game__extra-chars--' + suffix);
+		return {
+			wrap: wrap,
+			input: inputEl,
+			toggle: wrap ? qs(wrap, '.llm-phrase-game__extra-chars-toggle') : null,
+			panel: wrap ? qs(wrap, '.llm-phrase-game__extra-chars-panel') : null
+		};
+	}
+
+	var extraCharsBlocks = [extraCharsBlock('1', input1), extraCharsBlock('2', input2)]
+		.filter(function (block) {
+			return block.wrap && block.toggle && block.panel;
+		});
+
+		var MODE_LOVEREWRITE   = 'loverewrite';
+		var MODE_RESOLVE_GO    = 'resolve_go';
+		var MODE_READ_GO_FAST  = 'read_go_fast';
+		var MODE_PLAY_INVERTED = 'play_inverted';
+
+		/* Utente loggato: vince il profilo. Ospite: localStorage, poi default. */
+		function resolveLearningMode() {
+			var fallback = cfg.learningMode || MODE_LOVEREWRITE;
+			if (cfg.learningModeIsSaved) {
+				return fallback;
+			}
+			try {
+				var stored = window.localStorage.getItem(cfg.learningModeStorageKey || 'llm_learning_mode');
+				if (stored) {
+					return stored;
+				}
+			} catch (e) {
+				/* Storage non disponibile: resta il default. */
+			}
+			return fallback;
+		}
+
+		var learningMode = String(resolveLearningMode() || '').replace(/[^a-z0-9_-]/gi, '');
+		if (!learningMode) {
+			learningMode = MODE_LOVEREWRITE;
+		}
+		var isResolveGo    = learningMode === MODE_RESOLVE_GO;
+		var isReadGoFast   = learningMode === MODE_READ_GO_FAST;
+		var isPlayInverted = learningMode === MODE_PLAY_INVERTED;
+		/* Modalità con la sola fase 1: stesso layout, cambia solo cosa succede al click. */
+		var isSinglePhase = isResolveGo || isReadGoFast || isPlayInverted;
+		root.classList.add('llm-phrase-game--mode-' + learningMode.replace(/_/g, '-'));
+		if (isSinglePhase) {
+			root.classList.add('llm-phrase-game--single-phase');
+		}
+
+		/* Dove finiscono i messaggi di completamento frase. */
+		var completionMsgEl = (isSinglePhase && messageSoloEl) ? messageSoloEl : messagePhase2El;
+
+		var interfaceLang = cfg.interfaceLangLabel || '';
+		var introPromptKey = isPlayInverted
+			? 'playInvertedPrompt'
+			: (isReadGoFast
+				? 'readGoFastPrompt'
+				: (isResolveGo ? 'resolveGoPrompt' : 'translatePrompt'));
+
+		function flagEmoji(code) {
+			var map = cfg.langFlags || {};
+			return map[String(code || '').toLowerCase()] || '';
+		}
+
+		function setFlagEls(selector, emoji) {
+			qsa(root, selector).forEach(function (el) {
+				el.textContent = emoji;
+			});
+		}
+
+		function syncLangFlags() {
+			var sourceCode = isPlayInverted
+				? (cfg.targetLangCode || '')
+				: (cfg.interfaceLangCode || '');
+			var writeCode = isPlayInverted
+				? (cfg.interfaceLangCode || '')
+				: (cfg.targetLangCode || '');
+			setFlagEls('.llm-phrase-game__lang-flag--source', flagEmoji(sourceCode));
+			setFlagEls('.llm-phrase-game__lang-flag--write', flagEmoji(writeCode));
+		}
+
+		function setTranslatePromptText(text) {
+			if (promptTransText) {
+				promptTransText.textContent = text || '';
+				return;
+			}
+			if (promptTrans) {
+				promptTrans.textContent = text || '';
+			}
+		}
+
+		function setRewritePromptText(text) {
+			if (promptRewriteText) {
+				promptRewriteText.textContent = text || '';
+				return;
+			}
+			if (promptRewrite) {
+				promptRewrite.textContent = text || '';
+			}
+		}
+
+		syncLangFlags();
+
+		/* Opzioni di aiuto: stessa regola della modalità, profilo o localStorage. */
+		function resolveLearningOptions() {
+			if (isPlayInverted) {
+				return [];
+			}
+			if (cfg.learningModeIsSaved) {
+				return Array.isArray(cfg.learningOptions) ? cfg.learningOptions : [];
+			}
+			try {
+				var raw = window.localStorage.getItem(cfg.learningOptionsStorageKey || 'llm_learning_options') || '';
+				return raw ? raw.split(',') : [];
+			} catch (e) {
+				return [];
+			}
+		}
+
+		var randomWordsOn =
+			resolveLearningOptions().indexOf(cfg.optionRandomWords || 'random_words') !== -1;
+		var extraCharsOn =
+			resolveLearningOptions().indexOf(cfg.optionExtraChars || 'extra_chars') !== -1;
+		var listenReplayAfterMic =
+			resolveLearningOptions().indexOf(cfg.optionListenReplayLoop || 'listen_replay_loop') !== -1;
 
 		/* Intro storia: typewriter alla prima visita — blocca pulsante ascolto fino al termine */
 		var pendingStoryIntroTypewriter =
@@ -373,10 +712,14 @@
 				'llm-phrase-game__listen-target--force-hidden',
 				!show
 			);
+			if (listenTargetBtn._llmListenTargetWrap) {
+				listenTargetBtn._llmListenTargetWrap.hidden = !show;
+			}
 			if (show) {
 				listenTargetBtn.removeAttribute('aria-hidden');
 			} else {
 				listenTargetBtn.setAttribute('aria-hidden', 'true');
+				hideListenCountdown(listenTargetBtn);
 			}
 		}
 
@@ -388,12 +731,19 @@
 			}
 		}
 
+		function showPhase2RewritePrompt() {
+			setRewritePromptText('');
+		}
+
 		function setComposePhaseVisible(phaseNum, visible) {
 			var el = phaseNum === 1 ? composePhase1 : composePhase2;
 			if (!el) {
 				return;
 			}
 			el.classList.toggle('llm-phrase-game__compose--visible', !!visible);
+			if (phaseNum === 2 && visible) {
+				showPhase2RewritePrompt();
+			}
 		}
 
 		var phraseIx = 0;
@@ -407,91 +757,104 @@
 
 	var speechRec = null;
 	var speechBase = '';
-	var speechFinals = '';
+	var speechSessionStartValue = '';
+	var speechSegmentTranscript = '';
 	var activeMicTa = null;
 	var activeMicBtn = null;
 	var micWordsThisPhrase = 0;
 	var micState = 'idle'; // 'idle' | 'pending' | 'listening'
-	var micLastFinalIndex = 0;
 	var micPermissionGranted = false;
-	var MIC_SESSION_MS = 5000;
+	var MIC_PENDING_MS = 2000;
+	var MIC_SESSION_MS = 6000;
+	var MIC_BAR_FADE_MS = 180;
 	var micSessionActive = false;
 	var micSessionTimer = null;
+	var micPendingTimer = null;
+	var micPendingPhaseDone = false;
+	var micRecognitionStarted = false;
+	var micFeedbackTimer = null;
+	var LISTEN_REPLAY_DELAY_MS = 0;
+	var MIC_FEEDBACK_DISPLAY_MS = 8000;
+	var listenReplayTimer = null;
+	var targetPeekTimer = null;
+	var TARGET_PEEK_MS = 10000;
+	var TARGET_PEEK_FADE_MS = 400;
 
-	/** Unisce testo finale evitando duplicati (motori mobile spesso inviano frasi cumulative). */
-	function mergeFinalTranscript(existing, chunk) {
-		chunk = String(chunk || '');
+	function normalizeSpeechSpace(text) {
+		return String(text || '').replace(/\s+/g, ' ').trim();
+	}
+
+	/**
+	 * Unisce i segmenti del motore senza duplicare frasi cumulative (comune su mobile).
+	 * Se un segmento estende il precedente, sostituisce — non concatena.
+	 */
+	function combineEngineSegments(parts) {
+		var out = '';
+		var p;
+		for (p = 0; p < parts.length; p++) {
+			var tr = String(parts[p].text || '');
+			if (!tr) {
+				continue;
+			}
+			if (!out) {
+				out = tr;
+				continue;
+			}
+			var o = normalizeSpeechSpace(out);
+			var t = normalizeSpeechSpace(tr);
+			if (t.indexOf(o) === 0) {
+				out = tr;
+				continue;
+			}
+			if (o.indexOf(t) === 0) {
+				continue;
+			}
+			if (o === t) {
+				continue;
+			}
+			out = out + (/\s$/.test(out) ? '' : ' ') + tr;
+		}
+		return out;
+	}
+
+	function getEngineTranscriptFromResults(results) {
+		if (!results || !results.length) {
+			return '';
+		}
+		var parts = [];
+		var i;
+		for (i = 0; i < results.length; i++) {
+			parts.push({
+				text: results[i][0].transcript,
+				final: !!results[i].isFinal
+			});
+		}
+		return combineEngineSegments(parts);
+	}
+
+	function commitMicSpeechToBase(ta) {
+		var chunk = String(speechSegmentTranscript || '');
 		if (!chunk) {
-			return existing;
+			speechSegmentTranscript = '';
+			return;
 		}
-		if (!existing) {
-			return chunk;
+		speechBase += chunk;
+		if (speechBase.length && !/\s$/.test(speechBase)) {
+			speechBase += ' ';
 		}
-		var ex = existing.replace(/\s+/g, ' ').trim();
-		var ch = chunk.replace(/\s+/g, ' ').trim();
-		if (!ex) {
-			return chunk;
+		speechSegmentTranscript = '';
+		if (ta) {
+			ta.value = speechBase;
+			if (typeof ta._llmSyncClearBtn === 'function') {
+				ta._llmSyncClearBtn();
+			}
 		}
-		if (!ch) {
-			return existing;
-		}
-		if (ch === ex || existing.indexOf(chunk) !== -1) {
-			return existing;
-		}
-		/* Chunk cumulativo: contiene già tutto il testo precedente */
-		if (ch.indexOf(ex) === 0) {
-			return chunk;
-		}
-		if (ex.indexOf(ch) === 0) {
-			return existing;
-		}
-		if (existing.slice(-chunk.length) === chunk || existing.endsWith(ch)) {
-			return existing;
-		}
-		return existing + (/\s$/.test(existing) ? '' : ' ') + chunk;
 	}
 
 	function countNewWords(oldText, newText) {
 		var oldLen = tokenizeWords(oldText).length;
 		var newLen = tokenizeWords(newText).length;
 		return Math.max(0, newLen - oldLen);
-	}
-
-	function trimInterimOverlap(finals, interim) {
-		interim = String(interim || '');
-		if (!interim) {
-			return '';
-		}
-		if (!finals) {
-			return dedupeRepeatedPhrase(interim);
-		}
-		var f = finals.replace(/\s+/g, ' ').trim();
-		var it = interim.replace(/\s+/g, ' ').trim();
-		if (it.indexOf(f) === 0) {
-			var tail = it.slice(f.length).replace(/^\s+/, '');
-			return tail ? dedupeRepeatedPhrase(tail) : '';
-		}
-		if (f.indexOf(it) === 0 || f.endsWith(it)) {
-			return '';
-		}
-		return dedupeRepeatedPhrase(interim);
-	}
-
-	function dedupeRepeatedPhrase(text) {
-		text = String(text || '').replace(/\s+/g, ' ').trim();
-		if (!text) {
-			return '';
-		}
-		var words = text.split(/\s+/);
-		var w;
-		for (w = Math.floor(words.length / 2); w >= 1; w--) {
-			var first = words.slice(0, w).join(' ');
-			var second = words.slice(w, w * 2).join(' ');
-			if (first && first === second) {
-				return first;
-			}
-		}
-		return text;
 	}
 
 		var TTS_SLOW_RATE = 0.78;
@@ -615,10 +978,8 @@
 		if (targetShow) {
 			targetShow.innerHTML = '';
 		}
-		if (altShow) {
-			altShow.innerHTML = '';
-			altShow.style.opacity = '0';
-		}
+		resetTargetPeek();
+		resetAltAccordion();
 		if (labelMainEl) {
 			labelMainEl.style.opacity = '0';
 		}
@@ -626,9 +987,439 @@
 			labelAltEl.style.opacity = '0';
 		}
 		if (promptRewrite) {
-			promptRewrite.textContent = '';
+			setRewritePromptText('');
 			promptRewrite.style.opacity = '0';
 		}
+	}
+
+	function clearTargetPeekTimer() {
+		if (targetPeekTimer) {
+			clearTimeout(targetPeekTimer);
+			targetPeekTimer = null;
+		}
+	}
+
+	function fadeElementOpacity(el, opacity, dur) {
+		return new Promise(function (resolve) {
+			if (!el) {
+				resolve();
+				return;
+			}
+			var d = dur || TARGET_PEEK_FADE_MS;
+			el.style.transition = 'opacity ' + d + 'ms ease';
+			requestAnimationFrame(function () {
+				el.style.opacity = String(opacity);
+				setTimeout(resolve, d);
+			});
+		});
+	}
+
+	/** Il pannello impostazioni può cambiare gli accenti dopo il boot: rileggiamo dal DOM. */
+	function syncStrictAccentsFromDom() {
+		var accentsToggleEl = document.querySelector('.llm-story-settings__accents-input');
+		if (accentsToggleEl && window.llmPhraseGame) {
+			window.llmPhraseGame.strictAccents = accentsToggleEl.checked;
+		}
+	}
+
+	/**
+	 * Appunti a richiesta ("Risolvi e vai"): riusa il blocco analisi esistente
+	 * spostandolo sotto il pulsante, così non si duplica il markup.
+	 */
+	var notesLoaded = false;
+
+	function setNotesOpen(open) {
+		if (!notesToggleBtn || !notesPanel) {
+			return;
+		}
+		var isOpen = !!open;
+		notesPanel.hidden = !isOpen;
+		notesToggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+		if (notesToggleText) {
+			notesToggleText.textContent = isOpen
+				? (i18n.notesToggleHide || 'Nascondi gli appunti')
+				: (i18n.notesToggleShow || 'Carica gli appunti per questa frase');
+		}
+		if (!isOpen || notesLoaded) {
+			return;
+		}
+		notesLoaded = true;
+		var p = phrases[phraseIx];
+		analysisEl.hidden = false;
+		runAnalysisTypestream({
+			notesOnly: true,
+			skipYourPhrase: true,
+			skipBravo: true,
+			grammar: (p && p.grammar) || '',
+			/* Gioca al contrario: niente traduzione principale negli appunti (è già la frase proposta). */
+			target: isPlayInverted ? '' : ((p && p.target) || ''),
+			alt: (p && p.alt) || ''
+		});
+		if (isPlayInverted && labelMainEl) {
+			labelMainEl.hidden = true;
+			if (targetShow) {
+				targetShow.hidden = true;
+				targetShow.innerHTML = '';
+			}
+			if (targetPeekBtn) {
+				targetPeekBtn.hidden = true;
+			}
+		} else if (labelMainEl) {
+			labelMainEl.hidden = false;
+		}
+	}
+
+	function appendWordToInput(inputEl, word) {
+		if (!inputEl || inputEl.readOnly || inputEl.disabled) {
+			return;
+		}
+		var current = inputEl.value || '';
+		var separator = (current && !/\s$/.test(current)) ? ' ' : '';
+		inputEl.value = current + separator + word;
+		inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+		inputEl.focus();
+		var end = inputEl.value.length;
+		try {
+			inputEl.setSelectionRange(end, end);
+		} catch (e) {
+			/* Alcuni browser rifiutano la selezione su textarea non visibili. */
+		}
+	}
+
+	function appendCharToInput(inputEl, ch) {
+		if (!inputEl || inputEl.readOnly || inputEl.disabled) {
+			return;
+		}
+		var val = inputEl.value || '';
+		var start = typeof inputEl.selectionStart === 'number' ? inputEl.selectionStart : val.length;
+		var end = typeof inputEl.selectionEnd === 'number' ? inputEl.selectionEnd : val.length;
+		inputEl.value = val.slice(0, start) + ch + val.slice(end);
+		inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+		inputEl.focus();
+		var pos = start + String(ch).length;
+		try {
+			inputEl.setSelectionRange(pos, pos);
+		} catch (e) {
+			/* ignore */
+		}
+	}
+
+	/* Set caratteri per lingua target (etichette native della lingua studiata). */
+	var EXTRA_CHARS_BY_LANG = {
+		pl: {
+			lower: [
+				{ c: 'ą', n: 'ogonek' }, { c: 'ć', n: 'kreska' }, { c: 'ę', n: 'ogonek' },
+				{ c: 'ł', n: 'kreska ukośna' }, { c: 'ń', n: 'kreska' }, { c: 'ó', n: 'kreska' },
+				{ c: 'ś', n: 'kreska' }, { c: 'ź', n: 'kreska' }, { c: 'ż', n: 'kropka' }
+			],
+			upper: [
+				{ c: 'Ą', n: 'ogonek' }, { c: 'Ć', n: 'kreska' }, { c: 'Ę', n: 'ogonek' },
+				{ c: 'Ł', n: 'kreska ukośna' }, { c: 'Ń', n: 'kreska' }, { c: 'Ó', n: 'kreska' },
+				{ c: 'Ś', n: 'kreska' }, { c: 'Ź', n: 'kreska' }, { c: 'Ż', n: 'kropka' }
+			],
+			symbols: [
+				{ c: '„', n: 'cudzysłów dolny' }, { c: '”', n: 'cudzysłów górny' },
+				{ c: '»', n: 'cudzysłów ostrokątny' }, { c: '«', n: 'cudzysłów ostrokątny' },
+				{ c: '—', n: 'myślnik' }, { c: '…', n: 'wielokropek' }
+			]
+		},
+		it: {
+			lower: [
+				{ c: 'à', n: 'accento grave' }, { c: 'è', n: 'accento grave' }, { c: 'é', n: 'accento acuto' },
+				{ c: 'ì', n: 'accento grave' }, { c: 'ò', n: 'accento grave' }, { c: 'ù', n: 'accento grave' }
+			],
+			upper: [
+				{ c: 'À', n: 'accento grave' }, { c: 'È', n: 'accento grave' }, { c: 'É', n: 'accento acuto' },
+				{ c: 'Ì', n: 'accento grave' }, { c: 'Ò', n: 'accento grave' }, { c: 'Ù', n: 'accento grave' }
+			],
+			symbols: [
+				{ c: '«', n: 'virgolette basse apertura' }, { c: '»', n: 'virgolette basse chiusura' },
+				{ c: '\u201C', n: 'virgolette alte apertura' }, { c: '\u201D', n: 'virgolette alte chiusura' },
+				{ c: '\u2019', n: 'apostrofo tipografico' },
+				{ c: '—', n: 'lineetta' }, { c: '…', n: 'puntini di sospensione' }
+			]
+		},
+		es: {
+			lower: [
+				{ c: 'á', n: 'acento' }, { c: 'é', n: 'acento' }, { c: 'í', n: 'acento' },
+				{ c: 'ó', n: 'acento' }, { c: 'ú', n: 'acento' }, { c: 'ü', n: 'diéresis' }, { c: 'ñ', n: 'eñe' }
+			],
+			upper: [
+				{ c: 'Á', n: 'acento' }, { c: 'É', n: 'acento' }, { c: 'Í', n: 'acento' },
+				{ c: 'Ó', n: 'acento' }, { c: 'Ú', n: 'acento' }, { c: 'Ü', n: 'diéresis' }, { c: 'Ñ', n: 'eñe' }
+			],
+			symbols: [
+				{ c: '¿', n: 'apertura interrogación' }, { c: '¡', n: 'apertura exclamación' },
+				{ c: '«', n: 'comillas angulares' }, { c: '»', n: 'comillas angulares' },
+				{ c: '—', n: 'raya' }, { c: '…', n: 'puntos suspensivos' }
+			]
+		}
+	};
+
+	function getExtraCharsSet() {
+		var code = String(cfg.targetLangCode || '').toLowerCase();
+		return EXTRA_CHARS_BY_LANG[code] || null;
+	}
+
+	function renderExtraCharsPanel(block) {
+		if (!block.panel) {
+			return;
+		}
+		var set = getExtraCharsSet();
+		block.panel.innerHTML = '';
+		if (!set) {
+			return;
+		}
+		var sections = [
+			{ key: 'lower', label: i18n.extraCharsLower || 'Minuscole', items: set.lower },
+			{ key: 'upper', label: i18n.extraCharsUpper || 'Maiuscole', items: set.upper },
+			{ key: 'symbols', label: i18n.extraCharsSymbols || 'Simboli', items: set.symbols }
+		];
+		sections.forEach(function (sec) {
+			if (!sec.items || !sec.items.length) {
+				return;
+			}
+			var row = document.createElement('div');
+			row.className = 'llm-phrase-game__extra-chars-row';
+			var lab = document.createElement('p');
+			lab.className = 'llm-phrase-game__extra-chars-row-label';
+			lab.textContent = sec.label;
+			var btns = document.createElement('div');
+			btns.className = 'llm-phrase-game__extra-chars-btns';
+			sec.items.forEach(function (item) {
+				var btn = document.createElement('button');
+				btn.type = 'button';
+				btn.className = 'llm-phrase-game__extra-char';
+				btn.setAttribute('aria-label', item.c + ' ' + (item.n || ''));
+				var glyph = document.createElement('span');
+				glyph.className = 'llm-phrase-game__extra-char-glyph';
+				glyph.textContent = item.c;
+				var name = document.createElement('span');
+				name.className = 'llm-phrase-game__extra-char-name';
+				name.textContent = item.n || '';
+				btn.appendChild(glyph);
+				btn.appendChild(name);
+				btn.addEventListener('click', function () {
+					appendCharToInput(block.input, item.c);
+				});
+				btns.appendChild(btn);
+			});
+			row.appendChild(lab);
+			row.appendChild(btns);
+			block.panel.appendChild(row);
+		});
+	}
+
+	function setExtraCharsOpen(block, open) {
+		if (!block.toggle || !block.panel) {
+			return;
+		}
+		block.toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+		block.panel.hidden = !open;
+		if (open && !block.panel.childNodes.length) {
+			renderExtraCharsPanel(block);
+		}
+	}
+
+	function resetExtraChars() {
+		extraCharsBlocks.forEach(function (block) {
+			setExtraCharsOpen(block, false);
+			if (block.panel) {
+				block.panel.innerHTML = '';
+			}
+		});
+	}
+
+	function renderRandomWords(block) {
+		if (!block.list) {
+			return;
+		}
+		var phrase = phrases[phraseIx];
+		block.list.innerHTML = '';
+		buildRandomWords((phrase && phrase.target) || '').forEach(function (word) {
+			var chip = document.createElement('button');
+			chip.type = 'button';
+			chip.className = 'llm-phrase-game__random-word';
+			chip.textContent = word;
+			chip.addEventListener('click', function () {
+				appendWordToInput(block.input, word);
+			});
+			block.list.appendChild(chip);
+		});
+	}
+
+	/* Accordion: apre/chiude il pannello parole. */
+	function setRandomWordsOpen(block, open) {
+		if (!block.toggle || !block.list) {
+			return;
+		}
+		block.toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+		if (open) {
+			if (!block.list.childNodes.length) {
+				renderRandomWords(block);
+			}
+			block.list.hidden = false;
+		} else {
+			block.list.hidden = true;
+		}
+	}
+
+	function resetRandomWords() {
+		randomWordsBlocks.forEach(function (block) {
+			if (block.list) {
+				block.list.innerHTML = '';
+				block.list.hidden = true;
+			}
+			if (block.toggle) {
+				block.toggle.setAttribute('aria-expanded', 'false');
+				block.toggle.hidden = false;
+			}
+		});
+	}
+
+	function resetNotesPanel() {
+		notesLoaded = false;
+		if (notesToggleBtn && notesPanel) {
+			setNotesOpen(false);
+		}
+		if (labelMainEl) {
+			labelMainEl.hidden = false;
+		}
+	}
+
+	function setInvertedHintOpen(open) {
+		if (!invertedHintBtn || !invertedHintPanel) {
+			return;
+		}
+		var isOpen = !!open;
+		invertedHintBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+		invertedHintPanel.hidden = !isOpen;
+		if (invertedHintLabel) {
+			invertedHintLabel.textContent = isOpen
+				? (i18n.playInvertedHintHide || '')
+				: (i18n.playInvertedHint || '');
+		}
+		if (isOpen) {
+			var p = phrases[phraseIx];
+			invertedHintPanel.innerHTML = '';
+			var line = document.createElement('div');
+			line.className = 'llm-phrase-game__inverted-hint-answer';
+			try {
+				line.innerHTML = (p && p.interface) ? String(p.interface) : '';
+			} catch (e) {
+				line.textContent = (p && p.interface) ? String(p.interface) : '';
+			}
+			invertedHintPanel.appendChild(line);
+		} else {
+			invertedHintPanel.innerHTML = '';
+		}
+	}
+
+	function resetTargetPeek() {
+		clearTargetPeekTimer();
+		if (targetShow) {
+			targetShow.hidden = false;
+			targetShow.style.opacity = '';
+			targetShow.style.transition = '';
+			targetShow.style.cursor = '';
+		}
+		if (targetPeekBtn) {
+			targetPeekBtn.hidden = true;
+		}
+	}
+
+	function hideTargetShowPeekButton() {
+		clearTargetPeekTimer();
+		if (!targetShow || !targetPeekBtn) {
+			return Promise.resolve();
+		}
+		return fadeElementOpacity(targetShow, 0, TARGET_PEEK_FADE_MS).then(function () {
+			targetShow.hidden = true;
+			targetPeekBtn.hidden = false;
+		});
+	}
+
+	function revealTargetFromPeekButton() {
+		if (!targetShow || !targetPeekBtn) {
+			return Promise.resolve();
+		}
+		targetPeekBtn.hidden = true;
+		targetShow.hidden = false;
+		targetShow.style.opacity = '0';
+		return fadeElementOpacity(targetShow, 1, TARGET_PEEK_FADE_MS);
+	}
+
+	function scheduleTargetAutoHide() {
+		clearTargetPeekTimer();
+		targetPeekTimer = setTimeout(function () {
+			targetPeekTimer = null;
+			hideTargetShowPeekButton();
+		}, TARGET_PEEK_MS);
+	}
+
+	function startTargetPeekCycle() {
+		clearTargetPeekTimer();
+		if (targetPeekBtn) {
+			targetPeekBtn.hidden = true;
+		}
+		if (targetShow) {
+			targetShow.hidden = false;
+			targetShow.style.opacity = '1';
+			targetShow.style.transition = '';
+			targetShow.style.cursor = 'pointer';
+		}
+		scheduleTargetAutoHide();
+	}
+
+	function onTargetPeekButtonClick() {
+		if (!targetShow || !targetPeekBtn) {
+			return;
+		}
+		if (!targetPeekBtn.hidden) {
+			revealTargetFromPeekButton().then(scheduleTargetAutoHide);
+		}
+	}
+
+	function onTargetPeekAreaClick() {
+		if (!targetShow || !targetPeekBtn) {
+			return;
+		}
+		if (targetShow.hidden || targetPeekBtn.hidden === false) {
+			return;
+		}
+		scheduleTargetAutoHide();
+	}
+
+	function resetAltAccordion() {
+		if (altShow) {
+			altShow.innerHTML = '';
+			altShow.hidden = true;
+			altShow.style.opacity = '';
+			altShow.style.transition = '';
+		}
+		if (altToggleBtn) {
+			altToggleBtn.hidden = true;
+			altToggleBtn.setAttribute('aria-expanded', 'false');
+			altToggleBtn.setAttribute(
+				'aria-label',
+				i18n.altToggleShow || 'Mostra note di approfondimento'
+			);
+		}
+	}
+
+	function setAltExpanded(expanded) {
+		if (!altShow || !altToggleBtn) {
+			return;
+		}
+		var open = !!expanded;
+		altShow.hidden = !open;
+		altToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+		altToggleBtn.setAttribute(
+			'aria-label',
+			open
+				? (i18n.altToggleHide || 'Nascondi note di approfondimento')
+				: (i18n.altToggleShow || 'Mostra note di approfondimento')
+		);
 	}
 
 	/**
@@ -745,38 +1536,37 @@
 			addStep(function () {
 				if (!alive()) { return; }
 				if (labelMainEl) { labelMainEl.style.opacity = '1'; }
-				return typewriterHtmlInto(targetShow, target, alive, TYPE_TICK_MS);
+				return typewriterHtmlInto(targetShow, target, alive, TYPE_TICK_MS).then(function () {
+					if (!alive()) { return; }
+					startTargetPeekCycle();
+				});
 			});
-		} else if (labelMainEl) {
+		} else if (labelMainEl && !isPlayInverted) {
 			labelMainEl.style.opacity = '1';
 		}
 
-		/* ── Alternativa → fade ─────────────────────────────────────── */
+		/* ── Alternativa → accordion chiuso ─────────────────────────── */
 		if (alt) {
 			addStep(function () {
 				if (!alive()) { return; }
 				try { altShow.innerHTML = alt; } catch (e) { altShow.textContent = alt; }
+				setAltExpanded(false);
+				if (altToggleBtn) {
+					altToggleBtn.hidden = false;
+				}
 				if (labelAltEl) {
 					labelAltEl.style.transition = 'opacity 400ms ease';
 					labelAltEl.style.opacity = '1';
 				}
-				return fadeReveal(altShow, 400);
 			});
 		} else if (labelAltEl) {
 			labelAltEl.style.opacity = '1';
 		}
 
-		/* ── Prompt riscrivi → fade ─────────────────────────────────── */
-		if (promptRewrite) {
-			addStep(function () {
-				if (!alive()) { return; }
-				promptRewrite.textContent = i18n.rewritePrompt || '';
-				return fadeReveal(promptRewrite, 350);
-			});
-		}
-
 	return chain.then(function () {
 		if (!alive()) { return; }
+		/* Appunti a richiesta: nessun passaggio alla fase 2. */
+		if (opts.notesOnly) { return; }
 		/* Popola il recap fase-1 visibile dentro il blocco fase-2 */
 		var p = phrases[phraseIx];
 		if (phase2RecapCounter) {
@@ -789,8 +1579,7 @@
 			phase2RecapIface.textContent = p && p.interface ? p.interface : '';
 		}
 		if (phase2RecapPrompt) {
-			var tpl = i18n.translatePrompt || '';
-			phase2RecapPrompt.textContent = tpl.replace('%s', cfg.targetLangLabel || '');
+			phase2RecapPrompt.textContent = '';
 		}
 		setComposePhaseVisible(2, true);
 		if (btn2) { btn2.disabled = false; }
@@ -1022,17 +1811,35 @@
 		window.llmUpdateStoryProgressBar(String(storyId), initDone, phrases.length);
 	}
 
-	function showMicCountdown(btn) {
+	function showMicCountdownIdle(btn) {
 		var wrap = btn && btn._llmMicCountdownWrap;
 		var bar = btn && btn._llmMicCountdownBar;
 		if (!wrap || !bar) {
 			return;
 		}
 		wrap.hidden = false;
-		wrap.classList.add('llm-phrase-game__mic-countdown--active');
+		wrap.classList.remove('llm-phrase-game__mic-countdown--active');
 		bar.style.animation = 'none';
+		bar.style.transform = 'scaleX(1)';
+	}
+
+	function startMicCountdownAnimation(btn) {
+		var wrap = btn && btn._llmMicCountdownWrap;
+		var bar = btn && btn._llmMicCountdownBar;
+		if (!wrap || !bar) {
+			return;
+		}
+		wrap.hidden = false;
+		bar.style.animation = 'none';
+		bar.style.transform = 'scaleX(1)';
+		wrap.classList.remove('llm-phrase-game__mic-countdown--active');
 		void bar.offsetWidth;
-		bar.style.animation = 'llm-mic-countdown ' + (MIC_SESSION_MS / 1000) + 's linear forwards';
+		wrap.classList.add('llm-phrase-game__mic-countdown--active');
+		void bar.offsetWidth;
+		bar.style.animation =
+			'llm-mic-countdown ' +
+			(MIC_SESSION_MS / 1000) + 's linear ' +
+			(MIC_BAR_FADE_MS / 1000) + 's forwards';
 	}
 
 	function hideMicCountdown(btn) {
@@ -1042,6 +1849,102 @@
 		btn._llmMicCountdownWrap.hidden = true;
 		btn._llmMicCountdownWrap.classList.remove('llm-phrase-game__mic-countdown--active');
 		btn._llmMicCountdownBar.style.animation = 'none';
+		btn._llmMicCountdownBar.style.transform = '';
+	}
+
+	function ensureListenTargetWrap(btn) {
+		if (!btn || btn._llmListenWrapReady) {
+			return;
+		}
+		var parent = btn.parentNode;
+		var wrap = parent;
+		if (!parent || !parent.classList.contains('llm-phrase-game__listen-target-wrap')) {
+			wrap = document.createElement('div');
+			wrap.className = 'llm-phrase-game__listen-target-wrap';
+			if (parent) {
+				parent.insertBefore(wrap, btn);
+				wrap.appendChild(btn);
+			}
+		}
+		btn._llmListenTargetWrap = wrap;
+
+		var countdownWrap = document.createElement('div');
+		countdownWrap.className = 'llm-phrase-game__listen-countdown';
+		countdownWrap.hidden = true;
+		countdownWrap.innerHTML = '<div class="llm-phrase-game__listen-countdown__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"></div>';
+		wrap.appendChild(countdownWrap);
+		btn._llmListenCountdownWrap = countdownWrap;
+		btn._llmListenCountdownBar = countdownWrap.querySelector('.llm-phrase-game__listen-countdown__bar');
+		btn._llmListenWrapReady = true;
+	}
+
+	function getListenBtnForPhase(phaseNum) {
+		return phaseNum === 2 ? listenTargetBtnPhase2 : listenTargetBtn;
+	}
+
+	function clearListenReplayTimer() {
+		if (listenReplayTimer !== null) {
+			clearTimeout(listenReplayTimer);
+			listenReplayTimer = null;
+		}
+	}
+
+	function scheduleListenReplayAfterMic(micPhase) {
+		if (!listenReplayAfterMic) {
+			return;
+		}
+		clearListenReplayTimer();
+		listenReplayTimer = setTimeout(function () {
+			listenReplayTimer = null;
+			var listenBtn = getListenBtnForPhase(micPhase);
+			var p = phrases[phraseIx];
+			if (!listenBtn || !p) {
+				return;
+			}
+			speakTargetTranslation(p.target || '', listenBtn);
+		}, LISTEN_REPLAY_DELAY_MS);
+	}
+
+	function hideListenCountdown(btn) {
+		if (!btn || !btn._llmListenCountdownWrap || !btn._llmListenCountdownBar) {
+			return;
+		}
+		btn._llmListenCountdownWrap.hidden = true;
+		btn._llmListenCountdownWrap.classList.remove('llm-phrase-game__listen-countdown--active');
+		btn._llmListenCountdownBar.style.animation = 'none';
+		btn._llmListenCountdownBar.style.transform = '';
+	}
+
+	function estimateTtsDurationMs(text, rate) {
+		text = String(text || '').trim();
+		rate = rate || TTS_SLOW_RATE;
+		if (!text) {
+			return 2000;
+		}
+		var words = tokenizeWords(text).length || 1;
+		var ms = words * (420 / rate);
+		ms = Math.max(ms, 1800);
+		return Math.min(Math.round(ms * 1.15), 60000);
+	}
+
+	function startListenCountdownAnimation(btn, durationMs) {
+		var wrap = btn && btn._llmListenCountdownWrap;
+		var bar = btn && btn._llmListenCountdownBar;
+		if (!wrap || !bar) {
+			return;
+		}
+		durationMs = Math.max(Number(durationMs) || 0, 1500);
+		wrap.hidden = false;
+		bar.style.animation = 'none';
+		bar.style.transform = 'scaleX(1)';
+		wrap.classList.remove('llm-phrase-game__listen-countdown--active');
+		void bar.offsetWidth;
+		wrap.classList.add('llm-phrase-game__listen-countdown--active');
+		void bar.offsetWidth;
+		bar.style.animation =
+			'llm-mic-countdown ' +
+			(durationMs / 1000) + 's linear ' +
+			(MIC_BAR_FADE_MS / 1000) + 's forwards';
 	}
 
 	function restoreMicBtnText(btn) {
@@ -1062,22 +1965,176 @@
 		el.classList.remove(
 			'llm-phrase-game__mic-status--visible',
 			'llm-phrase-game__mic-status--pending',
-			'llm-phrase-game__mic-status--listening'
+			'llm-phrase-game__mic-status--listening',
+			'llm-phrase-game__mic-status--error',
+			'llm-phrase-game__mic-status--feedback'
 		);
+		if (btnEl._llmMicStatusErrorLine) {
+			btnEl._llmMicStatusErrorLine.textContent = '';
+		}
+		if (btnEl._llmMicFeedbackLine) {
+			btnEl._llmMicFeedbackLine.textContent = '';
+		}
 		if (state === 'idle') {
-			el.textContent = '';
 			return;
 		}
 		if (state === 'pending') {
-			el.textContent = i18n.micPending || '…';
 			el.classList.add('llm-phrase-game__mic-status--pending');
 		} else if (state === 'listening') {
-			el.textContent = i18n.micListening || '…';
 			el.classList.add('llm-phrase-game__mic-status--listening');
 		}
 		requestAnimationFrame(function () {
 			el.classList.add('llm-phrase-game__mic-status--visible');
 		});
+	}
+
+	function hideMicSessionFeedback(btn) {
+		if (micFeedbackTimer !== null) {
+			clearTimeout(micFeedbackTimer);
+			micFeedbackTimer = null;
+		}
+		if (!btn || !btn._llmMicStatusEl) {
+			return;
+		}
+		btn._llmMicStatusEl.classList.remove(
+			'llm-phrase-game__mic-status--visible',
+			'llm-phrase-game__mic-status--feedback'
+		);
+		if (btn._llmMicFeedbackLine) {
+			btn._llmMicFeedbackLine.textContent = '';
+		}
+	}
+
+	function getMicSessionSpokenText() {
+		var ta = activeMicTa;
+		if (ta) {
+			var start = String(speechSessionStartValue || '');
+			var full = String(ta.value || '');
+			if (start && full.indexOf(start) === 0) {
+				return full.slice(start.length).trim();
+			}
+		}
+		return String(speechSegmentTranscript || '').trim();
+	}
+
+	function shortenHeardText(text, maxLen) {
+		maxLen = maxLen || 48;
+		var heard = String(text || '').trim();
+		if (!heard) {
+			return '';
+		}
+		return heard.length > maxLen ? heard.slice(0, maxLen - 1) + '…' : heard;
+	}
+
+	function formatMicFeedbackDisplay(heardText, msg) {
+		if (!msg) {
+			return '';
+		}
+		var short = shortenHeardText(heardText) || '???';
+		return '«' + short + '» — ' + msg;
+	}
+
+	function getMicFeedbackPool(phaseNum, tier) {
+		var fb = cfg.micFeedback || {};
+		var phaseKey = phaseNum === 2 ? 'phase2' : 'phase1';
+		var phaseFb = fb[phaseKey] || fb;
+		return phaseFb[tier] || [];
+	}
+
+	function pickMicFeedbackMessage(phaseNum, tier, hits, heardText) {
+		var pool = getMicFeedbackPool(phaseNum, tier);
+		if (!pool.length) {
+			return '';
+		}
+		var msg = pickRandom(pool);
+		if (!msg) {
+			return '';
+		}
+		if (msg.indexOf('%1$d') !== -1) {
+			msg = msg.replace('%1$d', String(hits));
+		}
+		if (msg.indexOf('%s') !== -1) {
+			if (!heardText) {
+				return pickMicFeedbackMessage(phaseNum, 'silent', hits, heardText);
+			}
+			var short = heardText.length > 36 ? heardText.slice(0, 33) + '…' : heardText;
+			msg = msg.replace('%s', short);
+		}
+		return formatMicFeedbackDisplay(heardText, msg);
+	}
+
+	function resolveMicFeedbackTierPhase1(transcript, recognitionStarted) {
+		var heardText = String(transcript || '').trim();
+		var heardCount = tokenizeWords(heardText).length;
+		if (!recognitionStarted && !heardText) {
+			return 'not_started';
+		}
+		if (!heardText || heardCount === 0) {
+			return 'silent';
+		}
+		return 'heard';
+	}
+
+	function resolveMicFeedbackTierPhase2(transcript, recognitionStarted, targetText) {
+		var heardText = String(transcript || '').trim();
+		var heardCount = tokenizeWords(heardText).length;
+		if (!recognitionStarted && !heardText) {
+			return 'not_started';
+		}
+		if (!heardText || heardCount === 0) {
+			return 'silent';
+		}
+		var counts = countReferenceWordHits(heardText, targetText);
+		if (counts.hits === 0) {
+			return 'unrecognized';
+		}
+		if (counts.total > 0 && counts.hits >= counts.total - 1) {
+			return 'all';
+		}
+		if (counts.hits === 1) {
+			return 'one';
+		}
+		if (counts.hits === 2) {
+			return 'two';
+		}
+		return 'some';
+	}
+
+	function showMicSessionFeedback(btn, transcript, recognitionStarted, phaseNum) {
+		var status = btn && btn._llmMicStatusEl;
+		var feedbackLine = btn && btn._llmMicFeedbackLine;
+		if (!status || !feedbackLine) {
+			return;
+		}
+		hideMicSessionFeedback(btn);
+		var p = phrases[phraseIx];
+		var targetText = p && p.target != null ? String(p.target) : '';
+		var heardText = String(transcript || '').trim();
+		var tier;
+		var hits = 0;
+		if (phaseNum === 2) {
+			tier = resolveMicFeedbackTierPhase2(transcript, recognitionStarted, targetText);
+			hits = countReferenceWordHits(transcript, targetText).hits;
+		} else {
+			tier = resolveMicFeedbackTierPhase1(transcript, recognitionStarted);
+		}
+		var msg = pickMicFeedbackMessage(phaseNum, tier, hits, heardText);
+		if (!msg) {
+			return;
+		}
+		feedbackLine.textContent = msg;
+		status.classList.remove(
+			'llm-phrase-game__mic-status--pending',
+			'llm-phrase-game__mic-status--listening',
+			'llm-phrase-game__mic-status--error'
+		);
+		status.classList.add('llm-phrase-game__mic-status--feedback');
+		requestAnimationFrame(function () {
+			status.classList.add('llm-phrase-game__mic-status--visible');
+		});
+		micFeedbackTimer = setTimeout(function () {
+			hideMicSessionFeedback(btn);
+		}, MIC_FEEDBACK_DISPLAY_MS);
 	}
 
 	function setMicButtonsDisabled(disabled) {
@@ -1122,15 +2179,45 @@
 		updateMicStatusEl(btnEl, micState === 'pending' ? 'pending' : 'listening');
 	}
 
+	function clearMicPendingTimer() {
+		if (micPendingTimer !== null) {
+			clearTimeout(micPendingTimer);
+			micPendingTimer = null;
+		}
+	}
+
+	function beginMicCountdownPhase() {
+		if (!micSessionActive || !activeMicBtn) {
+			return;
+		}
+		startMicCountdownAnimation(activeMicBtn);
+		if (micSessionTimer !== null) {
+			clearTimeout(micSessionTimer);
+		}
+		micSessionTimer = setTimeout(function () {
+			finishMicSession();
+		}, MIC_SESSION_MS);
+	}
+
+	function tryEnterMicListeningState() {
+		if (!micSessionActive || micState !== 'pending' || !micPendingPhaseDone || !micRecognitionStarted) {
+			return;
+		}
+		micState = 'listening';
+		applyMicStateClasses();
+	}
+
 	function stopSpeech() {
 		micSessionActive = false;
+		clearMicPendingTimer();
+		micPendingPhaseDone = false;
+		micRecognitionStarted = false;
 		if (micSessionTimer !== null) {
 			clearTimeout(micSessionTimer);
 			micSessionTimer = null;
 		}
 		micState = 'idle';
-		micLastFinalIndex = 0;
-		speechFinals = '';
+		speechSegmentTranscript = '';
 		if (speechRec) {
 			try { speechRec.stop(); } catch (e) { /* ignore */ }
 			speechRec = null;
@@ -1144,21 +2231,37 @@
 		activeMicBtn = null;
 	}
 
-	function finishMicSession() {
+	function finishMicSession(opts) {
+		opts = opts || {};
+		var btn = activeMicBtn;
+		var ta = activeMicTa;
+		var micPhase = ta === input2 ? 2 : 1;
+		var sessionText = getMicSessionSpokenText();
+		var recognitionStarted = micRecognitionStarted;
 		stopSpeech();
+		if (opts.feedback !== false && btn) {
+			showMicSessionFeedback(btn, sessionText, recognitionStarted, micPhase);
+			scheduleListenReplayAfterMic(micPhase);
+		}
 	}
 
 	function showMicError(btn, msg) {
 		if (!btn || !msg) { return; }
+		hideMicSessionFeedback(btn);
 		var status = btn._llmMicStatusEl;
-		if (!status) { return; }
-		status.textContent = msg;
+		var errorLine = btn._llmMicStatusErrorLine;
+		if (!status || !errorLine) { return; }
+		errorLine.textContent = msg;
+		status.classList.remove(
+			'llm-phrase-game__mic-status--pending',
+			'llm-phrase-game__mic-status--listening'
+		);
 		status.classList.add(
 			'llm-phrase-game__mic-status--visible',
 			'llm-phrase-game__mic-status--error'
 		);
 		setTimeout(function () {
-			status.textContent = '';
+			errorLine.textContent = '';
 			status.classList.remove(
 				'llm-phrase-game__mic-status--visible',
 				'llm-phrase-game__mic-status--error'
@@ -1170,6 +2273,7 @@
 			if (!window.speechSynthesis) {
 				return;
 			}
+			clearListenReplayTimer();
 			try {
 				window.speechSynthesis.cancel();
 			} catch (e) {
@@ -1177,9 +2281,11 @@
 			}
 			if (listenTargetBtn) {
 				listenTargetBtn.classList.remove('llm-phrase-game__listen-target--playing');
+				hideListenCountdown(listenTargetBtn);
 			}
 			if (listenTargetBtnPhase2) {
 				listenTargetBtnPhase2.classList.remove('llm-phrase-game__listen-target--playing');
+				hideListenCountdown(listenTargetBtnPhase2);
 			}
 		}
 
@@ -1239,11 +2345,13 @@
 			if (!btnEl) {
 				return;
 			}
+			ensureListenTargetWrap(btnEl);
 			var trimmed = plainSpeechText(text);
 			if (!trimmed) {
 				return;
 			}
 			cancelTts();
+			var durationMs = estimateTtsDurationMs(trimmed, TTS_SLOW_RATE);
 			var ut = new SpeechSynthesisUtterance(trimmed);
 			ut.lang = speechLang;
 			ut.rate = TTS_SLOW_RATE;
@@ -1255,14 +2363,17 @@
 			ut.onend = function () {
 				if (btnEl) {
 					btnEl.classList.remove('llm-phrase-game__listen-target--playing');
+					hideListenCountdown(btnEl);
 				}
 			};
 			ut.onerror = function () {
 				if (btnEl) {
 					btnEl.classList.remove('llm-phrase-game__listen-target--playing');
+					hideListenCountdown(btnEl);
 				}
 			};
 			btnEl.classList.add('llm-phrase-game__listen-target--playing');
+			startListenCountdownAnimation(btnEl, durationMs);
 			window.speechSynthesis.speak(ut);
 		}
 
@@ -1294,90 +2405,99 @@
 
 		stopSpeech();
 		cancelTts();
+		clearListenReplayTimer();
+		hideMicSessionFeedback(micBtn);
 
 		micSessionActive = true;
 		activeMicTa = textarea;
 		activeMicBtn = micBtn;
+		speechSessionStartValue = textarea.value;
 		speechBase = textarea.value;
 		if (speechBase.length && !/\s$/.test(speechBase)) { speechBase += ' '; }
-		speechFinals = '';
-		micLastFinalIndex = 0;
+		speechSegmentTranscript = '';
 		micState = 'pending';
+		micPendingPhaseDone = false;
+		micRecognitionStarted = false;
+		clearMicPendingTimer();
 
 		micBtn.disabled = true;
 		if (micBtn !== mic1 && mic1) { mic1.disabled = true; }
 		if (micBtn !== mic2 && mic2) { mic2.disabled = true; }
-		showMicCountdown(micBtn);
+		showMicCountdownIdle(micBtn);
 		applyMicStateClasses();
 
-		micSessionTimer = setTimeout(function () {
-			finishMicSession();
-		}, MIC_SESSION_MS);
+		micPendingTimer = setTimeout(function () {
+			micPendingTimer = null;
+			if (!micSessionActive) {
+				return;
+			}
+			micPendingPhaseDone = true;
+			beginMicCountdownPhase();
+			tryEnterMicListeningState();
+		}, MIC_PENDING_MS);
 
-		function attachSpeechHandlers(rec) {
-			rec.onstart = function () {
+		function startRecognitionEngine() {
+			var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+			if (!Rec || !micSessionActive) {
+				return;
+			}
+			if (speechRec) {
+				try {
+					speechRec.onend = null;
+					speechRec.onresult = null;
+					speechRec.onerror = null;
+					speechRec.stop();
+				} catch (e) { /* ignore */ }
+				speechRec = null;
+			}
+			speechSegmentTranscript = '';
+			speechRec = new Rec();
+			speechRec.lang = speechLang;
+			speechRec.continuous = true;
+			speechRec.interimResults = true;
+
+			speechRec.onstart = function () {
 				if (!micSessionActive) { return; }
-				if (micState === 'pending') {
-					micState = 'listening';
-					applyMicStateClasses();
-				}
+				micRecognitionStarted = true;
+				tryEnterMicListeningState();
 			};
 
-			rec.onresult = function (ev) {
+			speechRec.onresult = function (ev) {
 				if (!micSessionActive) { return; }
-				var interim = '';
-				var prevFinals = speechFinals;
-				var i;
-				for (i = ev.resultIndex; i < ev.results.length; i++) {
-					var tr = ev.results[i][0].transcript;
-					if (ev.results[i].isFinal) {
-						if (i >= micLastFinalIndex) {
-							speechFinals = mergeFinalTranscript(speechFinals, tr);
-							micLastFinalIndex = i + 1;
-						}
-					} else {
-						interim += tr;
-					}
-				}
-				micWordsThisPhrase += countNewWords(prevFinals, speechFinals);
-				interim = trimInterimOverlap(speechFinals, interim);
-				textarea.value = speechBase + speechFinals + interim;
+				var prevSegment = speechSegmentTranscript;
+				speechSegmentTranscript = getEngineTranscriptFromResults(ev.results);
+				micWordsThisPhrase += countNewWords(prevSegment, speechSegmentTranscript);
+				textarea.value = speechBase + speechSegmentTranscript;
 				if (typeof textarea._llmSyncClearBtn === 'function') {
 					textarea._llmSyncClearBtn();
 				}
 			};
 
-			rec.onerror = function (ev) {
+			speechRec.onerror = function (ev) {
 				var code = ev && ev.error;
 				if (code === 'not-allowed' || code === 'service-not-allowed') {
 					micPermissionGranted = false;
-					finishMicSession();
+					finishMicSession({ feedback: false });
 					showMicError(micBtn, i18n.micDenied || '');
 				}
 			};
 
-			rec.onend = function () {
+			speechRec.onend = function () {
 				if (!micSessionActive) { return; }
-				try {
-					rec.start();
-				} catch (e) {
-					/* Il timer da 4 secondi chiude la sessione */
-				}
+				commitMicSpeechToBase(textarea);
+				startRecognitionEngine();
 			};
+
+			try {
+				speechRec.start();
+			} catch (e) {
+				finishMicSession({ feedback: false });
+			}
 		}
 
 		function doStart() {
 			if (!micSessionActive) { return; }
-			speechRec = new Rec();
-			speechRec.lang = speechLang;
-			speechRec.continuous = true;
-			speechRec.interimResults = true;
-			attachSpeechHandlers(speechRec);
-			try {
-				speechRec.start();
-			} catch (e) {
-				finishMicSession();
-			}
+			startRecognitionEngine();
 		}
 
 		if (!micPermissionGranted && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -1388,7 +2508,7 @@
 					doStart();
 				})
 				.catch(function () {
-					finishMicSession();
+					finishMicSession({ feedback: false });
 					showMicError(micBtn, i18n.micDenied || '');
 				});
 		} else {
@@ -1406,12 +2526,33 @@
 		var origTextEl = micBtn.querySelector('.llm-phrase-game__mic-text');
 		micBtn._llmMicOrigText = origTextEl ? origTextEl.textContent : '';
 
-		var statusEl = document.createElement('p');
+		var statusEl = document.createElement('div');
 		statusEl.className = 'llm-phrase-game__mic-status';
 		statusEl.setAttribute('aria-live', 'polite');
 		statusEl.setAttribute('aria-atomic', 'true');
+
+		var pendingLine = document.createElement('span');
+		pendingLine.className = 'llm-phrase-game__mic-status-line llm-phrase-game__mic-status-line--pending';
+		pendingLine.textContent = i18n.micPending || '…';
+
+		var listeningLine = document.createElement('span');
+		listeningLine.className = 'llm-phrase-game__mic-status-line llm-phrase-game__mic-status-line--listening';
+		listeningLine.textContent = i18n.micListening || '…';
+
+		var errorLine = document.createElement('span');
+		errorLine.className = 'llm-phrase-game__mic-status-line llm-phrase-game__mic-status-line--error';
+
+		var feedbackLine = document.createElement('span');
+		feedbackLine.className = 'llm-phrase-game__mic-status-line llm-phrase-game__mic-status-line--feedback';
+
+		statusEl.appendChild(pendingLine);
+		statusEl.appendChild(listeningLine);
+		statusEl.appendChild(errorLine);
+		statusEl.appendChild(feedbackLine);
 		micBtn.parentNode.insertBefore(statusEl, micBtn);
 		micBtn._llmMicStatusEl = statusEl;
+		micBtn._llmMicStatusErrorLine = errorLine;
+		micBtn._llmMicFeedbackLine = feedbackLine;
 
 		var countdownWrap = document.createElement('div');
 		countdownWrap.className = 'llm-phrase-game__mic-countdown';
@@ -1432,14 +2573,119 @@
 		bindMic(mic1, input1);
 		bindMic(mic2, input2);
 
-		var phase1WarnActive = false;
-
-		function syncClearInputVisibility(textarea, clearBtn) {
-			if (!textarea || !clearBtn) {
-				return;
-			}
-			clearBtn.hidden = !(textarea.value || '').trim();
+		if (listenTargetBtn) {
+			ensureListenTargetWrap(listenTargetBtn);
 		}
+		if (listenTargetBtnPhase2) {
+			ensureListenTargetWrap(listenTargetBtnPhase2);
+		}
+
+	/* Flag: feedback 0% già mostrato — secondo click bypassa alla fase 2 */
+	var feedbackWarnActive = false;
+
+	/* ── Feedback Fase 1 ─────────────────────────────────────────────────── */
+
+	function pctToTier(pct) {
+		if (pct >= 100) { return '100'; }
+		if (pct > 60)   { return 'gt60lt90'; }
+		if (pct > 50)   { return 'gt50'; }
+		if (pct > 0)    { return 'gt0'; }
+		return '0';
+	}
+
+	function pickRandom(arr) {
+		if (!arr || !arr.length) { return ''; }
+		return arr[Math.floor(Math.random() * arr.length)] || '';
+	}
+
+	function getFeedbackTexts(pctOrTier) {
+		var feedbackCfg = cfg.feedback || {};
+		/* Se è una stringa non numerica è già un tier key (es. 'double_click') */
+		var tier = (typeof pctOrTier === 'string' && isNaN(Number(pctOrTier)))
+			? pctOrTier
+			: pctToTier(Number(pctOrTier));
+		var tierData = feedbackCfg[tier] || {};
+		return {
+			p1: pickRandom(tierData.p1 || []),
+			p2: pickRandom(tierData.p2 || []),
+		};
+	}
+
+	function showPhase1Feedback(pct) {
+		var texts   = getFeedbackTexts(pct);
+		var full    = [texts.p1, texts.p2].filter(Boolean).join(' ');
+		// Percentuale visibile solo in console (debug)
+		console.log('[LLM Phase1] %c' + pct + '%', 'font-weight:bold', '| tier:', pctToTier(pct), '| p1:', texts.p1, '| p2:', texts.p2);
+		if (!feedbackEl || !full) { return Promise.resolve(); }
+		feedbackEl.textContent = '';
+		feedbackEl.hidden = false;
+		return typewriterInto(feedbackEl, full, function () { return true; });
+	}
+
+	function hidePhase1Feedback() {
+		if (!feedbackEl) { return; }
+		feedbackEl.hidden = true;
+		feedbackEl.textContent = '';
+		feedbackWarnActive = false;
+	}
+
+	function showLoadingNotes() {
+		if (!loadingNotesEl) { return Promise.resolve(); }
+		loadingNotesEl.hidden = false;
+		loadingNotesEl.innerHTML = '';
+		var textSpan = document.createElement('span');
+		var dotsSpan = document.createElement('span');
+		dotsSpan.className = 'llm-phrase-game__loading-dots';
+		dotsSpan.innerHTML = '<span>.</span><span>.</span><span>.</span>';
+		dotsSpan.style.opacity = '0';
+		loadingNotesEl.appendChild(textSpan);
+		loadingNotesEl.appendChild(dotsSpan);
+		return typewriterInto(textSpan, i18n.loadingNotes || 'Carico gli appunti per questa frase', function () { return true; }).then(function () {
+			dotsSpan.style.transition = 'opacity 0.3s ease';
+			dotsSpan.style.opacity = '1';
+		});
+	}
+
+	function hideLoadingNotes() {
+		if (!loadingNotesEl) { return; }
+		loadingNotesEl.hidden = true;
+		loadingNotesEl.innerHTML = '';
+	}
+
+	var ACTION_FADE_MS = 250;
+
+	function setActionFadeVisible(el, show) {
+		if (!el) {
+			return;
+		}
+		if (show) {
+			if (el._llmFadeTimer) {
+				clearTimeout(el._llmFadeTimer);
+				el._llmFadeTimer = null;
+			}
+			el.hidden = false;
+			requestAnimationFrame(function () {
+				el.classList.add('llm-phrase-game__action-fade--visible');
+			});
+			return;
+		}
+		el.classList.remove('llm-phrase-game__action-fade--visible');
+		if (el._llmFadeTimer) {
+			clearTimeout(el._llmFadeTimer);
+		}
+		el._llmFadeTimer = setTimeout(function () {
+			el._llmFadeTimer = null;
+			el.hidden = true;
+		}, ACTION_FADE_MS);
+	}
+
+	function syncClearInputVisibility(textarea, clearBtn) {
+		if (!textarea || !clearBtn) {
+			return;
+		}
+		var wrap = clearBtn.closest('.llm-phrase-game__clear-wrap');
+		setActionFadeVisible(wrap, !!(textarea.value || '').trim());
+	}
 
 		function bindClearInput(clearBtn, textarea, onClear) {
 			if (!clearBtn || !textarea) {
@@ -1462,12 +2708,10 @@
 			});
 		}
 
-		bindClearInput(clear1, input1, function () {
-			if (phase1WarnActive) {
-				setMessage('');
-				phase1WarnActive = false;
-			}
-		});
+	bindClearInput(clear1, input1, function () {
+		setMessage('');
+		hidePhase1Feedback();
+	});
 		bindClearInput(clear2, input2, function () {
 			if (messagePhase2El) {
 				setMessagePhase2('', '');
@@ -1513,7 +2757,9 @@
 		function t(key, a, b) {
 			var s = i18n[key] || '';
 			if (a !== undefined && b !== undefined) {
-				return s.replace('%1$d', String(a)).replace('%2$d', String(b));
+				return s
+					.replace('%1$d', String(a)).replace('%2$d', String(b))
+					.replace('%1$s', String(a)).replace('%2$s', String(b));
 			}
 			if (a !== undefined) {
 				return s.replace('%s', String(a));
@@ -1521,20 +2767,70 @@
 			return s;
 		}
 
+		function fadeRevealEl(el, dur) {
+			var d = dur || 350;
+			return new Promise(function (resolve) {
+				if (!el) {
+					resolve();
+					return;
+				}
+				el.style.opacity = '0';
+				el.style.transition = 'opacity ' + d + 'ms ease';
+				requestAnimationFrame(function () {
+					requestAnimationFrame(function () {
+						el.style.opacity = '1';
+						setTimeout(resolve, d);
+					});
+				});
+			});
+		}
+
 		function runPhraseIntroTypewriter(ifaceText, promptText, introRunId) {
-			if (!ifaceEl || !promptTrans) {
+			if (!ifaceEl) {
 				return Promise.resolve();
 			}
 			ifaceEl.innerHTML = '';
-			promptTrans.textContent = '';
+			setTranslatePromptText('');
 			function aliveIntro() {
 				return phraseIntroRun === introRunId;
 			}
-			return typewriterHtmlInto(ifaceEl, ifaceText, aliveIntro, TYPE_TICK_MS).then(function () {
-				if (!aliveIntro()) {
-					return;
-				}
-				return typewriterInto(promptTrans, promptText, aliveIntro);
+			return typewriterHtmlInto(ifaceEl, ifaceText, aliveIntro, TYPE_TICK_MS);
+		}
+
+		function syncInputPlaceholders() {
+			var writeLang = isPlayInverted ? (interfaceLang || targetLang) : targetLang;
+			if (input1) {
+				input1.placeholder = t('inputPlaceholderPhase1', writeLang);
+			}
+			if (input2) {
+				input2.placeholder = t('inputPlaceholderPhase2', writeLang);
+			}
+		}
+
+		/**
+		 * Larghezza campo (solo desktop via CSS): proporzionale a parole/caratteri
+		 * della traduzione attesa (in inverted: frase originale).
+		 */
+		function syncInputShellWidth(phrase) {
+			var expected = isPlayInverted
+				? String((phrase && phrase.interface) || '')
+				: String((phrase && phrase.target) || '');
+			var plain = plainSpeechText(expected);
+			if (!plain) {
+				plain = plainSpeechText(
+					isPlayInverted
+						? (phrase && phrase.target)
+						: (phrase && phrase.interface)
+				);
+			}
+			var words = plain ? plain.split(/\s+/).filter(Boolean).length : 0;
+			var chars = plain.length;
+			/* Mix parole + caratteri, con margine per digitare; clamp 36–100%. */
+			var fromWords = 28 + words * 5.5;
+			var fromChars = 26 + chars * 0.8;
+			var pct = Math.round(Math.min(100, Math.max(36, Math.max(fromWords, fromChars))));
+			qsa(root, '.llm-phrase-game__input-shell').forEach(function (shell) {
+				shell.style.setProperty('--llm-input-shell-width', pct + '%');
 			});
 		}
 
@@ -1546,44 +2842,47 @@
 			messageEl.classList.toggle('llm-phrase-game__message--error', !!isError);
 		}
 
-		/** Messaggi solo per la fase 2 (secondo Continua): variant 'error' | 'success' | 'pending' | ''. */
+		/** Messaggi di esito frase (fase 2 o fase unica): variant 'error' | 'success' | 'pending' | ''. */
 		function setMessagePhase2(text, variant) {
-			if (!messagePhase2El) {
+			if (!completionMsgEl) {
 				return;
 			}
 			cancelPhase2MessageStream();
-			messagePhase2El.textContent = text || '';
-			messagePhase2El.classList.toggle('llm-phrase-game__message-phase2--error', variant === 'error');
-			messagePhase2El.classList.toggle('llm-phrase-game__message-phase2--success', variant === 'success');
-			messagePhase2El.classList.toggle('llm-phrase-game__message-phase2--pending', variant === 'pending');
+			completionMsgEl.textContent = text || '';
+			completionMsgEl.classList.toggle('llm-phrase-game__message-phase2--error', variant === 'error');
+			completionMsgEl.classList.toggle('llm-phrase-game__message-phase2--success', variant === 'success');
+			completionMsgEl.classList.toggle('llm-phrase-game__message-phase2--pending', variant === 'pending');
 		}
 
 		function setMessagePhase2Typewriter(text, variant) {
-			if (!messagePhase2El) {
+			if (!completionMsgEl) {
 				return Promise.resolve();
 			}
 			cancelPhase2MessageStream();
 			var run = phase2MessageRun;
-			messagePhase2El.classList.toggle('llm-phrase-game__message-phase2--error', variant === 'error');
-			messagePhase2El.classList.toggle('llm-phrase-game__message-phase2--success', variant === 'success');
-			messagePhase2El.classList.toggle('llm-phrase-game__message-phase2--pending', false);
-			return typewriterInto(messagePhase2El, text || '', function () {
+			completionMsgEl.classList.toggle('llm-phrase-game__message-phase2--error', variant === 'error');
+			completionMsgEl.classList.toggle('llm-phrase-game__message-phase2--success', variant === 'success');
+			completionMsgEl.classList.toggle('llm-phrase-game__message-phase2--pending', false);
+			return typewriterInto(completionMsgEl, text || '', function () {
 				return phase2MessageRun === run;
 			});
 		}
 
-		function appendMessagePhase2Typewriter(text) {
-			if (!messagePhase2El) {
+		function appendMessagePhase2Typewriter(text, asHtml) {
+			if (!completionMsgEl) {
 				return Promise.resolve();
 			}
 			phase2MessageRun++;
 			var run = phase2MessageRun;
 			var line = document.createElement('p');
 			line.className = 'llm-phrase-game__message-phase2-line';
-			messagePhase2El.appendChild(line);
-			return typewriterInto(line, text || '', function () {
+			completionMsgEl.appendChild(line);
+			var alive = function () {
 				return phase2MessageRun === run;
-			});
+			};
+			return asHtml
+				? typewriterHtmlInto(line, text || '', alive, TYPE_TICK_MS)
+				: typewriterInto(line, text || '', alive);
 		}
 
 		function showPhase(n) {
@@ -1633,10 +2932,9 @@
 		if (targetShow) {
 			targetShow.innerHTML = '';
 		}
+		resetTargetPeek();
 		if (altShow) {
-			altShow.innerHTML = '';
-			altShow.style.opacity = '';
-			altShow.style.transition = '';
+			resetAltAccordion();
 		}
 		if (labelMainEl) {
 			labelMainEl.style.opacity = '';
@@ -1671,7 +2969,12 @@
 
 	function loadPhrase(resumeStep2) {
 		micWordsThisPhrase = 0;
-		phase1WarnActive = false;
+		hidePhase1Feedback();
+		hideLoadingNotes();
+		resetNotesPanel();
+		resetRandomWords();
+		resetExtraChars();
+		setInvertedHintOpen(false);
 		cancelTts();
 		cancelAnalysisStream();
 			cancelStoryStream();
@@ -1701,7 +3004,9 @@
 			}
 			return;
 		}
+			syncInputPlaceholders();
 			var p = phrases[phraseIx];
+			syncInputShellWidth(p);
 			var useResume =
 				resumeStep2 &&
 				cfg.resumeAnalysis &&
@@ -1716,7 +3021,7 @@
 				if (input1 && input1._llmSyncClearBtn) { input1._llmSyncClearBtn(); }
 				if (input2 && input2._llmSyncClearBtn) { input2._llmSyncClearBtn(); }
 				ifaceEl.innerHTML = String(p.interface || '');
-				promptTrans.textContent = t('translatePrompt', targetLang);
+				setTranslatePromptText('');
 				if (yourPhraseWrap) {
 					yourPhraseWrap.hidden = true;
 				}
@@ -1759,12 +3064,16 @@
 				input1.readOnly = true;
 			}
 			if (promptRewrite) {
-				promptRewrite.textContent = '';
+				setRewritePromptText('');
 			}
 			renderProgress();
+			var promptText = isPlayInverted
+				? t('playInvertedPrompt', interfaceLang || targetLang)
+				: t(introPromptKey, targetLang);
+			var promptPhrase = isPlayInverted ? (p.target || '') : (p.interface || '');
 			runPhraseIntroTypewriter(
-				p.interface || '',
-				t('translatePrompt', targetLang),
+				promptPhrase,
+				promptText,
 				introId
 			).then(function () {
 				if (phraseIntroRun !== introId) {
@@ -1795,6 +3104,7 @@
 		body.set('user_text', userText);
 		body.set('mic_used', micUsed ? '1' : '0');
 		body.set('phase1_bypass', bypass ? '1' : '0');
+		body.set('mode', learningMode);
 		var strictAccents = window.llmPhraseGame && window.llmPhraseGame.strictAccents !== false;
 		body.set('strict_accents', strictAccents ? '1' : '0');
 
@@ -1819,52 +3129,157 @@
 				});
 		}
 
-		input1.addEventListener('input', function () {
-			if (phase1WarnActive) {
-				setMessage('');
-				phase1WarnActive = false;
+	input1.addEventListener('input', function () {
+		setMessage('');
+		hidePhase1Feedback();
+	});
+
+	function bindTextFieldEnter(inputEl) {
+		if (!inputEl) {
+			return;
+		}
+		inputEl.addEventListener('keydown', function (ev) {
+			if (ev.key === 'Enter') {
+				ev.preventDefault();
 			}
 		});
+	}
+	bindTextFieldEnter(input1);
+	bindTextFieldEnter(input2);
 
-		btn1.addEventListener('click', function () {
-			stopSpeech();
-			cancelTts();
-			var txt = (input1.value || '').trim();
-			if (!txt) {
-				setMessage(i18n.empty || '', true);
-				return;
-			}
-			var p = phrases[phraseIx];
-			var targetRef = p && p.target != null ? String(p.target) : '';
-			var bypassPhase1 = false;
-			if (!phase1PassesLocal(txt, targetRef, PHASE1_MIN)) {
-				if (phase1WarnActive) {
-					/* Seconda pressione con feedback visibile: si procede comunque */
-					bypassPhase1 = true;
-					phase1WarnActive = false;
-				} else {
-					setMessage(i18n.phase1Fail || '', true);
-					phase1WarnActive = true;
-					return;
-				}
-			} else {
-				phase1WarnActive = false;
-			}
-			setMessage('');
-			setMessagePhase2('', '');
+	if (altToggleBtn) {
+		altToggleBtn.addEventListener('click', function () {
+			setAltExpanded(altToggleBtn.getAttribute('aria-expanded') !== 'true');
+		});
+	}
+
+	if (targetPeekBtn) {
+		targetPeekBtn.addEventListener('click', onTargetPeekButtonClick);
+	}
+
+	if (targetShow) {
+		targetShow.addEventListener('click', onTargetPeekAreaClick);
+	}
+
+	if (notesToggleBtn) {
+		notesToggleBtn.addEventListener('click', function () {
+			setNotesOpen(notesToggleBtn.getAttribute('aria-expanded') !== 'true');
+		});
+	}
+
+	btn1.addEventListener('click', function () {
+		stopSpeech();
+		cancelTts();
+
+		if (isReadGoFast) {
+			handleReadGoFastSubmit();
+			return;
+		}
+		if (isPlayInverted) {
+			handlePlayInvertedSubmit();
+			return;
+		}
+
+		if (isResolveGo) {
+			handleResolveGoSubmit();
+			return;
+		}
+
+		var txt = (input1.value || '').trim();
+
+		/* ── Caso 1: campo vuoto ─────────────────────────────────────── */
+		if (!txt) {
+			hidePhase1Feedback();
+			feedbackWarnActive = false;
 			btn1.disabled = true;
-			if (btn2) {
-				btn2.disabled = true;
+			var emptyTexts = getFeedbackTexts('empty_input');
+			var emptyFull  = [emptyTexts.p1, emptyTexts.p2].filter(Boolean).join(' ');
+			console.log('[LLM Phase1] campo vuoto | p1:', emptyTexts.p1, '| p2:', emptyTexts.p2);
+			if (feedbackEl && emptyFull) {
+				feedbackEl.textContent = '';
+				feedbackEl.hidden = false;
+				typewriterInto(feedbackEl, emptyFull, function () { return true; }).then(function () {
+					btn1.disabled = false;
+				});
+			} else {
+				setMessage(i18n.empty || '', true);
+				btn1.disabled = false;
 			}
-			if (input2) {
-				input2.readOnly = true;
-				input2.value = '';
+			return;
+		}
+
+		var p         = phrases[phraseIx];
+		var targetRef = p && p.target != null ? String(p.target) : '';
+		var ratio     = referenceWordsFoundRatio(txt, targetRef);
+		var pct       = Math.round(ratio * 100);
+
+		console.log('[LLM Phase1] %c' + pct + '%', 'font-weight:bold', '| tier:', pctToTier(pct) + ' | feedbackWarnActive:', feedbackWarnActive);
+
+		/* ── Caso 2: 0% e primo click ────────────────────────────────── */
+		if (pct === 0 && !feedbackWarnActive) {
+			hidePhase1Feedback();
+			btn1.disabled = true;
+			showPhase1Feedback(pct).then(function () {
+				btn1.disabled = false;
+				feedbackWarnActive = true;
+			});
+			return;
+		}
+
+	/* ── Caso 3: 0% e secondo click / Caso 4: >0% ───────────────────── */
+	/* bypassPhase1 = true sempre: la soglia è ora gestita lato JS con il
+	   feedback typewriter — il server non deve più bloccare o mostrare errori. */
+	var bypassPhase1 = true;
+
+	setMessage('');
+	setMessagePhase2('', '');
+	btn1.disabled = true;
+	if (btn2) { btn2.disabled = true; }
+	if (input2) { input2.readOnly = true; input2.value = ''; }
+	if (input2 && input2._llmSyncClearBtn) { input2._llmSyncClearBtn(); }
+
+	/* Avvia controllo server in parallelo (solo per registrare avanzamento) */
+	postCheck(1, txt, false, function (json) {
+		btn1.disabled = false;
+		/* Mostra solo errori di rete reali, non validazioni fase 1 */
+		if (!json) {
+			setMessage(i18n.ajaxError || '', true);
+		}
+	}, bypassPhase1);
+
+		prepareAnalysisStreamLayout();
+		setComposePhaseVisible(2, false);
+		showPhase(2);
+
+		/* Scegli tier feedback:
+		   - secondo click a 0% (feedbackWarnActive era true) → double_click
+		   - tutti gli altri casi (>0%) → tier normale */
+		var isDoubleClick = (pct === 0 && feedbackWarnActive);
+		var feedbackPromise;
+		if (isDoubleClick) {
+			var dcTexts = getFeedbackTexts('double_click');
+			var dcFull  = [dcTexts.p1, dcTexts.p2].filter(Boolean).join(' ');
+			console.log('[LLM Phase1] double_click | p1:', dcTexts.p1, '| p2:', dcTexts.p2);
+			hidePhase1Feedback();
+			if (feedbackEl && dcFull) {
+				feedbackEl.textContent = '';
+				feedbackEl.hidden = false;
+				feedbackPromise = typewriterInto(feedbackEl, dcFull, function () { return true; });
+			} else {
+				feedbackPromise = Promise.resolve();
 			}
-			/* Stesso stato che runAnalysisTypestream applica subito: altrimenti, finché non parte lo stream (es. dopo lo scroll), le etichette statiche in analisi resterebbero visibili un attimo. */
-			prepareAnalysisStreamLayout();
-			setComposePhaseVisible(2, false);
+		} else {
+			feedbackPromise = showPhase1Feedback(pct);
+		}
+
+		feedbackWarnActive = false;
+
+		feedbackPromise.then(function () {
+			return showLoadingNotes();
+		}).then(function () {
+			return sleepMs(3000);
+		}).then(function () {
 			analysisEl.hidden = false;
-			showPhase(2);
 			requestAnimationFrame(function () {
 				requestAnimationFrame(function () {
 					smoothScrollIntoCenter(analysisEl).then(function () {
@@ -1877,100 +3292,74 @@
 					});
 				});
 			});
-			postCheck(1, txt, false, function (json) {
-				btn1.disabled = false;
-				if (!json || !json.success) {
-					cancelAnalysisStream();
-					cancelPhraseIntro();
-					resetAnalysis();
-					showPhase(1);
-					var prb = phrases[phraseIx];
-					if (ifaceEl) {
-						ifaceEl.innerHTML = String(prb ? prb.interface || '' : '');
-					}
-					if (promptTrans) {
-						promptTrans.textContent = t('translatePrompt', targetLang);
-					}
-					setComposePhaseVisible(1, true);
-					setMessagePhase2('', '');
-					setMessage(
-						(json && json.data && json.data.message) || i18n.ajaxError || '',
-						true
-					);
-					return;
-				}
-			}, bypassPhase1);
 		});
+	});
 
-		btn2.addEventListener('click', function () {
-			stopSpeech();
-			cancelTts();
-			/* Sincronizza strictAccents direttamente dal DOM per evitare disallineamenti */
-			var accentsToggleEl = document.querySelector('.llm-story-settings__accents-input');
-			if (accentsToggleEl && window.llmPhraseGame) {
-				window.llmPhraseGame.strictAccents = accentsToggleEl.checked;
-			}
-			var txt = (input2.value || '').trim();
-			if (!txt) {
-				setMessagePhase2Typewriter(i18n.empty || '', 'error');
-				return;
-			}
-			var p2 = phrases[phraseIx];
-			var targetRef2 = p2 && p2.target != null ? String(p2.target) : '';
-		if (!phase2PassesLocal(txt, targetRef2, PHASE2_SIM, PHASE2_WR)) {
-				setMessagePhase2Typewriter(i18n.phase2Fail || '', 'error');
-				return;
-			}
-		setMessagePhase2('', '');
-		btn2.disabled = true;
-		if (input2) {
-			input2.readOnly = true;
-		}
-		var phase2ScrollTarget = messagePhase2El || phase2;
-		var totalWords = tokenizeWords(txt).length;
-		var micUsed = totalWords > 0 && micWordsThisPhrase >= Math.max(1, Math.ceil(totalWords * 0.2));
+		/**
+		 * Sequenza di completamento frase condivisa da tutte le modalità:
+		 * messaggi di esito → riga di storia → frase successiva.
+		 *
+		 * @param {string}   txt      Testo validato dell'utente.
+		 * @param {boolean}  micUsed  Se assegnare il punto microfono.
+		 * @param {{scrollTarget?: Element, showMicMessage?: boolean, messages?: string[], holdMs?: number, onFail?: function(string):void}} opts
+		 */
+		function runPhraseCompletionFlow(txt, micUsed, opts) {
+			opts = opts || {};
+			var showMicMessage = opts.showMicMessage !== false;
+			var onFail = typeof opts.onFail === 'function' ? opts.onFail : function () {};
+			var scrollTarget = opts.scrollTarget || completionMsgEl || phase2;
+			/* Pausa di lettura dei messaggi prima di scrivere la riga di storia. */
+			var holdMs = typeof opts.holdMs === 'number' ? opts.holdMs : 3000;
 
-		/* Avvia AJAX subito in parallelo con i messaggi. */
-		var ajaxPromise = new Promise(function (resolve) {
-			postCheck(2, txt, micUsed, function (json) {
-				resolve(json);
+			/* Modalità che non validano il testo usano messaggi propri. */
+			var messages = Array.isArray(opts.messages)
+				? opts.messages
+				: [
+					i18n.bravoCorrect || '',
+					i18n.phraseCompletePoints || '',
+					showMicMessage
+						? (micUsed ? (i18n.micUsedPoint || '') : (i18n.micUsedNoPoint || ''))
+						: '',
+					i18n.storyContinue || ''
+				];
+
+			/* Avvia AJAX subito in parallelo con i messaggi. */
+			var ajaxPromise = new Promise(function (resolve) {
+				postCheck(2, txt, micUsed, function (json) {
+					resolve(json);
+				});
 			});
-		});
 
-		setMessagePhase2('', '');
-		messagePhase2El && (messagePhase2El.innerHTML = '');
-		messagePhase2El && messagePhase2El.classList.add('llm-phrase-game__message-phase2--success');
+			setMessagePhase2('', '');
+			if (completionMsgEl) {
+				completionMsgEl.innerHTML = '';
+				completionMsgEl.classList.add('llm-phrase-game__message-phase2--success');
+			}
 
-		smoothScrollIntoCenter(phase2ScrollTarget).then(function () {
-			return appendMessagePhase2Typewriter(i18n.bravoCorrect || '');
-		}).then(function () {
-			return sleepMs(300);
-		}).then(function () {
-			return appendMessagePhase2Typewriter(i18n.phraseCompletePoints || '');
-		}).then(function () {
-			return sleepMs(300);
-		}).then(function () {
-			var micMsg = micUsed ? (i18n.micUsedPoint || '') : (i18n.micUsedNoPoint || '');
-			return appendMessagePhase2Typewriter(micMsg);
-		}).then(function () {
-			return sleepMs(300);
-		}).then(function () {
-			return appendMessagePhase2Typewriter(i18n.storyContinue || '');
-		}).then(function () {
-			return Promise.all([ajaxPromise, sleepMs(3000)]);
-		})
+			/* Ogni voce è una stringa, oppure {text, html} per righe che contengono markup. */
+			var typed = messages.reduce(function (chain, msg, ix) {
+				var isObj = !!msg && 'object' === typeof msg;
+				var text = isObj ? (msg.text || '') : (msg || '');
+				var asHtml = isObj && !!msg.html;
+				return chain.then(function () {
+					return ix > 0 ? sleepMs(300) : null;
+				}).then(function () {
+					return text ? appendMessagePhase2Typewriter(text, asHtml) : null;
+				});
+			}, smoothScrollIntoCenter(scrollTarget));
+
+			return typed.then(function () {
+				return Promise.all([ajaxPromise, sleepMs(holdMs)]);
+			})
 				.then(function (pair) {
-			var json = pair && pair[0];
-				if (!json || !json.success) {
-					btn2.disabled = false;
-				if (input2) {
-					input2.readOnly = false;
-				}
-				var msg =
-						(json && json.data && json.data.message) || i18n.phase2Fail || '';
-					setMessagePhase2Typewriter(msg, 'error');
-					return;
-				}
+					var json = pair && pair[0];
+					if (!json || !json.success) {
+						var msg =
+							(json && json.data && json.data.message) || i18n.phase2Fail || '';
+						onFail(msg);
+						setMessagePhase2Typewriter(msg, 'error');
+						return;
+					}
 					var d = json.data || {};
 					if (typeof window.llmUpdateStoryProgressBar === 'function' && d.phrases_total != null) {
 						var doneBar = parseInt(d.phrases_done, 10);
@@ -1984,7 +3373,7 @@
 						window.llmUpdateStoryProgressBar(String(storyId), doneBar, totalBar);
 					}
 					var sentence = d.display_sentence || '';
-					function advanceAfterPhrase2() {
+					function advanceAfterPhrase() {
 						resetAnalysis();
 						if (d.has_more && d.next_index !== null && d.next_index !== undefined) {
 							phraseIx = parseInt(d.next_index, 10);
@@ -1998,30 +3387,355 @@
 						}
 					}
 					if (!sentence) {
-						advanceAfterPhrase2();
+						advanceAfterPhrase();
 						return;
 					}
-				smoothScrollStoryToCenter().then(function () {
-					var block = document.createElement('div');
-					block.className = 'llm-phrase-game__story-line';
-					if (d.display_interface) {
-						block.dataset.translation = d.display_interface;
-					}
-					storyEl.appendChild(block);
-					hydrateStoryLineTranslations();
+					smoothScrollStoryToCenter().then(function () {
+						var block = document.createElement('div');
+						block.className = 'llm-phrase-game__story-line';
+						if (d.display_interface) {
+							block.dataset.translation = d.display_interface;
+						}
+						storyEl.appendChild(block);
+						hydrateStoryLineTranslations();
 						var sr = ++storyStreamRun;
 						typewriterHtmlInto(block, sentence, function () {
 							return storyStreamRun === sr;
 						}, TYPE_TICK_MS).then(function () {
 							if (storyStreamRun === sr) {
-								advanceAfterPhrase2();
+								advanceAfterPhrase();
 							}
 						});
 					});
 				});
+		}
+
+		/** Modalità "Risolvi e vai": validazione locale, poi AJAX-first, status DB, poi feedback. */
+		function handleResolveGoSubmit() {
+			syncStrictAccentsFromDom();
+
+			var txt = (input1.value || '').trim();
+			if (!txt) {
+				setMessagePhase2Typewriter(i18n.empty || '', 'error');
+				return;
+			}
+			var p = phrases[phraseIx];
+			var targetRef = p && p.target != null ? String(p.target) : '';
+			if (!phase2PassesLocal(txt, targetRef, PHASE2_SIM, PHASE2_WR)) {
+				setMessagePhase2Typewriter(i18n.resolveGoFail || i18n.phase2Fail || '', 'error');
+				return;
+			}
+
+			setMessagePhase2('', '');
+			clearDbStatus();
+			btn1.disabled = true;
+			input1.readOnly = true;
+			setNotesOpen(false);
+
+			postCheck(2, txt, false, function (json) {
+				runFeedbackAfterSave(json, [
+					i18n.bravoCorrect || '',
+					i18n.phraseCompletePoints || '',
+					i18n.storyContinue || ''
+				], {
+					scrollTarget: completionMsgEl || phase1,
+					onFail: function () {
+						btn1.disabled = false;
+						input1.readOnly = false;
+					}
+				});
+			});
+		}
+
+		/** Mostra il messaggio di stato DB con fade-in per `showMs` ms, poi fade-out. Restituisce una Promise. */
+		function showDbStatus(text, isError, showMs) {
+			if (!dbStatusEl) {
+				return sleepMs(showMs || 1200);
+			}
+			dbStatusEl.textContent = text || '';
+			dbStatusEl.classList.toggle('llm-phrase-game__db-status--ok', !isError);
+			dbStatusEl.classList.toggle('llm-phrase-game__db-status--error', !!isError);
+			/* force reflow so transition fires */
+			void dbStatusEl.offsetWidth;
+			dbStatusEl.classList.add('llm-phrase-game__db-status--visible');
+			return sleepMs(showMs || 1200).then(function () {
+				dbStatusEl.classList.remove('llm-phrase-game__db-status--visible');
+				/* aspetta la transizione di uscita (350 ms) */
+				return sleepMs(400);
+			});
+		}
+
+		function clearDbStatus() {
+			if (!dbStatusEl) { return; }
+			dbStatusEl.classList.remove('llm-phrase-game__db-status--visible');
+			dbStatusEl.classList.remove('llm-phrase-game__db-status--ok');
+			dbStatusEl.classList.remove('llm-phrase-game__db-status--error');
+			dbStatusEl.textContent = '';
+		}
+
+		/**
+		 * Helper condiviso per i flussi AJAX-first (Risolvi e vai, Read and go fast).
+		 * Mostra il messaggio DB in fade, poi la sequenza di messaggi, poi gestisce story line e avanzamento.
+		 *
+		 * @param {object} json      Risposta postCheck
+		 * @param {Array}  messages  Array di stringhe o {text, html}
+		 * @param {object} opts      { holdMs, scrollTarget, onFail }
+		 */
+		function runFeedbackAfterSave(json, messages, opts) {
+			opts = opts || {};
+			var onFail = typeof opts.onFail === 'function' ? opts.onFail : function () {};
+			var scrollTarget = opts.scrollTarget || completionMsgEl || phase2;
+			var holdMs = typeof opts.holdMs === 'number' ? opts.holdMs : 3000;
+
+			if (!json || !json.success) {
+				var errMsg = (json && json.data && json.data.message)
+					|| i18n.readGoFastSaveError
+					|| i18n.ajaxError
+					|| '';
+				showDbStatus(errMsg, true, 2500).then(function () {
+					onFail(errMsg);
+				});
+				return;
+			}
+
+			var d = json.data || {};
+
+			/* Aggiorna progress bar */
+			if (typeof window.llmUpdateStoryProgressBar === 'function' && d.phrases_total != null) {
+				var doneBar = parseInt(d.phrases_done, 10);
+				if (isNaN(doneBar)) { doneBar = 0; }
+				var totalBar = parseInt(d.phrases_total, 10);
+				if (isNaN(totalBar)) { totalBar = phrases.length; }
+				window.llmUpdateStoryProgressBar(String(storyId), doneBar, totalBar);
+			}
+
+			var savedMsg = i18n.readGoFastSaved || 'Salvato nel database.';
+			showDbStatus(savedMsg, false, 1400).then(function () {
+				setMessagePhase2('', '');
+				if (completionMsgEl) {
+					completionMsgEl.innerHTML = '';
+					completionMsgEl.classList.add('llm-phrase-game__message-phase2--success');
+				}
+
+				var typed = messages.reduce(function (chain, msg, ix) {
+					var isObj = !!msg && 'object' === typeof msg;
+					var text = isObj ? (msg.text || '') : (msg || '');
+					var asHtml = isObj && !!msg.html;
+					return chain.then(function () {
+						return ix > 0 ? sleepMs(300) : null;
+					}).then(function () {
+						return text ? appendMessagePhase2Typewriter(text, asHtml) : null;
+					});
+				}, smoothScrollIntoCenter(scrollTarget));
+
+				typed.then(function () {
+					return sleepMs(holdMs);
+				}).then(function () {
+					var sentence = d.display_sentence || '';
+					function advanceAfterPhrase() {
+						resetAnalysis();
+						if (d.has_more && d.next_index !== null && d.next_index !== undefined) {
+							phraseIx = parseInt(d.next_index, 10);
+							if (isNaN(phraseIx)) { phraseIx = phrases.length; }
+							loadPhrase(false);
+						} else {
+							phraseIx = phrases.length;
+							loadPhrase(false);
+						}
+					}
+					if (!sentence) {
+						advanceAfterPhrase();
+						return;
+					}
+					smoothScrollStoryToCenter().then(function () {
+						var block = document.createElement('div');
+						block.className = 'llm-phrase-game__story-line';
+						if (d.display_interface) {
+							block.dataset.translation = d.display_interface;
+						}
+						storyEl.appendChild(block);
+						hydrateStoryLineTranslations();
+						var sr = ++storyStreamRun;
+						typewriterHtmlInto(block, sentence, function () {
+							return storyStreamRun === sr;
+						}, TYPE_TICK_MS).then(function () {
+							if (storyStreamRun === sr) {
+								advanceAfterPhrase();
+							}
+						});
+					});
+				});
+			});
+		}
+
+		/** Modalità "Read and go fast": AJAX prima, status DB, poi feedback. */
+		function handleReadGoFastSubmit() {
+			syncStrictAccentsFromDom();
+			setMessage('');
+			setMessagePhase2('', '');
+			clearDbStatus();
+			btn1.disabled = true;
+			input1.readOnly = true;
+			setNotesOpen(false);
+
+			var txt = (input1.value || '').trim();
+			var p = phrases[phraseIx];
+			var targetRef = p && p.target != null ? String(p.target) : '';
+
+			var opening = '';
+			if (!txt) {
+				opening = i18n.readGoFastTarget || '';
+			} else if (phase2PassesLocal(txt, targetRef, PHASE2_SIM, PHASE2_WR)) {
+				opening = i18n.readGoFastExact || i18n.bravoCorrect || '';
+			} else {
+				opening = i18n.readGoFastAlmost || i18n.readGoFastTarget || '';
+			}
+
+			postCheck(2, txt, false, function (json) {
+				runFeedbackAfterSave(json, [
+					opening,
+					{ text: targetRef, html: true },
+					i18n.readGoFastComplete || i18n.phraseCompletePoints || ''
+				], {
+					holdMs: 1200,
+					scrollTarget: completionMsgEl || phase1,
+					onFail: function () {
+						btn1.disabled = false;
+						input1.readOnly = false;
+					}
+				});
+			}, true /* bypass */);
+		}
+
+		/** Modalità "Gioca al contrario": vedi target, indovina originale (interface). */
+		function handlePlayInvertedSubmit() {
+			syncStrictAccentsFromDom();
+			setMessage('');
+			setMessagePhase2('', '');
+			clearDbStatus();
+			setInvertedHintOpen(false);
+			btn1.disabled = true;
+			input1.readOnly = true;
+			setNotesOpen(false);
+
+			var txt = (input1.value || '').trim();
+			var p = phrases[phraseIx];
+			var originalRef = p && p.interface != null ? String(p.interface) : '';
+
+			var opening = '';
+			if (!txt) {
+				opening = i18n.playInvertedTarget || '';
+			} else if (phase2PassesLocal(txt, originalRef, PHASE2_SIM, PHASE2_WR)) {
+				opening = i18n.playInvertedExact || i18n.bravoCorrect || '';
+			} else {
+				opening = i18n.playInvertedAlmost || i18n.playInvertedTarget || '';
+			}
+
+			postCheck(2, txt, false, function (json) {
+				runFeedbackAfterSave(json, [
+					opening,
+					{ text: originalRef, html: true },
+					i18n.playInvertedComplete || i18n.phraseCompletePoints || ''
+				], {
+					holdMs: 1200,
+					scrollTarget: completionMsgEl || phase1,
+					onFail: function () {
+						btn1.disabled = false;
+						input1.readOnly = false;
+					}
+				});
+			}, true /* bypass */);
+		}
+
+		btn2.addEventListener('click', function () {
+			stopSpeech();
+			cancelTts();
+			syncStrictAccentsFromDom();
+			var txt = (input2.value || '').trim();
+			if (!txt) {
+				setMessagePhase2Typewriter(i18n.empty || '', 'error');
+				return;
+			}
+			var p2 = phrases[phraseIx];
+			var targetRef2 = p2 && p2.target != null ? String(p2.target) : '';
+			if (!phase2PassesLocal(txt, targetRef2, PHASE2_SIM, PHASE2_WR)) {
+				setMessagePhase2Typewriter(i18n.phase2Fail || '', 'error');
+				return;
+			}
+			setMessagePhase2('', '');
+			btn2.disabled = true;
+			if (input2) {
+				input2.readOnly = true;
+			}
+			var totalWords = tokenizeWords(txt).length;
+			var micUsed = totalWords > 0 && micWordsThisPhrase >= Math.max(1, Math.ceil(totalWords * 0.2));
+
+			runPhraseCompletionFlow(txt, micUsed, {
+				scrollTarget: messagePhase2El || phase2,
+				onFail: function () {
+					btn2.disabled = false;
+					if (input2) {
+						input2.readOnly = false;
+					}
+				}
+			});
 		});
 
+	if (isSinglePhase && notesWrap && notesPanel && analysisEl) {
+		notesWrap.hidden = false;
+		notesPanel.appendChild(analysisEl);
+		var continueBlock1 = qs(root, '.llm-phrase-game__continue-block--1');
+		if (continueBlock1) {
+			continueBlock1.insertBefore(notesWrap, continueBlock1.firstChild);
+		}
+	}
+
+	if (!isSinglePhase && btn1 && i18n.continueToNotes) {
+		btn1.textContent = i18n.continueToNotes;
+	}
+
+	if (isReadGoFast && btn1 && i18n.readGoFastNext) {
+		btn1.textContent = i18n.readGoFastNext;
+	}
+
+	if (isPlayInverted) {
+		if (btn1 && i18n.playInvertedNext) {
+			btn1.textContent = i18n.playInvertedNext;
+		}
+		if (invertedHintBtn) {
+			invertedHintBtn.hidden = false;
+			invertedHintBtn.addEventListener('click', function () {
+				var open = invertedHintBtn.getAttribute('aria-expanded') === 'true';
+				setInvertedHintOpen(!open);
+			});
+		}
+	}
+
+	if (randomWordsOn) {
+		randomWordsBlocks.forEach(function (block) {
+			block.wrap.hidden = false;
+			block.toggle.addEventListener('click', function () {
+				var open = block.toggle.getAttribute('aria-expanded') === 'true';
+				setRandomWordsOpen(block, !open);
+			});
+		});
+	}
+
+	if (extraCharsOn && getExtraCharsSet()) {
+		extraCharsBlocks.forEach(function (block) {
+			block.wrap.hidden = false;
+			if (randomWordsOn) {
+				block.wrap.classList.add('llm-phrase-game__extra-chars--after-random');
+			}
+			block.toggle.addEventListener('click', function () {
+				var open = block.toggle.getAttribute('aria-expanded') === 'true';
+				setExtraCharsOpen(block, !open);
+			});
+		});
+	}
+
 	var startResume =
+		!isSinglePhase &&
 		parseInt(cfg.savedStep, 10) === 2 && cfg.resumeAnalysis;
 	introReady.then(function () {
 		if (pendingStoryIntroTypewriter && cardEl) {

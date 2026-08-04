@@ -33,4 +33,37 @@ class LLM_Languages {
 	public static function is_valid( $code ) {
 		return array_key_exists( $code, self::get_codes() );
 	}
+
+	/**
+	 * Emoji bandiera per codice lingua (it|en|pl|es).
+	 *
+	 * @param string $code Codice lingua.
+	 * @return string
+	 */
+	public static function flag_emoji( $code ) {
+		$flags = array(
+			'it' => '🇮🇹',
+			'en' => '🇬🇧',
+			'pl' => '🇵🇱',
+			'es' => '🇪🇸',
+		);
+		$c = sanitize_key( (string) $code );
+		return $flags[ $c ] ?? '';
+	}
+
+	/**
+	 * Mappa codice → emoji bandiera per tutte le lingue ammesse.
+	 *
+	 * @return array<string, string>
+	 */
+	public static function flag_map() {
+		$map = array();
+		foreach ( array_keys( self::get_codes() ) as $code ) {
+			$emoji = self::flag_emoji( $code );
+			if ( '' !== $emoji ) {
+				$map[ $code ] = $emoji;
+			}
+		}
+		return $map;
+	}
 }
