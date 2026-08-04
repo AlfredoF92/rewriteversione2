@@ -42,61 +42,22 @@ class LLM_User_Stat_Shortcodes {
 	}
 
 	/**
-	 * @param string $path Path.
+	 * @param array<string, string> $atts Attributi shortcode (non usati per il link).
+	 * @param int                   $value Valore numerico.
+	 * @param string                $label Etichetta con due punti (es. "Coin:" / "Bravi ricevuti:"), tradotta.
+	 * @param string                $icon_svg Markup SVG da LLM_Header_UI_Icons.
 	 * @return string
 	 */
-	private static function normalize_path( $path ) {
-		$path = trim( $path );
-		if ( $path === '' ) {
-			return '/';
-		}
-		if ( $path[0] !== '/' ) {
-			return '/' . $path;
-		}
-		return $path;
-	}
-
-	/**
-	 * URL per visitatori non loggati (default: home).
-	 *
-	 * @param array<string, string> $atts Attributi shortcode.
-	 * @return string
-	 */
-	private static function guest_url( $atts ) {
-		$path = self::normalize_path( isset( $atts['guest_path'] ) ? (string) $atts['guest_path'] : '/' );
-		return esc_url( home_url( $path ) );
-	}
-
-	/**
-	 * @param string               $target_url URL destinazione (coin/frasi/bravi).
-	 * @param array<string, string> $atts Attributi shortcode.
-	 * @param int                  $value Valore numerico.
-	 * @param string               $label Etichetta con due punti (es. "Coin:" / "Bravi ricevuti:"), tradotta.
-	 * @param string               $icon_svg Markup SVG da LLM_Header_UI_Icons.
-	 * @return string
-	 */
-	private static function render_number_chip( $target_url, $atts, $value, $label, $icon_svg ) {
-		if ( ! is_user_logged_in() ) {
-			$n        = 0;
-			$label    = trim( (string) $label );
-			$aria_txt = trim( $label . ' ' . (string) $n );
-			return sprintf(
-				'<span class="llm-stat-chip-wrap"><a class="llm-stat-chip llm-stat-chip--guest llm-stat-chip--kv" href="%1$s" aria-label="%2$s"><span class="llm-stat-chip__icon">%3$s</span><span class="llm-stat-chip__body"><span class="llm-stat-chip__label">%4$s</span><span class="llm-stat-chip__value">%5$d</span></span></a></span>',
-				self::guest_url( $atts ),
-				esc_attr( $aria_txt ),
-				$icon_svg, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG statico.
-				esc_html( $label ),
-				$n
-			);
-		}
-
-		$n        = max( 0, (int) $value );
+	private static function render_number_chip( $atts, $value, $label, $icon_svg ) {
+		unset( $atts );
+		$n        = is_user_logged_in() ? max( 0, (int) $value ) : 0;
 		$label    = trim( (string) $label );
 		$aria_txt = trim( $label . ' ' . (string) $n );
+		$guest    = is_user_logged_in() ? '' : ' llm-stat-chip--guest';
 
 		return sprintf(
-			'<span class="llm-stat-chip-wrap"><a class="llm-stat-chip llm-stat-chip--kv" href="%1$s" aria-label="%2$s"><span class="llm-stat-chip__icon">%3$s</span><span class="llm-stat-chip__body"><span class="llm-stat-chip__label">%4$s</span><span class="llm-stat-chip__value">%5$d</span></span></a></span>',
-			esc_url( $target_url ),
+			'<span class="llm-stat-chip-wrap"><span class="llm-stat-chip llm-stat-chip--kv llm-stat-chip--static%1$s" aria-label="%2$s"><span class="llm-stat-chip__icon">%3$s</span><span class="llm-stat-chip__body"><span class="llm-stat-chip__label">%4$s</span><span class="llm-stat-chip__value">%5$d</span></span></span></span>',
+			esc_attr( $guest ),
 			esc_attr( $aria_txt ),
 			$icon_svg, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG statico.
 			esc_html( $label ),
@@ -110,19 +71,11 @@ class LLM_User_Stat_Shortcodes {
 	 */
 	public static function render_coins( $atts ) {
 		self::enqueue_style();
-		$atts = shortcode_atts(
-			array(
-				'coin_path'  => '/coin',
-				'guest_path' => '/',
-			),
-			$atts,
-			self::COINS
-		);
-		$target = esc_url( home_url( self::normalize_path( (string) $atts['coin_path'] ) ) );
-		$uid    = get_current_user_id();
-		$bal = $uid ? LLM_User_Stats::get_balance( $uid ) : 0;
+		$atts = shortcode_atts( array(), $atts, self::COINS );
+		$uid  = get_current_user_id();
+		$bal  = $uid ? LLM_User_Stats::get_balance( $uid ) : 0;
 
-		return self::render_number_chip( $target, $atts, $bal, 'Points:', LLM_Header_UI_Icons::coin() );
+		return self::render_number_chip( $atts, $bal, 'Points:', LLM_Header_UI_Icons::coin() );
 	}
 
 	/**
@@ -131,19 +84,11 @@ class LLM_User_Stat_Shortcodes {
 	 */
 	public static function render_phrases( $atts ) {
 		self::enqueue_style();
-		$atts = shortcode_atts(
-			array(
-				'phrases_path' => '/frasi',
-				'guest_path'   => '/',
-			),
-			$atts,
-			self::PHRASES
-		);
-		$target = esc_url( home_url( self::normalize_path( (string) $atts['phrases_path'] ) ) );
-		$uid    = get_current_user_id();
-		$n = $uid ? LLM_User_Stats::count_completed_phrases( $uid ) : 0;
+		$atts = shortcode_atts( array(), $atts, self::PHRASES );
+		$uid  = get_current_user_id();
+		$n    = $uid ? LLM_User_Stats::count_completed_phrases( $uid ) : 0;
 
-		return self::render_number_chip( $target, $atts, $n, 'Frasi completate:', LLM_Header_UI_Icons::phrases() );
+		return self::render_number_chip( $atts, $n, 'Frasi completate:', LLM_Header_UI_Icons::phrases() );
 	}
 
 	/**
@@ -152,19 +97,11 @@ class LLM_User_Stat_Shortcodes {
 	 */
 	public static function render_bravi( $atts ) {
 		self::enqueue_style();
-		$atts = shortcode_atts(
-			array(
-				'bravi_path' => '/bravi',
-				'guest_path' => '/',
-			),
-			$atts,
-			self::BRAVI
-		);
-		$target = esc_url( home_url( self::normalize_path( (string) $atts['bravi_path'] ) ) );
-		$uid    = get_current_user_id();
-		$n = $uid ? LLM_Community::count_bravi_received( $uid ) : 0;
+		$atts = shortcode_atts( array(), $atts, self::BRAVI );
+		$uid  = get_current_user_id();
+		$n    = $uid ? LLM_Community::count_bravi_received( $uid ) : 0;
 
-		return self::render_number_chip( $target, $atts, $n, 'Likes:', LLM_Header_UI_Icons::bravo() );
+		return self::render_number_chip( $atts, $n, 'Likes:', LLM_Header_UI_Icons::bravo() );
 	}
 
 	/**
@@ -174,80 +111,111 @@ class LLM_User_Stat_Shortcodes {
 	public static function render_learning_lang( $atts ) {
 		self::enqueue_style();
 		$atts = shortcode_atts(
-			array(
-				'link_path'        => '/area-personale',
-				'guest_path'       => '/',
-				'guest_lang_label' => 'IT -> English',
-			),
+			array(),
 			$atts,
 			self::LANG
 		);
 
+		$icon = LLM_Header_UI_Icons::library();
+
 		if ( ! is_user_logged_in() ) {
-			$lang_label = trim( (string) $atts['guest_lang_label'] );
-			if ( '' === $lang_label ) {
-				$lang_label = 'IT -> English';
+			$known    = sanitize_key( wp_unslash( $_COOKIE['llm_interface_lang'] ?? '' ) );
+			$learning = sanitize_key( wp_unslash( $_COOKIE['llm_learning_lang'] ?? '' ) );
+			$chip_label = self::stories_in_label( $known );
+			$settings_url = self::learning_lang_settings_url();
+
+			$known_valid    = LLM_Languages::is_valid( $known );
+			$learning_valid = LLM_Languages::is_valid( $learning );
+
+			if ( $known_valid && $learning_valid ) {
+				$display_label = strtoupper( $known ) . ' → ' . LLM_Languages::label( $learning );
+			} else {
+				$display_label = '—';
 			}
-			$learn_label = 'Learn:';
-			$icon        = LLM_Header_UI_Icons::language();
-			$inner       = sprintf(
-				'<span class="llm-stat-chip__body"><span class="llm-stat-chip__label">%1$s</span><span class="llm-stat-chip__value">%2$s</span></span>',
-				esc_html( $learn_label ),
-				esc_html( $lang_label )
-			);
-			$aria_full = trim( $learn_label . ' ' . $lang_label );
-			return sprintf(
-				'<span class="llm-stat-chip-wrap"><a class="llm-stat-chip llm-stat-chip--guest llm-stat-chip--lang llm-stat-chip--kv" href="%1$s" aria-label="%2$s"><span class="llm-stat-chip__icon">%3$s</span>%4$s</a></span>',
-				self::guest_url( $atts ),
-				esc_attr( $aria_full ),
-				$icon, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG statico.
-				$inner
-			);
+
+			return self::render_learning_lang_chip( $icon, $chip_label, $display_label, $settings_url, true );
 		}
 
 		$uid            = get_current_user_id();
 		$learning_code  = sanitize_key( (string) get_user_meta( $uid, LLM_User_Meta::LEARNING_LANG, true ) );
 		$interface_code = sanitize_key( (string) get_user_meta( $uid, LLM_User_Meta::INTERFACE_LANG, true ) );
+		$chip_label     = self::stories_in_label( $interface_code );
 		$learning_valid = ( '' !== $learning_code && LLM_Languages::is_valid( $learning_code ) );
 		$known_valid    = ( '' !== $interface_code && LLM_Languages::is_valid( $interface_code ) );
+		$settings_url   = self::learning_lang_settings_url();
 
 		if ( $learning_valid && $known_valid ) {
-			$ui_lang = class_exists( 'LLM_User_Settings_I18n' ) ? LLM_User_Settings_I18n::lang_for_user( $uid ) : '';
-			$label   = strtoupper( $interface_code ) . ' -> ' . ( class_exists( 'LLM_User_Settings_I18n' ) ? LLM_User_Settings_I18n::language_label( $learning_code, $ui_lang ) : LLM_Languages::label( $learning_code ) );
+			$ui_lang       = class_exists( 'LLM_User_Settings_I18n' ) ? LLM_User_Settings_I18n::lang_for_user( $uid ) : '';
+			$learning_name = class_exists( 'LLM_User_Settings_I18n' )
+				? LLM_User_Settings_I18n::language_label( $learning_code, $ui_lang )
+				: LLM_Languages::label( $learning_code );
+			$display_label = strtoupper( $interface_code ) . ' → ' . $learning_name;
 		} elseif ( $learning_valid ) {
-			$label = LLM_Languages::label( $learning_code );
+			$display_label = LLM_Languages::label( $learning_code );
 		} elseif ( $known_valid ) {
-			$label = strtoupper( $interface_code );
+			$display_label = strtoupper( $interface_code );
 		} else {
-			$label = __( 'Lingua non impostata', 'llm-con-tabelle' );
+			$display_label = __( 'Lingua non impostata', 'llm-con-tabelle' );
 		}
 
-		$link_path   = trim( (string) $atts['link_path'] );
-		$lang_label  = 'Learn:';
-		$icon        = LLM_Header_UI_Icons::language();
-		$inner       = sprintf(
-			'<span class="llm-stat-chip__body"><span class="llm-stat-chip__label">%1$s</span><span class="llm-stat-chip__value">%2$s</span></span>',
-			esc_html( $lang_label ),
-			esc_html( $label )
-		);
-		$aria_full = trim( $lang_label . ' ' . $label );
+		return self::render_learning_lang_chip( $icon, $chip_label, $display_label, $settings_url, false );
+	}
 
-		if ( $link_path !== '' ) {
-			$url = esc_url( home_url( self::normalize_path( $link_path ) ) );
-			return sprintf(
-				'<span class="llm-stat-chip-wrap"><a class="llm-stat-chip llm-stat-chip--lang llm-stat-chip--kv" href="%1$s" aria-label="%2$s"><span class="llm-stat-chip__icon">%3$s</span>%4$s</a></span>',
-				$url,
-				esc_attr( $aria_full ),
-				$icon, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG statico.
-				$inner
-			);
+	/**
+	 * Chip "Storie in:" — link alla pagina di scelta lingua.
+	 *
+	 * @param string $icon          Markup SVG icona.
+	 * @param string $chip_label    Etichetta (es. "Storie in:").
+	 * @param string $display_label Valore (es. "IT → Polish").
+	 * @param string $pair_url      URL pagina impostazioni lingua.
+	 * @param bool   $is_guest      True se visitatore non loggato.
+	 * @return string
+	 */
+	private static function render_learning_lang_chip( $icon, $chip_label, $display_label, $pair_url, $is_guest ) {
+		$aria_full = trim( $chip_label . ' ' . $display_label );
+		$inner     = sprintf(
+			'<span class="llm-stat-chip__body"><span class="llm-stat-chip__label">%1$s</span><span class="llm-stat-chip__value">%2$s</span></span>',
+			esc_html( $chip_label ),
+			esc_html( $display_label )
+		);
+
+		$classes = 'llm-stat-chip llm-stat-chip--lang llm-stat-chip--kv';
+		if ( $is_guest ) {
+			$classes .= ' llm-stat-chip--guest';
 		}
 
 		return sprintf(
-			'<span class="llm-stat-chip-wrap"><span class="llm-stat-chip llm-stat-chip--lang llm-stat-chip--kv llm-stat-chip--static" aria-label="%1$s"><span class="llm-stat-chip__icon">%2$s</span>%3$s</span></span>',
+			'<span class="llm-stat-chip-wrap"><a class="%1$s" href="%2$s" aria-label="%3$s"><span class="llm-stat-chip__icon">%4$s</span>%5$s</a></span>',
+			esc_attr( $classes ),
+			esc_url( $pair_url ),
 			esc_attr( $aria_full ),
 			$icon, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG statico.
 			$inner
 		);
+	}
+
+	/**
+	 * Traduce "Storie in:" nella lingua conosciuta dall'utente.
+	 *
+	 * @param string $known Codice lingua conosciuta (es. 'it', 'en', 'pl', 'es').
+	 * @return string
+	 */
+	private static function stories_in_label( $known ) {
+		$labels = array(
+			'it' => 'Storie in:',
+			'en' => 'Stories in:',
+			'pl' => 'Historie w:',
+			'es' => 'Historias en:',
+		);
+		return $labels[ $known ] ?? 'Storie in:';
+	}
+
+	/**
+	 * Pagina in cui si sceglie/cambia la coppia linguistica.
+	 *
+	 * @return string
+	 */
+	private static function learning_lang_settings_url() {
+		return home_url( '/language-to-learn/' );
 	}
 }

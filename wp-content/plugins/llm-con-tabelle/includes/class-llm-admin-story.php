@@ -90,8 +90,8 @@ class LLM_Admin_Story {
 				'emptyPhraseHint'  => __( '(nessun testo interfaccia)', 'llm-con-tabelle' ),
 				'ajaxUrl'          => admin_url( 'admin-ajax.php' ),
 				'postId'           => $post_id,
-				'csvNonce'         => wp_create_nonce( LLM_Story_Phrases_Csv::NONCE_ACTION ),
-				'csvNoncePost'     => $post_id ? wp_create_nonce( LLM_Story_Phrases_Csv::NONCE_ACTION . '_' . $post_id ) : '',
+			'csvNonce'            => wp_create_nonce( LLM_Story_Phrases_Csv::NONCE_ACTION ),
+			'csvNoncePost'        => $post_id ? wp_create_nonce( LLM_Story_Phrases_Csv::NONCE_ACTION . '_' . $post_id ) : '',
 				'csvExportUrl'     => $post_id ? LLM_Story_Phrases_Csv::export_url( $post_id ) : '',
 				'csvPreviewAction' => 'llm_story_phrases_preview_import',
 				'csvCommitAction'  => 'llm_story_phrases_commit_import',
@@ -112,8 +112,22 @@ class LLM_Admin_Story {
 				'csvLoading'       => __( 'Elaborazione…', 'llm-con-tabelle' ),
 				'csvPasteEmpty'    => __( 'Incolla prima il testo CSV.', 'llm-con-tabelle' ),
 				'csvErrGeneric'    => __( 'Operazione non riuscita.', 'llm-con-tabelle' ),
-				'csvNeedSaveDraft' => __( 'Salva prima la bozza per usare import/export CSV.', 'llm-con-tabelle' ),
-			)
+			'csvNeedSaveDraft'        => __( 'Salva prima la bozza per usare import/export CSV.', 'llm-con-tabelle' ),
+			'fullImportNonce'         => wp_create_nonce( LLM_Story_Full_Import::NONCE_ACTION ),
+			'fullImportNoncePost'     => $post_id ? wp_create_nonce( LLM_Story_Full_Import::NONCE_ACTION . '_' . $post_id ) : '',
+			'fullImportPreviewAction' => 'llm_story_full_import_preview',
+			'fullImportCommitAction'  => 'llm_story_full_import_commit',
+			'fullImportModalTitle'    => __( 'Anteprima importazione storia', 'llm-con-tabelle' ),
+			'fullImportPasteTitle'    => __( 'Importa dati della storia da Story Importer', 'llm-con-tabelle' ),
+			'fullImportLoading'       => __( 'Lettura file…', 'llm-con-tabelle' ),
+			'fullImportErrGeneric'    => __( 'Importazione non riuscita.', 'llm-con-tabelle' ),
+			'fullImportBtnConfirm'    => __( 'Carica nel form', 'llm-con-tabelle' ),
+			'fullImportBtnCancel'     => __( 'Annulla', 'llm-con-tabelle' ),
+			'fullImportBtnClose'      => __( 'Chiudi', 'llm-con-tabelle' ),
+			'fullImportLogTitle'      => __( 'Log importazione', 'llm-con-tabelle' ),
+			'fullImportNeedSave'      => __( 'Salva prima la bozza per usare l\'importazione.', 'llm-con-tabelle' ),
+			'fullImportDemoContent'   => LLM_Story_Full_Import::get_demo_import_content(),
+		)
 		);
 	}
 
@@ -154,12 +168,22 @@ class LLM_Admin_Story {
 
 	public static function render_settings( $post ) {
 		wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME );
-
+		?>
+		<div class="llm-full-import-toolbar">
+			<button type="button" id="llm-full-import-incolla-csv" class="button button-secondary">
+				<?php esc_html_e( 'Importa dati della storia da Story Importer', 'llm-con-tabelle' ); ?>
+			</button>
+		</div>
+		<?php
 		$known   = get_post_meta( $post->ID, LLM_Story_Meta::KNOWN_LANG, true );
 		$target  = get_post_meta( $post->ID, LLM_Story_Meta::TARGET_LANG, true );
 		$title_t = get_post_meta( $post->ID, LLM_Story_Meta::TITLE_TARGET, true );
 		$plot    = get_post_meta( $post->ID, LLM_Story_Meta::STORY_PLOT, true );
-		$finale  = get_post_meta( $post->ID, LLM_Story_Meta::STORY_FINALE, true );
+		$intro     = get_post_meta( $post->ID, LLM_Story_Meta::STORY_INTRO, true );
+		$finale         = get_post_meta( $post->ID, LLM_Story_Meta::STORY_FINALE, true );
+		$card_text      = get_post_meta( $post->ID, LLM_Story_Meta::STORY_CARD_TEXT, true );
+		$cefr_level     = get_post_meta( $post->ID, LLM_Story_Meta::STORY_CEFR_LEVEL, true );
+		$grammar_topics = get_post_meta( $post->ID, LLM_Story_Meta::STORY_GRAMMAR_TOPICS, true );
 		$cost    = (int) get_post_meta( $post->ID, LLM_Story_Meta::COIN_COST, true );
 		$reward  = (int) get_post_meta( $post->ID, LLM_Story_Meta::COIN_REWARD, true );
 
@@ -192,9 +216,29 @@ class LLM_Admin_Story {
 			<textarea name="llm_story_plot" id="llm_story_plot" class="widefat" rows="5"><?php echo esc_textarea( is_string( $plot ) ? $plot : '' ); ?></textarea>
 		</div>
 		<div class="llm-field-row">
+			<label for="llm_story_intro"><strong><?php esc_html_e( 'Introduzione della storia', 'llm-con-tabelle' ); ?></strong></label>
+			<p class="description"><?php esc_html_e( 'Appare prima che l\'utente inizi le frasi, con animazione typewriter.', 'llm-con-tabelle' ); ?></p>
+			<textarea name="llm_story_intro" id="llm_story_intro" class="widefat" rows="4"><?php echo esc_textarea( is_string( $intro ) ? $intro : '' ); ?></textarea>
+		</div>
+		<div class="llm-field-row">
 			<label for="llm_story_finale"><strong><?php esc_html_e( 'Finale della storia', 'llm-con-tabelle' ); ?></strong></label>
 			<p class="description"><?php esc_html_e( 'Appare dopo che l\'utente completa l\'ultima frase, con animazione typewriter.', 'llm-con-tabelle' ); ?></p>
 			<textarea name="llm_story_finale" id="llm_story_finale" class="widefat" rows="4"><?php echo esc_textarea( is_string( $finale ) ? $finale : '' ); ?></textarea>
+		</div>
+		<div class="llm-field-row">
+			<label for="llm_story_cefr_level"><strong><?php esc_html_e( 'Livello CEFR', 'llm-con-tabelle' ); ?></strong></label>
+			<p class="description"><?php esc_html_e( 'Es. A1, A2, B1, B2, C1, C2', 'llm-con-tabelle' ); ?></p>
+			<input type="text" name="llm_story_cefr_level" id="llm_story_cefr_level" class="regular-text" value="<?php echo esc_attr( is_string( $cefr_level ) ? $cefr_level : '' ); ?>" placeholder="A2" />
+		</div>
+		<div class="llm-field-row">
+			<label for="llm_story_grammar_topics"><strong><?php esc_html_e( 'Topic Grammaticali', 'llm-con-tabelle' ); ?></strong></label>
+			<p class="description"><?php esc_html_e( 'Un topic per riga.', 'llm-con-tabelle' ); ?></p>
+			<textarea name="llm_story_grammar_topics" id="llm_story_grammar_topics" class="widefat" rows="5"><?php echo esc_textarea( is_string( $grammar_topics ) ? $grammar_topics : '' ); ?></textarea>
+		</div>
+		<div class="llm-field-row">
+			<label for="llm_story_card_text"><strong><?php esc_html_e( 'Breve testo per la scheda della storia', 'llm-con-tabelle' ); ?></strong></label>
+			<p class="description"><?php esc_html_e( 'Testo breve visualizzato nella scheda/anteprima della storia.', 'llm-con-tabelle' ); ?></p>
+			<textarea name="llm_story_card_text" id="llm_story_card_text" class="widefat" rows="3"><?php echo esc_textarea( is_string( $card_text ) ? $card_text : '' ); ?></textarea>
 		</div>
 		<hr />
 		<div class="llm-field-row llm-field-inline">
@@ -205,6 +249,77 @@ class LLM_Admin_Story {
 			<div>
 				<label for="llm_story_coin_reward"><strong><?php esc_html_e( 'Premio coin (completamento)', 'llm-con-tabelle' ); ?></strong></label>
 				<input type="number" min="0" step="1" name="llm_story_coin_reward" id="llm_story_coin_reward" value="<?php echo esc_attr( (string) $reward ); ?>" />
+			</div>
+		</div>
+
+		<!-- Modal importazione storia completa -->
+		<div id="llm-full-import-modal" class="llm-csv-modal" hidden aria-hidden="true" role="dialog" aria-labelledby="llm-full-import-modal-title">
+			<div class="llm-csv-modal__backdrop"></div>
+			<div class="llm-csv-modal__dialog">
+				<div class="llm-csv-modal__head">
+					<h2 class="llm-csv-modal__title" id="llm-full-import-modal-title"><?php esc_html_e( 'Anteprima importazione storia', 'llm-con-tabelle' ); ?></h2>
+					<a href="#" id="llm-full-import-modal-close" class="llm-csv-modal__x" aria-label="<?php esc_attr_e( 'Chiudi', 'llm-con-tabelle' ); ?>">&times;</a>
+				</div>
+				<div class="llm-csv-modal__body">
+
+					<!-- Step: incolla testo -->
+					<div id="llm-full-import-step-paste" hidden>
+						<p class="description"><?php esc_html_e( 'Contenuto demo già compilato: modifica se vuoi, poi clicca «Anteprima →» e infine «Carica nel form». Salva o pubblica la storia per confermare.', 'llm-con-tabelle' ); ?></p>
+						<textarea id="llm-full-import-paste-text" class="widefat llm-full-import-paste-textarea" rows="12" placeholder="TITOLO#...&#10;LINGUA_INTERFACCIA#it&#10;LINGUA_OBIETTIVO#pl&#10;...&#10;---FRASI---&#10;..."></textarea>
+					</div>
+
+					<!-- Step: anteprima -->
+					<div id="llm-full-import-step-preview">
+						<ul id="llm-full-import-warnings" class="llm-csv-warnings" hidden></ul>
+
+						<h3 style="margin-top:0"><?php esc_html_e( 'Metadati', 'llm-con-tabelle' ); ?></h3>
+						<table class="widefat llm-full-import-meta-table">
+							<thead>
+								<tr>
+									<th><?php esc_html_e( 'Campo', 'llm-con-tabelle' ); ?></th>
+									<th><?php esc_html_e( 'Valore', 'llm-con-tabelle' ); ?></th>
+								</tr>
+							</thead>
+							<tbody id="llm-full-import-meta-rows"></tbody>
+						</table>
+
+						<h3><?php esc_html_e( 'Frasi', 'llm-con-tabelle' ); ?></h3>
+						<p id="llm-full-import-phrases-summary" class="llm-csv-summary"></p>
+						<div id="llm-full-import-phrases-wrap" class="llm-csv-table-wrap" hidden>
+							<table class="widefat llm-csv-preview-table">
+								<thead>
+									<tr>
+										<th><?php esc_html_e( 'N.', 'llm-con-tabelle' ); ?></th>
+										<th><?php esc_html_e( 'Op.', 'llm-con-tabelle' ); ?></th>
+										<th><?php esc_html_e( 'Frase (interfaccia)', 'llm-con-tabelle' ); ?></th>
+										<th><?php esc_html_e( 'Frase (obiettivo)', 'llm-con-tabelle' ); ?></th>
+									</tr>
+								</thead>
+								<tbody id="llm-full-import-phrases-rows"></tbody>
+							</table>
+						</div>
+					</div>
+
+					<!-- Step: log -->
+					<div id="llm-full-import-step-log" hidden>
+						<h3 style="margin-top:0"><?php esc_html_e( 'Log importazione', 'llm-con-tabelle' ); ?></h3>
+						<pre id="llm-full-import-log" class="llm-import-log"></pre>
+					</div>
+
+				</div>
+				<div class="llm-csv-modal__foot">
+					<div id="llm-full-import-foot-paste" hidden>
+						<button type="button" id="llm-full-import-paste-cancel" class="button"><?php esc_html_e( 'Annulla', 'llm-con-tabelle' ); ?></button>
+						<button type="button" id="llm-full-import-paste-preview-btn" class="button button-primary"><?php esc_html_e( 'Anteprima →', 'llm-con-tabelle' ); ?></button>
+					</div>
+					<div id="llm-full-import-foot-preview">
+						<button type="button" id="llm-full-import-cancel" class="button"><?php esc_html_e( 'Annulla', 'llm-con-tabelle' ); ?></button>
+						<button type="button" id="llm-full-import-confirm" class="button button-primary"><?php esc_html_e( 'Carica nel form', 'llm-con-tabelle' ); ?></button>
+					</div>
+					<div id="llm-full-import-foot-done" hidden>
+						<button type="button" id="llm-full-import-done" class="button button-primary"><?php esc_html_e( 'Chiudi', 'llm-con-tabelle' ); ?></button>
+					</div>
+				</div>
 			</div>
 		</div>
 		<?php
@@ -607,8 +722,32 @@ class LLM_Admin_Story {
 		);
 		update_post_meta(
 			$post_id,
+			LLM_Story_Meta::STORY_INTRO,
+			isset( $_POST['llm_story_intro'] ) ? LLM_Story_Meta::sanitize_plot( wp_unslash( $_POST['llm_story_intro'] ) ) : ''
+		);
+
+		update_post_meta(
+			$post_id,
 			LLM_Story_Meta::STORY_FINALE,
 			isset( $_POST['llm_story_finale'] ) ? LLM_Story_Meta::sanitize_plot( wp_unslash( $_POST['llm_story_finale'] ) ) : ''
+		);
+
+		update_post_meta(
+			$post_id,
+			LLM_Story_Meta::STORY_CEFR_LEVEL,
+			isset( $_POST['llm_story_cefr_level'] ) ? sanitize_text_field( wp_unslash( $_POST['llm_story_cefr_level'] ) ) : ''
+		);
+
+		update_post_meta(
+			$post_id,
+			LLM_Story_Meta::STORY_GRAMMAR_TOPICS,
+			isset( $_POST['llm_story_grammar_topics'] ) ? LLM_Story_Meta::sanitize_plot( wp_unslash( $_POST['llm_story_grammar_topics'] ) ) : ''
+		);
+
+		update_post_meta(
+			$post_id,
+			LLM_Story_Meta::STORY_CARD_TEXT,
+			isset( $_POST['llm_story_card_text'] ) ? LLM_Story_Meta::sanitize_plot( wp_unslash( $_POST['llm_story_card_text'] ) ) : ''
 		);
 
 		$cost   = isset( $_POST['llm_story_coin_cost'] ) ? LLM_Story_Meta::sanitize_coin( wp_unslash( $_POST['llm_story_coin_cost'] ) ) : 0;

@@ -210,22 +210,38 @@ class LLM_Story_Phrases_Csv {
 			return array( new \WP_Error( 'llm_csv_too_large', __( 'Il testo supera la dimensione massima consentita (3 MB).', 'llm-con-tabelle' ) ), $warnings );
 		}
 
-		$tmp = wp_tempnam( 'llm-phrases-csv-' );
-		if ( ! $tmp ) {
-			return array( new \WP_Error( 'llm_csv_temp', __( 'Impossibile preparare il contenuto.', 'llm-con-tabelle' ) ), $warnings );
-		}
-
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
-		$written = file_put_contents( $tmp, $raw );
-		if ( false === $written ) {
+		/*
+		 * Usa uno stream in-memory per evitare la conversione \n→\r\n che
+		 * file_put_contents() applica su Windows in modalità testo. Con \r\n
+		 * nel file, fgetcsv() in modalità binaria interpreta i \r nei campi
+		 * multi-riga come fine-riga e tronca il CSV dopo poche righe.
+		 */
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+		$h = fopen( 'php://memory', 'rb+' );
+		if ( $h ) {
+			fwrite( $h, $raw );
+			rewind( $h );
+			list( $parsed, $w2 ) = self::parse_csv_handle( $h );
+			fclose( $h );
+		} else {
+			/* Fallback: temp file in modalità binaria */
+			$tmp = wp_tempnam( 'llm-phrases-csv-' );
+			if ( ! $tmp ) {
+				return array( new \WP_Error( 'llm_csv_temp', __( 'Impossibile preparare il contenuto.', 'llm-con-tabelle' ) ), $warnings );
+			}
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+			$h_w = fopen( $tmp, 'wb' );
+			if ( ! $h_w ) {
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+				@unlink( $tmp );
+				return array( new \WP_Error( 'llm_csv_temp', __( 'Impossibile preparare il contenuto.', 'llm-con-tabelle' ) ), $warnings );
+			}
+			fwrite( $h_w, $raw );
+			fclose( $h_w );
+			list( $parsed, $w2 ) = self::parse_csv_file( $tmp );
 			// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
 			@unlink( $tmp );
-			return array( new \WP_Error( 'llm_csv_temp', __( 'Impossibile preparare il contenuto.', 'llm-con-tabelle' ) ), $warnings );
 		}
-
-		list( $parsed, $w2 ) = self::parse_csv_file( $tmp );
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
-		@unlink( $tmp );
 
 		if ( is_wp_error( $parsed ) ) {
 			return array( $parsed, array_merge( $warnings, is_array( $w2 ) ? $w2 : array() ) );
@@ -233,6 +249,53 @@ class LLM_Story_Phrases_Csv {
 
 		return array( $parsed, array_merge( $warnings, is_array( $w2 ) ? $w2 : array() ) );
 	}
+
+	/**
+	 * Versione di parse_csv_file che opera su un handle già aperto.
+	 * Usata da parse_csv_string con php://memory per evitare conversioni di fine-riga.
+	 *
+	 * @param resource $h Handle di file già posizionato all'inizio.
+	 * @return array{0:\WP_Error|array<int,array<string,mixed>>,1:string[]}
+	 */
+	private static function parse_csv_handle( $h ) {
+		$warnings   = array();
+		$rows_out   = array();
+		$header_map = null;
+		$row_num    = 0;
+
+		while ( ( $cells = fgetcsv( $h, 0, self::CSV_DELIMITER, '"' ) ) !== false ) {
+			if ( self::row_is_empty( $cells ) ) {
+				continue;
+			}
+			if ( null === $header_map ) {
+				$analyzed = self::analyze_first_csv_row( $cells );
+				if ( null === $analyzed['map'] ) {
+				return array( new \WP_Error( 'llm_csv_header', __( 'Intestazioni colonne non riconosciute. Usa il modello dall\'esportazione.', 'llm-con-tabelle' ) ), $warnings );
+			}
+			$header_map = $analyzed['map'];
+			if ( ! $analyzed['first_row_is_header'] ) {
+				++$row_num;
+				$row = self::csv_row_to_phrase_row( $cells, $header_map, $row_num, $warnings );
+				if ( is_array( $row ) ) {
+					$rows_out[] = $row;
+				}
+			}
+			continue;
+		}
+
+		++$row_num;
+		$row = self::csv_row_to_phrase_row( $cells, $header_map, $row_num, $warnings );
+		if ( is_array( $row ) ) {
+			$rows_out[] = $row;
+		}
+	}
+
+	if ( empty( $rows_out ) ) {
+		return array( new \WP_Error( 'llm_csv_nodata', __( 'Nessuna riga dati nel CSV.', 'llm-con-tabelle' ) ), $warnings );
+	}
+
+	return array( $rows_out, $warnings );
+}
 
 	/**
 	 * @param array<int,string|false> $cells

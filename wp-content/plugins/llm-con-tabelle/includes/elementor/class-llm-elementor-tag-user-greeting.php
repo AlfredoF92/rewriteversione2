@@ -54,6 +54,9 @@ class LLM_Elementor_Tag_User_Greeting extends \Elementor\Core\DynamicTags\Tag {
 		);
 		$tpl   = isset( $greetings[ $ui_lang ] ) ? $greetings[ $ui_lang ] : $greetings['it'];
 		$label = sprintf( $tpl, $name );
+		if ( current_user_can( 'manage_options' ) ) {
+			$label .= ' ADMIN';
+		}
 
 		echo esc_html( $label );
 	}

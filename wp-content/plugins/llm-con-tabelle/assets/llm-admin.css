@@ -432,3 +432,60 @@ body.llm-csv-modal-open {
 	font-size: 13px;
 	white-space: pre-wrap;
 }
+
+/* ============================================================
+   Importazione storia completa
+   ============================================================ */
+
+.llm-full-import-toolbar {
+	margin-bottom: 1em;
+	padding-bottom: 0.75em;
+	border-bottom: 1px solid #dcdcde;
+}
+
+.llm-full-import-meta-table {
+	margin-bottom: 0;
+	table-layout: fixed;
+}
+
+.llm-full-import-meta-table th {
+	width: 180px;
+	vertical-align: top;
+	font-weight: 600;
+}
+
+.llm-full-import-meta-table td {
+	vertical-align: top;
+	white-space: pre-wrap;
+	word-break: break-word;
+	font-size: 13px;
+}
+
+.llm-full-import-paste-textarea {
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+	font-family: Consolas, Monaco, monospace;
+	font-size: 12px;
+	line-height: 1.5;
+	margin-top: 8px;
+	resize: vertical;
+}
+
+.llm-import-log {
+	margin: 0;
+	padding: 10px 12px;
+	background: #f6f7f7;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	max-height: 260px;
+	overflow: auto;
+	font-size: 13px;
+	white-space: pre-wrap;
+	font-family: Consolas, Monaco, monospace;
+}
+
+.llm-import-field-updated {
+	background-color: #ecfdf3 !important;
+	transition: background-color 0.6s ease;
+}

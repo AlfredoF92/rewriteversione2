@@ -158,12 +158,20 @@ class LLM_Story_Progress_Bar_Shortcode {
 		$done = 0;
 		if ( is_user_logged_in() ) {
 			$done = LLM_Story_Game_Progress::bar_completed_count( get_current_user_id(), $story_id, $total );
+		} else {
+			$guest_id = LLM_Guest_Story_Progress::read_cookie();
+			if ( '' === $guest_id ) {
+				/* Crea il cookie alla prima visita della barra, così il progresso potrà essere salvato. */
+				$guest_id = LLM_Guest_Story_Progress::get_or_create_id();
+			}
+			if ( '' !== $guest_id ) {
+				$done = LLM_Guest_Story_Progress::bar_completed_count( $guest_id, $story_id, $total );
+			}
 		}
 
 		$pct = $total > 0 ? (int) min( 100, round( ( 100 * $done ) / $total ) ) : 0;
 
-		$logged_in = is_user_logged_in();
-		$sr        = LLM_Phrase_Game_I18n::format( 'story_progress_sr', $done, $total );
+		$sr = LLM_Phrase_Game_I18n::format( 'story_progress_sr', $done, $total );
 
 		$wrap_classes = 'llm-story-progress-bar' . ( $compact ? ' llm-story-progress-bar--compact' : '' );
 
@@ -186,17 +194,6 @@ class LLM_Story_Progress_Bar_Shortcode {
 				</div>
 				<span class="llm-story-progress-bar__count"><?php echo esc_html( (string) $done . ' / ' . (string) $total ); ?></span>
 			</div>
-			<?php if ( ! $logged_in ) : ?>
-				<p class="llm-story-progress-bar__guest-hint<?php echo $compact ? ' llm-story-progress-bar__guest-hint--compact' : ''; ?>">
-					<?php
-					echo esc_html(
-						$compact
-							? __( 'Accedi per salvare i progressi.', 'llm-con-tabelle' )
-							: LLM_Phrase_Game_I18n::get( 'story_progress_guest' )
-					);
-					?>
-				</p>
-			<?php endif; ?>
 		</div>
 		<?php
 		return (string) ob_get_clean();

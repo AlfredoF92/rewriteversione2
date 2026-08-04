@@ -28,6 +28,7 @@ class LLM_Story_Template_Vars {
 			__( 'Premio completamento (coin)', 'llm-con-tabelle' )   => 'coin_reward',
 			__( 'Titolo (post)', 'llm-con-tabelle' )                => 'post_title',
 			__( 'Estratto', 'llm-con-tabelle' )                     => 'post_excerpt',
+			__( 'Breve testo scheda storia', 'llm-con-tabelle' )    => 'story_card_text',
 			__( 'Contenuto (HTML)', 'llm-con-tabelle' )              => 'post_content',
 			__( 'Autore — nome visualizzato', 'llm-con-tabelle' )    => 'author_name',
 			__( 'Data pubblicazione', 'llm-con-tabelle' )           => 'post_date',
@@ -137,6 +138,9 @@ class LLM_Story_Template_Vars {
 				return (string) (int) get_post_meta( $id, LLM_Story_Meta::COIN_REWARD, true );
 			case 'post_title':
 				return get_the_title( $post );
+			case 'story_card_text':
+				$v = get_post_meta( $id, LLM_Story_Meta::STORY_CARD_TEXT, true );
+				return is_string( $v ) ? $v : '';
 			case 'post_excerpt':
 				return (string) $post->post_excerpt;
 			case 'post_content':

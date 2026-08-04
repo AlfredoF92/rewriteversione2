@@ -1,0 +1,266 @@
+/* ==========================================================================
+   LLM Lang Cards — [llm_lang_cards]
+   ========================================================================== */
+
+.llm-lang-cards {
+	scroll-margin-top: 5rem;
+	font-family: "Manrope", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	max-width: 1100px;
+	margin: 0 auto;
+	padding: 0;
+	color: #1e293b;
+}
+
+.llm-lang-cards__step {
+	margin-bottom: 2.75rem;
+}
+
+.llm-lang-cards__step--learn {
+	margin-bottom: 0;
+	border-top: 1px solid #e8e8ec;
+	padding-top: 2.25rem;
+}
+
+/* --------------------------------------------------------------------------
+   Header sezione
+   -------------------------------------------------------------------------- */
+
+.llm-lang-cards__header {
+	margin-bottom: 1.25rem;
+}
+
+.llm-lang-cards__step-label {
+	margin: 0 0 0.35rem;
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: #8a8a90;
+}
+
+.llm-lang-cards__title {
+	font-size: 1.5rem;
+	font-weight: 700;
+	color: #0f172a;
+	margin: 0 0 0.4rem;
+	line-height: 1.25;
+}
+
+.llm-lang-cards__subtitle {
+	font-size: 0.95rem;
+	color: #64748b;
+	margin: 0;
+	line-height: 1.55;
+	max-width: 36rem;
+}
+
+/* --------------------------------------------------------------------------
+   Pill lingue conosciute (sparpagliate)
+   -------------------------------------------------------------------------- */
+
+.llm-lang-cards__pills {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.85rem 1rem;
+	padding: 0.35rem 0 0.15rem;
+}
+
+.llm-lang-cards__pill-wrap {
+	display: inline-flex;
+}
+
+.llm-lang-cards__pill-wrap:nth-child(1) { transform: rotate(-2.5deg) translateY(0.15rem); }
+.llm-lang-cards__pill-wrap:nth-child(2) { transform: rotate(1.8deg) translateY(-0.2rem); }
+.llm-lang-cards__pill-wrap:nth-child(3) { transform: rotate(-1.2deg) translateY(0.35rem); }
+.llm-lang-cards__pill-wrap:nth-child(4) { transform: rotate(2.2deg) translateY(-0.05rem); }
+
+.llm-lang-cards__pill-form {
+	margin: 0;
+	display: inline-flex;
+}
+
+.llm-lang-cards__pill {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.4rem;
+	margin: 0;
+	padding: 0.55rem 1rem;
+	border-radius: 999px;
+	border: 1px solid #c0c0c4;
+	background: #fff;
+	color: #5a5a5e;
+	font-family: inherit;
+	font-size: 0.95rem;
+	font-weight: 600;
+	line-height: 1.2;
+	cursor: pointer;
+	box-shadow: none;
+	text-decoration: none;
+	transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+button.llm-lang-cards__pill:hover,
+button.llm-lang-cards__pill:focus-visible {
+	color: #1a1a1a;
+	border-color: #6a6a6e;
+	background: #fafafa;
+	outline: none;
+}
+
+.llm-lang-cards__pill--active {
+	cursor: default;
+	color: #1a1a1a;
+	border-color: #1a1a1a;
+	background: #f4f4f5;
+	box-shadow: 0 0 0 1px #1a1a1a;
+}
+
+.llm-lang-cards__pill-flag {
+	font-size: 1.25rem;
+	line-height: 1;
+}
+
+.llm-lang-cards__pill-name {
+	line-height: 1.2;
+}
+
+@media (max-width: 560px) {
+	.llm-lang-cards__pill-wrap:nth-child(n) {
+		transform: none;
+	}
+
+	.llm-lang-cards__pills {
+		gap: 0.65rem;
+	}
+}
+
+/* --------------------------------------------------------------------------
+   Griglia card
+   -------------------------------------------------------------------------- */
+
+.llm-lang-cards__grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 1.25rem;
+}
+
+@media (max-width: 900px) {
+	.llm-lang-cards__grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+@media (max-width: 560px) {
+	.llm-lang-cards__grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* --------------------------------------------------------------------------
+   Card
+   -------------------------------------------------------------------------- */
+
+.llm-lang-cards__card {
+	display: flex;
+	flex-direction: column;
+	background: #ffffff;
+	border: 1.5px solid #e2e8f0;
+	border-radius: 14px;
+	padding: 1.5rem;
+	transition: border-color 0.18s, box-shadow 0.18s;
+}
+
+.llm-lang-cards__card:hover {
+	border-color: #94a3b8;
+	box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+}
+
+.llm-lang-cards__card--soon {
+	opacity: 0.72;
+	background: #f8fafc;
+}
+
+.llm-lang-cards__card--soon:hover {
+	border-color: #e2e8f0;
+	box-shadow: none;
+}
+
+.llm-lang-cards__flag {
+	font-size: 2rem;
+	line-height: 1;
+	margin-bottom: 0.875rem;
+	display: block;
+}
+
+.llm-lang-cards__card-title {
+	font-size: 1.125rem;
+	font-weight: 700;
+	color: #0f172a;
+	margin: 0 0 0.625rem;
+	line-height: 1.3;
+}
+
+.llm-lang-cards__card-desc {
+	font-size: 0.875rem;
+	color: #64748b;
+	margin: 0 0 1.25rem;
+	line-height: 1.55;
+	flex: 1;
+}
+
+.llm-lang-cards__card-footer {
+	margin-top: auto;
+}
+
+.llm-lang-cards__card-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0.35rem 0.75rem;
+	font-family: inherit;
+	font-size: 0.8rem;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	line-height: 1.2;
+	color: #5a5a5e !important;
+	background: transparent !important;
+	border: 1px solid #c0c0c4 !important;
+	border-radius: 20px;
+	box-shadow: none !important;
+	text-decoration: none !important;
+	cursor: pointer;
+	transition: color 0.15s, border-color 0.15s;
+}
+
+.llm-lang-cards__card-btn:hover,
+.llm-lang-cards__card-btn:focus {
+	color: #1a1a1a !important;
+	border-color: #6a6a6e !important;
+	background: transparent !important;
+	outline: none;
+	text-decoration: none !important;
+}
+
+.llm-lang-cards__card-arrow {
+	font-style: normal;
+	transition: transform 0.15s;
+}
+
+.llm-lang-cards__card-btn:hover .llm-lang-cards__card-arrow {
+	transform: translateX(3px);
+}
+
+.llm-lang-cards__card-soon-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 0.25rem 0.65rem;
+	background: #e2e8f0;
+	color: #64748b;
+	border-radius: 999px;
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}

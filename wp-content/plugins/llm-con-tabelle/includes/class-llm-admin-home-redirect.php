@@ -142,7 +142,7 @@ class LLM_Admin_Home_Redirect {
 		}
 
 		echo '<p class="description" style="margin:12px 0 20px;">';
-		echo esc_html__( 'Per ogni combinazione di lingue, seleziona la pagina WordPress a cui lo shortcode [llm_home_redirect] deve reindirizzare l\'utente. Lascia "— Non configurata —" per disabilitare quella coppia.', 'llm-con-tabelle' );
+		echo esc_html__( 'Per ogni combinazione di lingue, seleziona la pagina WordPress a cui lo shortcode [llm_home_redirect] deve reindirizzare l\'utente. Lascia "— Non configurata —" per disabilitare quella coppia. Gli ospiti alla prima visita vanno su italiano → inglese (se configurata) e la scelta resta nei cookie quando tornano.', 'llm-con-tabelle' );
 		echo '</p>';
 
 		echo '<form method="post" action="' . esc_url( $action_url ) . '">';

@@ -26,6 +26,9 @@ class LLM_Guest_Home_Redirect_Shortcode {
 	 * Redirect server-side (dopo che lo shortcode è stato almeno una volta nel footer).
 	 */
 	public static function maybe_redirect_guest() {
+		if ( ! LLM_Redirects::enabled() ) {
+			return;
+		}
 		if ( is_admin() || wp_doing_ajax() || wp_doing_cron() ) {
 			return;
 		}
@@ -49,6 +52,10 @@ class LLM_Guest_Home_Redirect_Shortcode {
 	 * @return string
 	 */
 	public static function render() {
+		if ( ! LLM_Redirects::enabled() ) {
+			return '';
+		}
+
 		if ( ! get_option( self::OPTION_FLAG ) ) {
 			update_option( self::OPTION_FLAG, '1', true );
 		}

@@ -16,8 +16,12 @@ class LLM_Story_Meta {
 	const TITLE_TARGET = '_llm_title_target_lang';
 	const COIN_COST    = '_llm_story_coin_cost';
 	const COIN_REWARD  = '_llm_story_coin_reward';
-	const STORY_PLOT   = '_llm_story_plot';
-	const STORY_FINALE = '_llm_story_finale';
+	const STORY_PLOT           = '_llm_story_plot';
+	const STORY_INTRO          = '_llm_story_intro';
+	const STORY_FINALE         = '_llm_story_finale';
+	const STORY_CARD_TEXT      = '_llm_story_card_text';
+	const STORY_CEFR_LEVEL     = '_llm_story_cefr_level';
+	const STORY_GRAMMAR_TOPICS = '_llm_story_grammar_topics';
 
 	public static function init() {
 		add_action( 'init', array( __CLASS__, 'register_meta' ), 11 );
@@ -36,7 +40,11 @@ class LLM_Story_Meta {
 		register_post_meta( $pt, self::TARGET_LANG, array_merge( $scalar_string, array( 'sanitize_callback' => 'sanitize_key' ) ) );
 		register_post_meta( $pt, self::TITLE_TARGET, array_merge( $scalar_string, array( 'sanitize_callback' => 'sanitize_text_field' ) ) );
 		register_post_meta( $pt, self::STORY_PLOT, array_merge( $scalar_string, array( 'sanitize_callback' => array( __CLASS__, 'sanitize_plot' ) ) ) );
+		register_post_meta( $pt, self::STORY_INTRO, array_merge( $scalar_string, array( 'sanitize_callback' => array( __CLASS__, 'sanitize_plot' ) ) ) );
 		register_post_meta( $pt, self::STORY_FINALE, array_merge( $scalar_string, array( 'sanitize_callback' => array( __CLASS__, 'sanitize_plot' ) ) ) );
+		register_post_meta( $pt, self::STORY_CARD_TEXT, array_merge( $scalar_string, array( 'sanitize_callback' => array( __CLASS__, 'sanitize_plot' ) ) ) );
+		register_post_meta( $pt, self::STORY_CEFR_LEVEL, array_merge( $scalar_string, array( 'sanitize_callback' => 'sanitize_text_field' ) ) );
+		register_post_meta( $pt, self::STORY_GRAMMAR_TOPICS, array_merge( $scalar_string, array( 'sanitize_callback' => array( __CLASS__, 'sanitize_plot' ) ) ) );
 
 		register_post_meta(
 			$pt,
