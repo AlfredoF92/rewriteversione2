@@ -131,11 +131,9 @@ class LLM_Header_User_Shortcode {
 			return sprintf(
 				'<span class="llm-header-user" data-llm-header-user data-is-guest="1">'
 				. '<a class="llm-header-user__login" href="%1$s">'
-				. '<span class="llm-header-user__main">'
 				. '%4$s'
 				. '<span class="llm-header-user__icon">%3$s</span>'
 				. '<span class="llm-header-user__text" data-llm-header-user-text>%2$s</span>'
-				. '</span>'
 				. '<span class="llm-header-user__browser-tag" data-llm-header-user-browser-tag hidden>%5$s</span>'
 				. '</a></span>',
 				$guest_url,

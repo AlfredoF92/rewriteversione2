@@ -1,0 +1,517 @@
+<?php
+/**
+ * Modello cruciverba: CPT, parsing schema CSV, numerazione parole, definizioni.
+ *
+ * @package LLM_Tabelle
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+class LLM_Crossword {
+
+	const CPT       = 'llm_crossword';
+	const META_CSV  = '_llm_crossword_csv';
+	const META_DEFS = '_llm_crossword_defs';
+
+	/** Lato massimo della griglia (righe o colonne). */
+	const MAX_SIDE = 40;
+
+	/** Separatore dei campi nella textarea delle definizioni. */
+	const DEF_SEPARATOR = '|';
+
+	public static function init() {
+		add_action( 'init', array( __CLASS__, 'register' ) );
+	}
+
+	public static function register() {
+		$labels = array(
+			'name'               => _x( 'Cruciverba', 'post type general name', 'llm-con-tabelle' ),
+			'singular_name'      => _x( 'Cruciverba', 'post type singular name', 'llm-con-tabelle' ),
+			'menu_name'          => _x( 'Cruciverba', 'admin menu', 'llm-con-tabelle' ),
+			'add_new'            => _x( 'Aggiungi nuovo', 'cruciverba', 'llm-con-tabelle' ),
+			'add_new_item'       => __( 'Aggiungi nuovo cruciverba', 'llm-con-tabelle' ),
+			'new_item'           => __( 'Nuovo cruciverba', 'llm-con-tabelle' ),
+			'edit_item'          => __( 'Modifica cruciverba', 'llm-con-tabelle' ),
+			'view_item'          => __( 'Vedi cruciverba', 'llm-con-tabelle' ),
+			'all_items'          => __( 'Cruciverba', 'llm-con-tabelle' ),
+			'search_items'       => __( 'Cerca cruciverba', 'llm-con-tabelle' ),
+			'not_found'          => __( 'Nessun cruciverba trovato.', 'llm-con-tabelle' ),
+			'not_found_in_trash' => __( 'Nessun cruciverba nel cestino.', 'llm-con-tabelle' ),
+		);
+
+		register_post_type(
+			self::CPT,
+			array(
+				'labels'             => $labels,
+				'public'             => false,
+				'publicly_queryable' => false,
+				'show_ui'            => true,
+				'show_in_menu'       => 'edit.php?post_type=' . LLM_STORY_CPT,
+				'query_var'          => false,
+				'rewrite'            => false,
+				'capability_type'    => 'post',
+				'has_archive'        => false,
+				'hierarchical'       => false,
+				'supports'           => array( 'title' ),
+				'show_in_rest'       => false,
+			)
+		);
+	}
+
+	/**
+	 * @param int $post_id ID cruciverba.
+	 * @return string CSV grezzo dello schema.
+	 */
+	public static function get_csv( $post_id ) {
+		return (string) get_post_meta( absint( $post_id ), self::META_CSV, true );
+	}
+
+	/**
+	 * @param int $post_id ID cruciverba.
+	 * @return string Testo grezzo delle definizioni.
+	 */
+	public static function get_defs( $post_id ) {
+		return (string) get_post_meta( absint( $post_id ), self::META_DEFS, true );
+	}
+
+	/**
+	 * Normalizza una cella CSV: una lettera A-Z oppure `#` per la casella nera.
+	 *
+	 * @param string $cell Contenuto cella.
+	 * @return string Un solo carattere.
+	 */
+	private static function normalize_cell( $cell ) {
+		$clean = preg_replace( '/[^A-Za-z]/', '', (string) $cell );
+		if ( '' === $clean ) {
+			return '#';
+		}
+		return strtoupper( substr( $clean, 0, 1 ) );
+	}
+
+	/**
+	 * Converte il CSV in una griglia di righe: ogni carattere è una lettera o `#`.
+	 *
+	 * @param string $raw Testo CSV (righe a capo, celle separate da virgola).
+	 * @return array{rows:int,cols:int,grid:string[]}|WP_Error
+	 */
+	public static function parse_grid( $raw ) {
+		$raw   = is_string( $raw ) ? str_replace( array( "\r\n", "\r" ), "\n", $raw ) : '';
+		$lines = array();
+		foreach ( explode( "\n", $raw ) as $line ) {
+			$line = trim( $line );
+			if ( '' !== $line ) {
+				$lines[] = $line;
+			}
+		}
+
+		if ( empty( $lines ) ) {
+			return new WP_Error( 'llm_cw_empty', __( 'Lo schema è vuoto: incolla il CSV della griglia.', 'llm-con-tabelle' ) );
+		}
+		if ( count( $lines ) > self::MAX_SIDE ) {
+			return new WP_Error(
+				'llm_cw_too_many_rows',
+				sprintf(
+					/* translators: %d: maximum number of rows */
+					__( 'Troppe righe: il massimo è %d.', 'llm-con-tabelle' ),
+					self::MAX_SIDE
+				)
+			);
+		}
+
+		$grid = array();
+		$cols = null;
+
+		foreach ( $lines as $i => $line ) {
+			$cells = explode( ',', $line );
+			if ( null === $cols ) {
+				$cols = count( $cells );
+				if ( $cols < 2 || $cols > self::MAX_SIDE ) {
+					return new WP_Error(
+						'llm_cw_bad_cols',
+						sprintf(
+							/* translators: %d: maximum number of columns */
+							__( 'Numero di colonne non valido: servono da 2 a %d colonne.', 'llm-con-tabelle' ),
+							self::MAX_SIDE
+						)
+					);
+				}
+			} elseif ( count( $cells ) !== $cols ) {
+				return new WP_Error(
+					'llm_cw_ragged',
+					sprintf(
+						/* translators: 1: row number, 2: columns found, 3: columns expected */
+						__( 'Riga %1$d: ha %2$d colonne invece di %3$d. Tutte le righe devono avere lo stesso numero di celle.', 'llm-con-tabelle' ),
+						$i + 1,
+						count( $cells ),
+						$cols
+					)
+				);
+			}
+
+			$row = '';
+			foreach ( $cells as $cell ) {
+				$row .= self::normalize_cell( $cell );
+			}
+			$grid[] = $row;
+		}
+
+		if ( '' === str_replace( '#', '', implode( '', $grid ) ) ) {
+			return new WP_Error( 'llm_cw_no_letters', __( 'Lo schema non contiene nessuna lettera: sono tutte caselle nere.', 'llm-con-tabelle' ) );
+		}
+
+		return array(
+			'rows' => count( $grid ),
+			'cols' => (int) $cols,
+			'grid' => $grid,
+		);
+	}
+
+	/**
+	 * Numerazione standard: una casella prende un numero se inizia una parola
+	 * orizzontale o verticale (di almeno due lettere).
+	 *
+	 * @param string[] $grid Righe della griglia.
+	 * @return array<int,array{number:int,direction:string,row:int,col:int,word:string,length:int}>
+	 */
+	public static function entries( array $grid ) {
+		$rows = count( $grid );
+		$cols = $rows > 0 ? strlen( $grid[0] ) : 0;
+
+		$is_black = static function ( $r, $c ) use ( $grid, $rows, $cols ) {
+			if ( $r < 0 || $r >= $rows || $c < 0 || $c >= $cols ) {
+				return true;
+			}
+			return '#' === $grid[ $r ][ $c ];
+		};
+
+		$entries = array();
+		$counter = 0;
+
+		for ( $r = 0; $r < $rows; $r++ ) {
+			for ( $c = 0; $c < $cols; $c++ ) {
+				if ( $is_black( $r, $c ) ) {
+					continue;
+				}
+				$starts_across = $is_black( $r, $c - 1 ) && ! $is_black( $r, $c + 1 );
+				$starts_down   = $is_black( $r - 1, $c ) && ! $is_black( $r + 1, $c );
+				if ( ! $starts_across && ! $starts_down ) {
+					continue;
+				}
+
+				++$counter;
+
+				if ( $starts_across ) {
+					$word = '';
+					for ( $cc = $c; ! $is_black( $r, $cc ); $cc++ ) {
+						$word .= $grid[ $r ][ $cc ];
+					}
+					$entries[] = array(
+						'number'    => $counter,
+						'direction' => 'across',
+						'row'       => $r,
+						'col'       => $c,
+						'word'      => $word,
+						'length'    => strlen( $word ),
+					);
+				}
+
+				if ( $starts_down ) {
+					$word = '';
+					for ( $rr = $r; ! $is_black( $rr, $c ); $rr++ ) {
+						$word .= $grid[ $rr ][ $c ];
+					}
+					$entries[] = array(
+						'number'    => $counter,
+						'direction' => 'down',
+						'row'       => $r,
+						'col'       => $c,
+						'word'      => $word,
+						'length'    => strlen( $word ),
+					);
+				}
+			}
+		}
+
+		usort(
+			$entries,
+			static function ( $a, $b ) {
+				if ( $a['number'] !== $b['number'] ) {
+					return $a['number'] < $b['number'] ? -1 : 1;
+				}
+				return strcmp( $a['direction'], $b['direction'] );
+			}
+		);
+
+		return $entries;
+	}
+
+	/**
+	 * @param string $raw Direzione scritta dall'utente.
+	 * @return string 'across', 'down' oppure '' se non riconosciuta.
+	 */
+	private static function normalize_direction( $raw ) {
+		$d = strtolower( trim( (string) $raw ) );
+		if ( function_exists( 'remove_accents' ) ) {
+			$d = remove_accents( $d );
+		}
+		$across = array( 'o', 'or', 'oriz', 'orizzontale', 'orizzontali', 'a', 'across', 'h', 'horizontal', 'poziomo' );
+		$down   = array( 'v', 'ver', 'vert', 'verticale', 'verticali', 'd', 'down', 'vertical', 'pionowo' );
+		if ( in_array( $d, $across, true ) ) {
+			return 'across';
+		}
+		if ( in_array( $d, $down, true ) ) {
+			return 'down';
+		}
+		return '';
+	}
+
+	/**
+	 * @param string $direction 'across' o 'down'.
+	 * @return string Lettera usata nella textarea admin.
+	 */
+	public static function direction_letter( $direction ) {
+		return 'down' === $direction ? 'V' : 'O';
+	}
+
+	/**
+	 * @param int    $number    Numero parola.
+	 * @param string $direction 'across' o 'down'.
+	 * @return string Chiave della mappa definizioni.
+	 */
+	public static function clue_key( $number, $direction ) {
+		return absint( $number ) . '-' . ( 'down' === $direction ? 'down' : 'across' );
+	}
+
+	/**
+	 * Legge la textarea definizioni: `numero|direzione|parola|categoria|EN|IT`.
+	 *
+	 * I campi in coda possono essere omessi; la parola serve solo come promemoria
+	 * e viene usata per capire quali campi hai scritto quando ne mancano.
+	 *
+	 * @param string $raw     Testo definizioni.
+	 * @param array  $entries Parole ricavate dalla griglia.
+	 * @return array{clues:array<string,array{pos:string,en:string,it:string}>,warnings:string[]}
+	 */
+	public static function parse_definitions( $raw, array $entries ) {
+		$by_key = array();
+		foreach ( $entries as $entry ) {
+			$by_key[ self::clue_key( $entry['number'], $entry['direction'] ) ] = $entry;
+		}
+
+		$clues    = array();
+		$warnings = array();
+		$raw      = is_string( $raw ) ? str_replace( array( "\r\n", "\r" ), "\n", $raw ) : '';
+
+		foreach ( explode( "\n", $raw ) as $i => $line ) {
+			$line = trim( $line );
+			if ( '' === $line || 0 === strpos( $line, '#' ) ) {
+				continue;
+			}
+
+			$parts = array_map( 'trim', explode( self::DEF_SEPARATOR, $line ) );
+			if ( count( $parts ) < 2 ) {
+				$warnings[] = sprintf(
+					/* translators: %d: line number */
+					__( 'Riga %d delle definizioni ignorata: manca il separatore "|".', 'llm-con-tabelle' ),
+					$i + 1
+				);
+				continue;
+			}
+
+			$number    = absint( $parts[0] );
+			$direction = self::normalize_direction( $parts[1] );
+			if ( ! $number || '' === $direction ) {
+				$warnings[] = sprintf(
+					/* translators: %d: line number */
+					__( 'Riga %d delle definizioni ignorata: numero o direzione non validi (usa O per orizzontale, V per verticale).', 'llm-con-tabelle' ),
+					$i + 1
+				);
+				continue;
+			}
+
+			$key = self::clue_key( $number, $direction );
+			if ( ! isset( $by_key[ $key ] ) ) {
+				$warnings[] = sprintf(
+					/* translators: 1: line number, 2: clue number, 3: direction letter */
+					__( 'Riga %1$d: nello schema non esiste la parola %2$d %3$s.', 'llm-con-tabelle' ),
+					$i + 1,
+					$number,
+					self::direction_letter( $direction )
+				);
+				continue;
+			}
+
+			$rest = array_slice( $parts, 2 );
+			$word = strtoupper( $by_key[ $key ]['word'] );
+			$pos  = '';
+			$en   = '';
+			$it   = '';
+
+			$first_is_word = isset( $rest[0] ) && strtoupper( $rest[0] ) === $word;
+
+			switch ( count( $rest ) ) {
+				case 0:
+					break;
+				case 1:
+					$it = $rest[0];
+					break;
+				case 2:
+					if ( $first_is_word ) {
+						$it = $rest[1];
+					} else {
+						$en = $rest[0];
+						$it = $rest[1];
+					}
+					break;
+				case 3:
+					if ( $first_is_word ) {
+						$en = $rest[1];
+						$it = $rest[2];
+					} else {
+						$pos = $rest[0];
+						$en  = $rest[1];
+						$it  = $rest[2];
+					}
+					break;
+				default:
+					$pos = $rest[1];
+					$en  = $rest[2];
+					$it  = $rest[3];
+					break;
+			}
+
+			if ( '' === $pos && '' === $en && '' === $it ) {
+				continue;
+			}
+
+			if ( isset( $clues[ $key ] ) ) {
+				$warnings[] = sprintf(
+					/* translators: 1: clue number, 2: direction letter */
+					__( 'La parola %1$d %2$s ha piu di una definizione: viene usata l’ultima riga.', 'llm-con-tabelle' ),
+					$number,
+					self::direction_letter( $direction )
+				);
+			}
+
+			$clues[ $key ] = array(
+				'pos' => $pos,
+				'en'  => $en,
+				'it'  => $it,
+			);
+		}
+
+		return array(
+			'clues'    => $clues,
+			'warnings' => $warnings,
+		);
+	}
+
+	/**
+	 * Crea (o aggiorna) l'elenco definizioni a partire dallo schema, mantenendo
+	 * i testi già scritti.
+	 *
+	 * @param array  $entries      Parole ricavate dalla griglia.
+	 * @param string $existing_raw Testo definizioni attuale.
+	 * @return string
+	 */
+	public static function definitions_skeleton( array $entries, $existing_raw = '' ) {
+		$parsed = self::parse_definitions( $existing_raw, $entries );
+		$clues  = $parsed['clues'];
+
+		$lines = array(
+			'# numero|direzione|parola|categoria|definizione inglese|definizione italiana',
+			'# direzione: O = orizzontale, V = verticale. I campi che non ti servono lasciali vuoti.',
+		);
+
+		foreach ( $entries as $entry ) {
+			$key  = self::clue_key( $entry['number'], $entry['direction'] );
+			$clue = isset( $clues[ $key ] ) ? $clues[ $key ] : array(
+				'pos' => '',
+				'en'  => '',
+				'it'  => '',
+			);
+
+			$lines[] = implode(
+				self::DEF_SEPARATOR,
+				array(
+					(string) $entry['number'],
+					self::direction_letter( $entry['direction'] ),
+					$entry['word'],
+					$clue['pos'],
+					$clue['en'],
+					$clue['it'],
+				)
+			);
+		}
+
+		return implode( "\n", $lines );
+	}
+
+	/**
+	 * Definizione formattata come nel gioco: categoria, testo inglese e
+	 * italiano a capo tra parentesi. Senza inglese resta solo l'italiano.
+	 *
+	 * @param array<string,string>|null $clue Definizione.
+	 * @return string HTML già escapato.
+	 */
+	public static function clue_html( $clue ) {
+		if ( ! is_array( $clue ) ) {
+			return '';
+		}
+		$pos = isset( $clue['pos'] ) ? (string) $clue['pos'] : '';
+		$en  = isset( $clue['en'] ) ? (string) $clue['en'] : '';
+		$it  = isset( $clue['it'] ) ? (string) $clue['it'] : '';
+
+		if ( '' === $en ) {
+			return esc_html( $it );
+		}
+
+		$html = '';
+		if ( '' !== $pos ) {
+			$html .= '<span class="cw-def-pos">' . esc_html( $pos ) . '</span> ';
+		}
+		$html .= esc_html( $en );
+		if ( '' !== $it ) {
+			$html .= '<br><em>(' . esc_html( $it ) . ')</em>';
+		}
+		return $html;
+	}
+
+	/**
+	 * Dati completi di un cruciverba, pronti per il frontend.
+	 *
+	 * @param int $post_id ID cruciverba.
+	 * @return array{title:string,rows:int,cols:int,grid:string[],entries:array,clues:array,warnings:string[]}|WP_Error
+	 */
+	public static function build( $post_id ) {
+		$post_id = absint( $post_id );
+		$post    = $post_id ? get_post( $post_id ) : null;
+		if ( ! $post || self::CPT !== $post->post_type ) {
+			return new WP_Error( 'llm_cw_missing', __( 'Cruciverba non trovato.', 'llm-con-tabelle' ) );
+		}
+
+		$parsed = self::parse_grid( self::get_csv( $post_id ) );
+		if ( is_wp_error( $parsed ) ) {
+			return $parsed;
+		}
+
+		$entries = self::entries( $parsed['grid'] );
+		if ( empty( $entries ) ) {
+			return new WP_Error( 'llm_cw_no_entries', __( 'Lo schema non contiene nessuna parola di almeno due lettere.', 'llm-con-tabelle' ) );
+		}
+
+		$defs = self::parse_definitions( self::get_defs( $post_id ), $entries );
+
+		return array(
+			'title'    => (string) $post->post_title,
+			'rows'     => $parsed['rows'],
+			'cols'     => $parsed['cols'],
+			'grid'     => $parsed['grid'],
+			'entries'  => $entries,
+			'clues'    => $defs['clues'],
+			'warnings' => $defs['warnings'],
+		);
+	}
+}

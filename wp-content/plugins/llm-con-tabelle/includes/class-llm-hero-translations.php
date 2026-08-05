@@ -60,22 +60,22 @@ class LLM_Hero_Translations {
 			'it' => array(
 				'badge'    => 'Impara {lingua-selezionata} una frase alla volta',
 				'title'    => 'Bentornato in LoveRewrite...',
-				'subtitle' => 'Imparare {lingua-selezionata} utilizzando MinePhrases significa imparare una nuova lingua traducendo frasi, analizzando l\'analisi grammaticale e ripetendo la frase con la giusta pronuncia. Hai tutto ciò che ti serve per imparare una nuova lingua.',
+				'subtitle' => 'Imparare {lingua-selezionata} utilizzando LoveRewrite, significa imparare una nuova lingua traducendo frasi, analizzando l\'analisi grammaticale e ripetendo la frase con la giusta pronuncia. Hai tutto ciò che ti serve per imparare una nuova lingua.',
 			),
 			'en' => array(
 				'badge'    => 'Learn {lingua-selezionata} one phrase at a time',
 				'title'    => 'Welcome back to LoveRewrite...',
-				'subtitle' => 'Learning {lingua-selezionata} with MinePhrases means learning a new language by translating phrases, analysing grammar, and repeating each sentence with the right pronunciation. You have everything you need to learn a new language.',
+				'subtitle' => 'Learning {lingua-selezionata} with LoveRewrite means learning a new language by translating phrases, analysing grammar, and repeating each sentence with the right pronunciation. You have everything you need to learn a new language.',
 			),
 			'pl' => array(
 				'badge'    => 'Ucz sie {lingua-selezionata} zdanie po zdaniu',
 				'title'    => 'Witaj ponownie w LoveRewrite...',
-				'subtitle' => 'Nauka {lingua-selezionata} z MinePhrases to nauka nowego jezyka przez tlumaczenie zdan, analize gramatyki i powtarzanie zdan z wlasciwa wymowa. Masz wszystko, czego potrzebujesz, aby nauczyc sie nowego jezyka.',
+				'subtitle' => 'Nauka {lingua-selezionata} z LoveRewrite to nauka nowego jezyka przez tlumaczenie zdan, analize gramatyki i powtarzanie zdan z wlasciwa wymowa. Masz wszystko, czego potrzebujesz, aby nauczyc sie nowego jezyka.',
 			),
 			'es' => array(
 				'badge'    => 'Aprende {lingua-selezionata} una frase a la vez',
 				'title'    => 'Bienvenido de nuevo a LoveRewrite...',
-				'subtitle' => 'Aprender {lingua-selezionata} con MinePhrases significa aprender un nuevo idioma traduciendo frases, analizando la gramatica y repitiendo cada frase con la pronunciacion correcta. Tienes todo lo que necesitas para aprender un nuevo idioma.',
+				'subtitle' => 'Aprender {lingua-selezionata} con LoveRewrite significa aprender un nuevo idioma traduciendo frases, analizando la gramatica y repitiendo cada frase con la pronunciacion correcta. Tienes todo lo que necesitas para aprender un nuevo idioma.',
 			),
 		);
 	}
@@ -95,13 +95,18 @@ class LLM_Hero_Translations {
 					$saved[ $lang ][ $key ] = $default_val;
 				}
 			}
-			/* Aggiorna titoli salvati con il vecchio brand MinePhrases. */
-			if (
-				! empty( $saved[ $lang ]['title'] ) &&
-				false !== stripos( (string) $saved[ $lang ]['title'], 'MinePhrases' ) &&
-				isset( $defaults[ $lang ]['title'] )
-			) {
-				$saved[ $lang ]['title'] = $defaults[ $lang ]['title'];
+			/* Aggiorna testi salvati con il vecchio brand MinePhrases / MineRewrite. */
+			foreach ( array( 'title', 'subtitle', 'badge' ) as $field_key ) {
+				if ( empty( $saved[ $lang ][ $field_key ] ) || empty( $defaults[ $lang ][ $field_key ] ) ) {
+					continue;
+				}
+				$current = (string) $saved[ $lang ][ $field_key ];
+				if (
+					false !== stripos( $current, 'MinePhrases' ) ||
+					false !== stripos( $current, 'MineRewrite' )
+				) {
+					$saved[ $lang ][ $field_key ] = $defaults[ $lang ][ $field_key ];
+				}
 			}
 		}
 		return $saved;
@@ -115,13 +120,19 @@ class LLM_Hero_Translations {
 	 * Restituisce il testo hero nella lingua interfaccia dell'utente corrente,
 	 * con {lingua-selezionata} sostituito.
 	 *
+	 * Per il badge (sopratitolo sotto il logo) antepone anche la bandiera
+	 * della lingua da imparare.
+	 *
 	 * @param string $key 'badge' | 'title' | 'subtitle'
 	 * @return string
 	 */
 	public static function get_text( $key ) {
-		$lang = class_exists( 'LLM_Category_Translations' )
-			? LLM_Category_Translations::current_user_lang()
-			: 'it';
+		$lang = class_exists( 'LLM_Visitor_Lang' )
+			? LLM_Visitor_Lang::known()
+			: ( class_exists( 'LLM_Category_Translations' )
+				? LLM_Category_Translations::current_user_lang()
+				: 'it' );
+		$lang = sanitize_key( (string) $lang );
 
 		$all  = self::get_all();
 		$text = isset( $all[ $lang ][ $key ] ) ? (string) $all[ $lang ][ $key ] : '';
@@ -136,18 +147,60 @@ class LLM_Hero_Translations {
 			$text = str_replace( self::PLACEHOLDER, self::get_target_lang_name( $lang ), $text );
 		}
 
+		if ( 'badge' === $key ) {
+			$flag = self::get_learning_lang_flag();
+			if ( '' !== $flag ) {
+				$text = $flag . ' ' . $text;
+			}
+		}
+
 		return $text;
 	}
 
 	/**
+	 * Codice lingua da imparare (profilo, cookie o default).
+	 *
+	 * @return string
+	 */
+	private static function get_learning_lang_code() {
+		if ( class_exists( 'LLM_Visitor_Lang' ) ) {
+			$code = LLM_Visitor_Lang::stored_learning();
+			if ( '' === $code ) {
+				$code = LLM_Visitor_Lang::learning();
+			}
+			return LLM_Languages::is_valid( $code ) ? $code : '';
+		}
+
+		if ( is_user_logged_in() ) {
+			$code = sanitize_key( (string) get_user_meta( get_current_user_id(), LLM_User_Meta::LEARNING_LANG, true ) );
+			return ( class_exists( 'LLM_Languages' ) && LLM_Languages::is_valid( $code ) ) ? $code : '';
+		}
+
+		return '';
+	}
+
+	/**
+	 * Bandiera della lingua da imparare.
+	 *
+	 * @return string
+	 */
+	private static function get_learning_lang_flag() {
+		$code = self::get_learning_lang_code();
+		if ( '' === $code || ! class_exists( 'LLM_Languages' ) ) {
+			return '';
+		}
+		return LLM_Languages::flag_emoji( $code );
+	}
+
+	/**
 	 * Restituisce il nome della lingua target nella lingua interfaccia $ui_lang.
-	 * Es. ui_lang=pl, target=it → "włoskiego"
+	 * In italiano usa la forma con articolo (es. "l'inglese") per il badge.
 	 *
 	 * @param string $ui_lang Codice lingua UI.
 	 * @return string
 	 */
 	private static function get_target_lang_name( $ui_lang ) {
-		// Nomi generici per utenti non loggati o senza lingua impostata
+		$ui_lang = sanitize_key( (string) $ui_lang );
 		$generic = array(
 			'it' => 'una nuova lingua',
 			'en' => 'a new language',
@@ -155,20 +208,32 @@ class LLM_Hero_Translations {
 			'es' => 'un nuevo idioma',
 		);
 
-		if ( ! is_user_logged_in() ) {
+		$target_code = self::get_learning_lang_code();
+		if ( '' === $target_code ) {
 			return isset( $generic[ $ui_lang ] ) ? $generic[ $ui_lang ] : $generic['it'];
 		}
 
-		$uid         = get_current_user_id();
-		$target_code = (string) get_user_meta( $uid, LLM_User_Meta::LEARNING_LANG, true );
-
-		if ( '' === $target_code || ! class_exists( 'LLM_Phrase_Game_I18n' ) ) {
-			return isset( $generic[ $ui_lang ] ) ? $generic[ $ui_lang ] : $generic['it'];
+		/* Italiano: articolo determinativo per "Impara l'inglese…". */
+		if ( 'it' === $ui_lang ) {
+			$with_article = array(
+				'en' => "l'inglese",
+				'it' => "l'italiano",
+				'pl' => 'il polacco',
+				'es' => 'lo spagnolo',
+			);
+			if ( isset( $with_article[ $target_code ] ) ) {
+				return $with_article[ $target_code ];
+			}
 		}
 
-		// LLM_Phrase_Game_I18n::target_lang_label_for_ui legge la lingua UI dall'utente in automatico
-		$label = LLM_Phrase_Game_I18n::target_lang_label_for_ui( $target_code );
-		return '' !== $label ? $label : ( isset( $generic[ $ui_lang ] ) ? $generic[ $ui_lang ] : $generic['it'] );
+		if ( class_exists( 'LLM_Phrase_Game_I18n' ) ) {
+			$label = LLM_Phrase_Game_I18n::target_lang_label_for_ui( $target_code );
+			if ( '' !== $label ) {
+				return $label;
+			}
+		}
+
+		return isset( $generic[ $ui_lang ] ) ? $generic[ $ui_lang ] : $generic['it'];
 	}
 
 	/* -----------------------------------------------------------------------

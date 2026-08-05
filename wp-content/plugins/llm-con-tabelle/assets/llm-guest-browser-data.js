@@ -105,6 +105,9 @@
 		html += '<span><b>' + esc(totals.finished || 0) + '</b> ' + esc(t('finished_count')) + '</span>';
 		html += '<span><b>' + esc(totals.phrasesDone || 0) + '</b> ' + esc(t('phrases_done')) + '</span>';
 		html += '<span><b>' + esc(totals.points || 0) + '</b> ' + esc(t('points')) + '</span>';
+		if (totals.crosswords) {
+			html += '<span><b>' + esc(totals.crosswords) + '</b> ' + esc(t('crosswords_count')) + '</span>';
+		}
 		html += '<span><b>' + esc(formatBytes(storage.totalBytes)) + '</b></span>';
 		html += '</p>';
 
@@ -137,6 +140,26 @@
 				html += '<td>' + esc(doneLabel) + '</td>';
 				html += '<td>' + esc(s.points || 0) + '</td>';
 				html += '<td>' + esc(s.finished ? t('finished') : t('in_progress')) + '</td>';
+				html += '</tr>';
+			});
+			html += '</tbody></table>';
+		}
+
+		var crosswords = snap.crosswords || [];
+		if (crosswords.length) {
+			html += '<table class="llm-guest-browser-data__table">';
+			html += '<thead><tr>';
+			html += '<th>' + esc(t('crossword')) + '</th>';
+			html += '<th>' + esc(t('letters')) + '</th>';
+			html += '<th>' + esc(t('status')) + '</th>';
+			html += '</tr></thead><tbody>';
+			crosswords.forEach(function (c) {
+				var label = c.title ? c.title : ('#' + c.crosswordId);
+				var lettersLabel = c.filled + (c.total ? '/' + c.total : '');
+				html += '<tr>';
+				html += '<td>' + esc(label) + '</td>';
+				html += '<td>' + esc(lettersLabel) + '</td>';
+				html += '<td>' + esc(c.solved ? t('solved') : t('in_progress')) + '</td>';
 				html += '</tr>';
 			});
 			html += '</tbody></table>';

@@ -5,6 +5,7 @@
 	'use strict';
 
 	var STORIES_KEY = 'llm_guest_story_progress';
+	var CROSSWORDS_KEY = 'llm_crossword_progress';
 	var NAME_KEY = 'llm_guest_display_name';
 
 	/** Chiavi LLM gestite nel browser (lingue, modalità, progresso, nome). */
@@ -14,7 +15,8 @@
 		'llm_learning_lang',
 		'llm_learning_mode',
 		'llm_learning_options',
-		STORIES_KEY
+		STORIES_KEY,
+		CROSSWORDS_KEY
 	];
 
 	function safeParse(raw, fallback) {
@@ -126,6 +128,98 @@
 		var out = [];
 		Object.keys(map).forEach(function (id) {
 			out.push(normalizeStory(map[id], id));
+		});
+		out.sort(function (a, b) {
+			return String(b.updatedAt).localeCompare(String(a.updatedAt));
+		});
+		return out;
+	}
+
+	function readCrosswordsMap() {
+		try {
+			var map = safeParse(window.localStorage.getItem(CROSSWORDS_KEY), {});
+			return map && typeof map === 'object' ? map : {};
+		} catch (e) {
+			return {};
+		}
+	}
+
+	function writeCrosswordsMap(map) {
+		try {
+			window.localStorage.setItem(CROSSWORDS_KEY, JSON.stringify(map || {}));
+		} catch (e) {
+			/* Quota o privacy mode: la partita resta solo in pagina. */
+		}
+	}
+
+	function normalizeCrossword(entry, crosswordId) {
+		entry = entry && typeof entry === 'object' ? entry : {};
+		var filled = parseInt(entry.filled, 10);
+		var total = parseInt(entry.total, 10);
+		if (isNaN(filled)) { filled = 0; }
+		if (isNaN(total)) { total = 0; }
+		return {
+			crosswordId: parseInt(crosswordId || entry.crosswordId, 10) || 0,
+			title: entry.title ? String(entry.title) : '',
+			cells: Array.isArray(entry.cells) ? entry.cells.map(String) : [],
+			filled: Math.max(0, filled),
+			total: Math.max(0, total),
+			solved: !!entry.solved,
+			updatedAt: entry.updatedAt ? String(entry.updatedAt) : ''
+		};
+	}
+
+	function getCrossword(crosswordId) {
+		var id = String(parseInt(crosswordId, 10) || 0);
+		if ('0' === id) {
+			return null;
+		}
+		var map = readCrosswordsMap();
+		if (!map[id]) {
+			return null;
+		}
+		return normalizeCrossword(map[id], id);
+	}
+
+	/** Con la griglia vuota togliamo la voce, per non sprecare spazio. */
+	function setCrossword(crosswordId, data) {
+		var id = String(parseInt(crosswordId, 10) || 0);
+		if ('0' === id) {
+			return null;
+		}
+		var next = normalizeCrossword(data, id);
+		next.updatedAt = new Date().toISOString();
+
+		var map = readCrosswordsMap();
+		if (!next.filled) {
+			if (map[id]) {
+				delete map[id];
+				writeCrosswordsMap(map);
+			}
+			return null;
+		}
+		map[id] = next;
+		writeCrosswordsMap(map);
+		return next;
+	}
+
+	function removeCrossword(crosswordId) {
+		var id = String(parseInt(crosswordId, 10) || 0);
+		if ('0' === id) {
+			return;
+		}
+		var map = readCrosswordsMap();
+		if (map[id]) {
+			delete map[id];
+			writeCrosswordsMap(map);
+		}
+	}
+
+	function getAllCrosswords() {
+		var map = readCrosswordsMap();
+		var out = [];
+		Object.keys(map).forEach(function (id) {
+			out.push(normalizeCrossword(map[id], id));
 		});
 		out.sort(function (a, b) {
 			return String(b.updatedAt).localeCompare(String(a.updatedAt));
@@ -284,6 +378,15 @@
 				finished += 1;
 			}
 		});
+		var crosswords = getAllCrosswords();
+		var crosswordsSolved = 0;
+		var lettersFilled = 0;
+		crosswords.forEach(function (c) {
+			lettersFilled += c.filled || 0;
+			if (c.solved) {
+				crosswordsSolved += 1;
+			}
+		});
 		var storage = measureStorage();
 		return {
 			name: getName(),
@@ -292,11 +395,15 @@
 			learningMode: readSimple('llm_learning_mode') || '',
 			learningOptions: readSimple('llm_learning_options') || '',
 			stories: stories,
+			crosswords: crosswords,
 			totals: {
 				stories: stories.length,
 				finished: finished,
 				phrasesDone: phrasesDone,
-				points: points
+				points: points,
+				crosswords: crosswords.length,
+				crosswordsSolved: crosswordsSolved,
+				crosswordLetters: lettersFilled
 			},
 			storage: storage
 		};
@@ -304,6 +411,7 @@
 
 	window.llmGuestBrowserStore = {
 		STORIES_KEY: STORIES_KEY,
+		CROSSWORDS_KEY: CROSSWORDS_KEY,
 		NAME_KEY: NAME_KEY,
 		KNOWN_KEYS: KNOWN_KEYS,
 		getName: getName,
@@ -312,6 +420,10 @@
 		setStory: setStory,
 		removeStory: removeStory,
 		getAllStories: getAllStories,
+		getCrossword: getCrossword,
+		setCrossword: setCrossword,
+		removeCrossword: removeCrossword,
+		getAllCrosswords: getAllCrosswords,
 		hydratePhraseGameCfg: hydratePhraseGameCfg,
 		persistPhraseProgress: persistPhraseProgress,
 		measureStorage: measureStorage,
