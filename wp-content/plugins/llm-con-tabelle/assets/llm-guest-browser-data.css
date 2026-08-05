@@ -1,0 +1,227 @@
+/* Riepilogo dati guest — layout compatto */
+.llm-guest-browser-data {
+	font-family: var(--llm-ui-font, "Manrope", system-ui, sans-serif);
+	font-size: 0.8125rem;
+	line-height: 1.35;
+	color: #1e293b;
+	max-width: 36rem;
+}
+
+.llm-guest-browser-data__hello {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.4rem 0.5rem;
+	margin: 0 0 0.65rem;
+}
+
+.llm-guest-browser-data__ciao {
+	font-size: 1rem;
+	font-weight: 700;
+	margin: 0;
+}
+
+.llm-guest-browser-data__name-input {
+	flex: 1 1 8rem;
+	min-width: 7rem;
+	max-width: 14rem;
+	margin: 0;
+	padding: 0.28rem 0.5rem;
+	border: 1px solid #cbd5e1;
+	border-radius: 4px;
+	font: inherit;
+	color: inherit;
+	background: #fff;
+}
+
+.llm-guest-browser-data__name-input:focus {
+	outline: 1px solid #64748b;
+	border-color: #64748b;
+}
+
+.llm-guest-browser-data__name-save {
+	margin: 0;
+	padding: 0.28rem 0.65rem;
+	border: 1px solid #cbd5e1;
+	border-radius: 4px;
+	background: #f8fafc;
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+	color: #0f172a;
+}
+
+.llm-guest-browser-data__name-save:hover {
+	background: #e2e8f0;
+}
+
+.llm-guest-browser-data__name-msg {
+	font-size: 0.75rem;
+	color: #64748b;
+}
+
+.llm-guest-browser-data__stats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.15rem 0.85rem;
+	margin: 0 0 0.35rem;
+	color: #475569;
+}
+
+.llm-guest-browser-data__stats b {
+	color: #0f172a;
+	font-weight: 700;
+}
+
+.llm-guest-browser-data__prefs,
+.llm-guest-browser-data__empty,
+.llm-guest-browser-data__keys,
+.llm-guest-browser-data__note,
+.llm-guest-browser-data__loading {
+	margin: 0 0 0.5rem;
+	color: #64748b;
+}
+
+.llm-guest-browser-data__keys {
+	margin-top: 0.45rem;
+	font-size: 0.72rem;
+	line-height: 1.45;
+	word-break: break-word;
+}
+
+.llm-guest-browser-data__keys code {
+	font-size: 0.7rem;
+	color: #334155;
+}
+
+.llm-guest-browser-data__table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.78rem;
+	margin: 0.15rem 0 0;
+}
+
+.llm-guest-browser-data__table th,
+.llm-guest-browser-data__table td {
+	padding: 0.2rem 0.35rem 0.2rem 0;
+	text-align: left;
+	border-bottom: 1px solid #e2e8f0;
+	vertical-align: top;
+}
+
+.llm-guest-browser-data__table th {
+	font-size: 0.7rem;
+	font-weight: 600;
+	color: #94a3b8;
+}
+
+.llm-guest-browser-data__table td:first-child {
+	font-weight: 600;
+	color: #0f172a;
+	max-width: 10rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.llm-guest-browser-data__disclaimer {
+	margin: 0.75rem 0 0;
+	padding-top: 0.55rem;
+	border-top: 1px solid #e2e8f0;
+	font-size: 0.875rem;
+	line-height: 1.5;
+	color: #334155;
+}
+
+.llm-guest-browser-data__account {
+	display: flex;
+	flex-direction: column;
+	gap: 0.45rem;
+}
+
+.llm-guest-browser-data__hello-line {
+	margin: 0;
+	font-size: 1.05rem;
+	font-weight: 700;
+	color: #0f172a;
+}
+
+.llm-guest-browser-data__continue-label {
+	margin: 0.15rem 0 0;
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: #334155;
+}
+
+.llm-guest-browser-data__continua {
+	margin: 0;
+}
+
+.llm-guest-browser-data__continua .llm-login-form,
+.llm-guest-browser-data__continua .llm-login-form--continua {
+	margin: 0;
+	max-width: none;
+}
+
+.llm-guest-browser-data__logout-wrap {
+	margin: 0.35rem 0 0;
+}
+
+.llm-guest-browser-data__logout {
+	text-decoration: none;
+}
+
+.llm-guest-browser-data__login {
+	margin-top: 1.1rem;
+	padding-top: 0.9rem;
+	border-top: 1px solid #e2e8f0;
+}
+
+.llm-guest-browser-data__login-title {
+	margin: 0 0 0.35rem;
+	font-size: 0.95rem;
+	font-weight: 700;
+	color: #0f172a;
+}
+
+.llm-guest-browser-data__login-intro {
+	margin: 0 0 0.75rem;
+	font-size: 0.875rem;
+	line-height: 1.45;
+	color: #334155;
+}
+
+/* Form login più compatto dentro questo shortcode (niente buco sotto password). */
+.llm-guest-browser-data__login .llm-login-form,
+.llm-guest-browser-data__login .llm-user-profile {
+	margin: 0;
+	max-width: none;
+}
+
+.llm-guest-browser-data__login .llm-user-profile__form {
+	gap: 0.55rem;
+}
+
+.llm-guest-browser-data__login .llm-user-profile__field {
+	margin: 0;
+	gap: 0.2rem;
+}
+
+.llm-guest-browser-data__login .llm-user-profile__input,
+.llm-guest-browser-data__login .llm-user-profile__select,
+.llm-guest-browser-data__login input[type="text"],
+.llm-guest-browser-data__login input[type="password"] {
+	margin: 0 !important;
+	min-height: 0 !important;
+}
+
+.llm-guest-browser-data__login .llm-user-profile__actions {
+	margin: 0.15rem 0 0;
+}
+
+.llm-guest-browser-data__login p:empty,
+.llm-guest-browser-data__login .llm-user-profile__message:empty {
+	display: none;
+	margin: 0;
+	min-height: 0;
+}

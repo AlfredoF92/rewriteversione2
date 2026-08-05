@@ -187,7 +187,27 @@ class LLM_Learning_Modes {
 	}
 
 	/**
-	 * Opzioni attive: dal profilo se loggato, altrimenti nessuna (gli ospiti usano localStorage lato JS).
+	 * Opzioni di aiuto predefinite (nuovi ospiti e profilo senza preferenza).
+	 *
+	 * @return array<int, string>
+	 */
+	public static function default_options() {
+		$defaults = array(
+			self::OPTION_RANDOM_WORDS,
+			self::OPTION_LISTEN_REPLAY_LOOP,
+		);
+
+		/**
+		 * Permette di cambiare gli strumenti utili di default.
+		 *
+		 * @param array<int, string> $defaults
+		 */
+		return self::sanitize_options( apply_filters( 'llm_learning_mode_default_options', $defaults ) );
+	}
+
+	/**
+	 * Opzioni attive: dal profilo se loggato, altrimenti i default
+	 * (gli ospiti usano localStorage lato JS e lo allineano a questi default alla prima visita).
 	 *
 	 * @return array<int, string>
 	 */
@@ -198,7 +218,7 @@ class LLM_Learning_Modes {
 		if ( is_user_logged_in() ) {
 			return self::get_options_for_user( get_current_user_id() );
 		}
-		return array();
+		return self::default_options();
 	}
 
 	/**
@@ -207,7 +227,7 @@ class LLM_Learning_Modes {
 	 * @return string
 	 */
 	public static function default_mode() {
-		return (string) apply_filters( 'llm_learning_mode_default', self::MODE_LOVEREWRITE );
+		return (string) apply_filters( 'llm_learning_mode_default', self::MODE_RESOLVE_GO );
 	}
 
 	/**
@@ -367,6 +387,7 @@ class LLM_Learning_Modes {
 			'modes'       => self::all(),
 			'options'          => self::options(),
 			'currentOptions'   => self::current_options(),
+			'defaultOptions'   => self::default_options(),
 			'optionsStorageKey' => self::OPTIONS_STORAGE_KEY,
 			'modeDisablesOptions' => self::MODE_PLAY_INVERTED,
 			'savedMsg'    => LLM_Phrase_Game_I18n::get( 'learning_mode_saved' ),

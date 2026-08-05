@@ -30,10 +30,13 @@
 
 	function readStoredOptions() {
 		try {
-			var raw = window.localStorage.getItem(optionsStorageKey()) || '';
+			var raw = window.localStorage.getItem(optionsStorageKey());
+			if (raw === null) {
+				return null;
+			}
 			return sanitizeOptions(raw ? raw.split(',') : []);
 		} catch (e) {
-			return [];
+			return null;
 		}
 	}
 
@@ -45,11 +48,19 @@
 		}
 	}
 
-	/** Utenti loggati: vince il profilo. Ospiti: localStorage. */
+	function defaultOptions() {
+		if (cfg && Array.isArray(cfg.defaultOptions) && cfg.defaultOptions.length) {
+			return sanitizeOptions(cfg.defaultOptions);
+		}
+		return sanitizeOptions(['random_words', 'listen_replay_loop']);
+	}
+
+	/** Utenti loggati: vince il profilo. Ospiti: localStorage, altrimenti default. */
 	function resolveOptions() {
 		if (!cfg) { return []; }
 		if (cfg.isLoggedIn) { return sanitizeOptions(cfg.currentOptions || []); }
-		return readStoredOptions();
+		var stored = readStoredOptions();
+		return stored !== null ? stored : defaultOptions();
 	}
 
 	function isValidMode(id) {
@@ -62,9 +73,9 @@
 
 	function readStoredMode() {
 		try {
-			return window.localStorage.getItem(storageKey()) || '';
+			return window.localStorage.getItem(storageKey());
 		} catch (e) {
-			return '';
+			return null;
 		}
 	}
 
@@ -82,6 +93,24 @@
 		if (cfg.isLoggedIn) { return cfg.current || cfg.defaultMode || ''; }
 		var stored = readStoredMode();
 		return isValidMode(stored) ? stored : (cfg.defaultMode || '');
+	}
+
+	/**
+	 * Prima visita ospite: scrive subito modalità e strumenti utili in localStorage,
+	 * così restano memorizzati anche senza aprire il popup.
+	 */
+	function ensureGuestDefaultsSeeded() {
+		if (!cfg || cfg.isLoggedIn) { return; }
+
+		var storedMode = readStoredMode();
+		if (!isValidMode(storedMode)) {
+			writeStoredMode(cfg.defaultMode || 'resolve_go');
+		}
+
+		if (readStoredOptions() === null) {
+			var mode = resolveMode();
+			writeStoredOptions(modeDisablesOptions(mode) ? [] : defaultOptions());
+		}
 	}
 
 	function modeLabel(id) {
@@ -126,7 +155,7 @@
 
 	/** Default strumenti utili nel popup quando si sceglie una modalità “normale”. */
 	function defaultPopupOptions() {
-		return sanitizeOptions(['random_words', 'listen_replay_loop']);
+		return defaultOptions();
 	}
 
 	/** In "Gioca al contrario" gli strumenti utili si azzerano e restano disabilitati. */
@@ -287,7 +316,10 @@
 		var stored = readStoredMode();
 		if (!isValidMode(stored)) { return; }
 
-		var options = modeDisablesOptions(stored) ? [] : readStoredOptions();
+		var storedOptions = readStoredOptions();
+		var options = modeDisablesOptions(stored)
+			? []
+			: (storedOptions !== null ? storedOptions : defaultOptions());
 
 		var body = new URLSearchParams();
 		body.append('action', cfg.action);
@@ -319,6 +351,7 @@
 	function init() {
 		if (!cfg) { return; }
 
+		ensureGuestDefaultsSeeded();
 		migrateGuestPrefsToProfile();
 
 		var roots = document.querySelectorAll('.llm-learning-mode');

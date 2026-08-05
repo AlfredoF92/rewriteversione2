@@ -476,12 +476,26 @@
 		}
 
 		var cfg = window.llmPhraseGame;
+		if (window.llmGuestBrowserStore && typeof window.llmGuestBrowserStore.hydratePhraseGameCfg === 'function') {
+			window.llmGuestBrowserStore.hydratePhraseGameCfg(cfg);
+		}
 		var phrases = cfg.phrases || [];
 		if (!phrases.length) {
 			return;
 		}
 
 		var storyId = cfg.storyId;
+		var storyTitle = cfg.storyTitle || '';
+
+		function persistGuestStoryProgress(partial) {
+			if (cfg.learningModeIsSaved || !window.llmGuestBrowserStore) {
+				return;
+			}
+			var payload = partial || {};
+			payload.title = payload.title != null ? payload.title : storyTitle;
+			payload.phrasesTotal = payload.phrasesTotal != null ? payload.phrasesTotal : phrases.length;
+			window.llmGuestBrowserStore.persistPhraseProgress(storyId, payload);
+		}
 		var nonce = cfg.nonce;
 		var ajaxUrl = cfg.ajaxUrl;
 		var i18n = cfg.i18n || {};
@@ -589,15 +603,17 @@
 
 		/* Utente loggato: vince il profilo. Ospite: localStorage, poi default. */
 		function resolveLearningMode() {
-			var fallback = cfg.learningMode || MODE_LOVEREWRITE;
+			var fallback = cfg.learningModeDefault || cfg.learningMode || MODE_RESOLVE_GO;
 			if (cfg.learningModeIsSaved) {
-				return fallback;
+				return cfg.learningMode || fallback;
 			}
+			var key = cfg.learningModeStorageKey || 'llm_learning_mode';
 			try {
-				var stored = window.localStorage.getItem(cfg.learningModeStorageKey || 'llm_learning_mode');
+				var stored = window.localStorage.getItem(key);
 				if (stored) {
 					return stored;
 				}
+				window.localStorage.setItem(key, fallback);
 			} catch (e) {
 				/* Storage non disponibile: resta il default. */
 			}
@@ -606,7 +622,7 @@
 
 		var learningMode = String(resolveLearningMode() || '').replace(/[^a-z0-9_-]/gi, '');
 		if (!learningMode) {
-			learningMode = MODE_LOVEREWRITE;
+			learningMode = MODE_RESOLVE_GO;
 		}
 		var isResolveGo    = learningMode === MODE_RESOLVE_GO;
 		var isReadGoFast   = learningMode === MODE_READ_GO_FAST;
@@ -680,11 +696,23 @@
 			if (cfg.learningModeIsSaved) {
 				return Array.isArray(cfg.learningOptions) ? cfg.learningOptions : [];
 			}
+			var defaults = Array.isArray(cfg.learningOptionsDefault) && cfg.learningOptionsDefault.length
+				? cfg.learningOptionsDefault.slice()
+				: ['random_words', 'listen_replay_loop'];
 			try {
-				var raw = window.localStorage.getItem(cfg.learningOptionsStorageKey || 'llm_learning_options') || '';
+				var key = cfg.learningOptionsStorageKey || 'llm_learning_options';
+				var raw = window.localStorage.getItem(key);
+				if (raw === null) {
+					try {
+						window.localStorage.setItem(key, defaults.join(','));
+					} catch (writeErr) {
+						/* Storage non disponibile. */
+					}
+					return defaults;
+				}
 				return raw ? raw.split(',') : [];
 			} catch (e) {
-				return [];
+				return defaults;
 			}
 		}
 
@@ -1765,6 +1793,9 @@
 					body: body.toString(),
 				})
 					.then(function () {
+						if (window.llmGuestBrowserStore && typeof window.llmGuestBrowserStore.removeStory === 'function') {
+							window.llmGuestBrowserStore.removeStory(storyId);
+						}
 						window.location.reload();
 					})
 					.catch(function () {
@@ -3121,6 +3152,44 @@
 					if (!json || typeof json !== 'object') {
 						cb({ success: false, data: { message: i18n.ajaxError || '' } });
 						return;
+					}
+					if (json.success && json.data) {
+						var d = json.data;
+						var phaseNum = parseInt(d.phase, 10);
+						if (1 === phaseNum) {
+							persistGuestStoryProgress({
+								phraseIndex: phrases[phraseIx] ? phrases[phraseIx].index : phraseIx,
+								step: 2,
+								phrasesDone: phraseIx,
+								phrasesTotal: phrases.length,
+								points: phraseIx,
+								finished: false
+							});
+						} else if (2 === phaseNum) {
+							var done = parseInt(d.phrases_done, 10);
+							if (isNaN(done)) {
+								done = phraseIx + 1;
+							}
+							var nextIx = phrases.length;
+							if (d.has_more && d.next_index !== null && d.next_index !== undefined) {
+								nextIx = parseInt(d.next_index, 10);
+								if (isNaN(nextIx)) {
+									nextIx = phrases.length;
+								}
+							}
+							var totalBar = parseInt(d.phrases_total, 10);
+							if (isNaN(totalBar)) {
+								totalBar = phrases.length;
+							}
+							persistGuestStoryProgress({
+								phraseIndex: nextIx,
+								step: 1,
+								phrasesDone: done,
+								phrasesTotal: totalBar,
+								points: done,
+								finished: !d.has_more
+							});
+						}
 					}
 					cb(json);
 				})

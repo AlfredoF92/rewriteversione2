@@ -497,9 +497,16 @@ class LLM_Story_Phrase_Game {
 			LLM_TABELLE_VERSION
 		);
 		wp_register_script(
+			'llm-guest-browser-store',
+			LLM_TABELLE_URL . 'assets/llm-guest-browser-store.js',
+			array(),
+			LLM_TABELLE_VERSION,
+			true
+		);
+		wp_register_script(
 			'llm-phrase-game',
 			LLM_TABELLE_URL . 'assets/llm-story-phrase-game.js',
-			array(),
+			array( 'llm-guest-browser-store' ),
 			LLM_TABELLE_VERSION,
 			true
 		);
@@ -524,6 +531,7 @@ class LLM_Story_Phrase_Game {
 				'ajaxUrl'         => admin_url( 'admin-ajax.php' ),
 				'nonce'           => wp_create_nonce( 'llm_phrase_game' ),
 				'storyId'         => $story_id,
+				'storyTitle'      => get_the_title( $story_id ),
 				'phrases'         => $boot,
 				'targetLangLabel' => LLM_Phrase_Game_I18n::target_lang_label_for_ui( $target_code ),
 				'targetLangCode'  => sanitize_key( $target_code ),
@@ -613,6 +621,7 @@ class LLM_Story_Phrase_Game {
 			'learningModeStorageKey' => LLM_Learning_Modes::STORAGE_KEY,
 			'learningModeIsSaved' => is_user_logged_in(),
 			'learningOptions'     => LLM_Learning_Modes::current_options(),
+			'learningOptionsDefault' => LLM_Learning_Modes::default_options(),
 			'learningOptionsStorageKey' => LLM_Learning_Modes::OPTIONS_STORAGE_KEY,
 			'optionRandomWords'   => LLM_Learning_Modes::OPTION_RANDOM_WORDS,
 			'optionExtraChars'    => LLM_Learning_Modes::OPTION_EXTRA_CHARS,

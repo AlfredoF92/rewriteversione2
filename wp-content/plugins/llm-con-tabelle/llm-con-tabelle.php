@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LLM_TABELLE_VERSION', '2.2.92' );
+define( 'LLM_TABELLE_VERSION', '2.2.102' );
 define( 'LLM_TABELLE_FILE', __FILE__ );
 define( 'LLM_TABELLE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LLM_TABELLE_URL', plugin_dir_url( __FILE__ ) );
@@ -54,6 +54,7 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-phrase-game-i18n.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-settings-i18n.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-game-progress.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-guest-story-progress.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-guest-browser-data-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-learning-modes.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-phrase-game.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-progress-bar-shortcode.php';
@@ -152,6 +153,7 @@ function llm_tabelle_boot() {
 	LLM_Home_Redirect::init();
 	LLM_Lang_Cards_Shortcode::init();
 	LLM_Change_Lang_Shortcode::init();
+	LLM_Guest_Browser_Data_Shortcode::init();
 	LLM_Admin_Home_Redirect::init();
 	LLM_Admin_Phrase_Feedback::init();
 	LLM_Site_Update_Log_Shortcodes::init();
