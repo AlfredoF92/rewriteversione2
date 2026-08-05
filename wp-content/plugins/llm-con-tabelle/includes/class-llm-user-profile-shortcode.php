@@ -266,6 +266,7 @@ class LLM_User_Profile_Shortcode {
 		}
 
 		update_user_meta( $uid, LLM_User_Meta::INTERFACE_LANG, $interface );
+		LLM_Visitor_Lang::set_cookie( LLM_Visitor_Lang::COOKIE_KNOWN, $interface );
 
 		wp_send_json_success(
 			array(

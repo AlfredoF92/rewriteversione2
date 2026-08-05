@@ -76,15 +76,7 @@ class LLM_Change_Lang_Shortcode {
 	 * @return string Codice lingua target o ''.
 	 */
 	private static function current_learning_lang() {
-		if ( is_user_logged_in() ) {
-			$code = sanitize_key( (string) get_user_meta( get_current_user_id(), LLM_User_Meta::LEARNING_LANG, true ) );
-			if ( LLM_Languages::is_valid( $code ) ) {
-				return $code;
-			}
-		}
-
-		$code = sanitize_key( wp_unslash( $_COOKIE['llm_learning_lang'] ?? '' ) );
-		return LLM_Languages::is_valid( $code ) ? $code : '';
+		return LLM_Visitor_Lang::stored_learning();
 	}
 
 	/**
@@ -97,14 +89,7 @@ class LLM_Change_Lang_Shortcode {
 				return $lang;
 			}
 		}
-		if ( is_user_logged_in() ) {
-			$known = sanitize_key( (string) get_user_meta( get_current_user_id(), LLM_User_Meta::INTERFACE_LANG, true ) );
-			if ( LLM_Languages::is_valid( $known ) ) {
-				return $known;
-			}
-		}
-		$cookie = sanitize_key( wp_unslash( $_COOKIE['llm_interface_lang'] ?? '' ) );
-		return LLM_Languages::is_valid( $cookie ) ? $cookie : 'it';
+		return LLM_Visitor_Lang::known();
 	}
 
 	/**

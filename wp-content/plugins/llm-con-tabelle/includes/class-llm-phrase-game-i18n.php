@@ -15,12 +15,10 @@ class LLM_Phrase_Game_I18n {
 	 * Codice lingua UI (it|en|pl|es).
 	 */
 	public static function lang() {
-		$code = '';
-		if ( is_user_logged_in() ) {
-			$code = (string) get_user_meta( get_current_user_id(), LLM_User_Meta::INTERFACE_LANG, true );
-		}
-		if ( ! LLM_Languages::is_valid( $code ) ) {
-			$code = (string) apply_filters( 'llm_phrase_game_guest_ui_lang', 'it' );
+		$code = LLM_Visitor_Lang::known();
+
+		if ( ! is_user_logged_in() ) {
+			$code = (string) apply_filters( 'llm_phrase_game_guest_ui_lang', $code );
 		}
 		if ( ! LLM_Languages::is_valid( $code ) ) {
 			$code = 'it';

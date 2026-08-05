@@ -119,8 +119,8 @@ class LLM_User_Stat_Shortcodes {
 		$icon = LLM_Header_UI_Icons::library();
 
 		if ( ! is_user_logged_in() ) {
-			$known    = sanitize_key( wp_unslash( $_COOKIE['llm_interface_lang'] ?? '' ) );
-			$learning = sanitize_key( wp_unslash( $_COOKIE['llm_learning_lang'] ?? '' ) );
+			$known    = LLM_Visitor_Lang::stored_known();
+			$learning = LLM_Visitor_Lang::stored_learning();
 			$chip_label = self::stories_in_label( $known );
 			$settings_url = self::learning_lang_settings_url();
 

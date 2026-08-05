@@ -239,6 +239,22 @@ class LLM_Learning_Modes {
 	}
 
 	/**
+	 * Se l'utente ha già una modalità propria salvata.
+	 *
+	 * Serve a decidere se accogliere la scelta fatta da ospite in localStorage.
+	 *
+	 * @param int $user_id
+	 * @return bool
+	 */
+	public static function has_saved_mode( $user_id ) {
+		$user_id = absint( $user_id );
+		if ( $user_id < 1 ) {
+			return false;
+		}
+		return self::is_valid( (string) get_user_meta( $user_id, self::USER_META, true ) );
+	}
+
+	/**
 	 * @param int    $user_id
 	 * @param string $mode_id
 	 * @return bool True se salvata.
@@ -344,6 +360,7 @@ class LLM_Learning_Modes {
 			'nonce'       => wp_create_nonce( self::NONCE_ACTION ),
 			'action'      => self::AJAX_ACTION,
 			'isLoggedIn'  => is_user_logged_in(),
+			'hasSavedMode' => is_user_logged_in() && self::has_saved_mode( get_current_user_id() ),
 			'storageKey'  => self::STORAGE_KEY,
 			'current'     => self::current(),
 			'defaultMode' => self::default_mode(),

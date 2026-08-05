@@ -277,8 +277,49 @@
 			});
 	}
 
+	/**
+	 * Primo accesso dopo il login: la modalità scelta da ospite passa al profilo,
+	 * ma solo se l'utente non ne ha già una sua.
+	 */
+	function migrateGuestPrefsToProfile() {
+		if (!cfg || !cfg.isLoggedIn || cfg.hasSavedMode) { return; }
+
+		var stored = readStoredMode();
+		if (!isValidMode(stored)) { return; }
+
+		var options = modeDisablesOptions(stored) ? [] : readStoredOptions();
+
+		var body = new URLSearchParams();
+		body.append('action', cfg.action);
+		body.append('nonce', cfg.nonce);
+		body.append('mode', stored);
+		options.forEach(function (id) {
+			body.append('options[]', id);
+		});
+
+		fetch(cfg.ajaxUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+			body: body.toString()
+		})
+			.then(function (res) { return res.json(); })
+			.then(function (data) {
+				if (!data || !data.success) { return; }
+				/* La pagina è già resa con la modalità predefinita: ricarica solo se cambia davvero. */
+				if (stored !== cfg.current) {
+					window.location.reload();
+				}
+			})
+			.catch(function () {
+				/* Riproveremo al prossimo caricamento: il profilo è ancora vuoto. */
+			});
+	}
+
 	function init() {
 		if (!cfg) { return; }
+
+		migrateGuestPrefsToProfile();
 
 		var roots = document.querySelectorAll('.llm-learning-mode');
 		if (!roots.length) { return; }

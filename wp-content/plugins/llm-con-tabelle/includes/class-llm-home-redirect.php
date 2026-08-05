@@ -184,8 +184,8 @@ class LLM_Home_Redirect {
 			);
 		}
 
-		$known    = sanitize_key( wp_unslash( $_COOKIE[ LLM_Lang_Cards_Shortcode::COOKIE_KNOWN ] ?? '' ) );
-		$learning = sanitize_key( wp_unslash( $_COOKIE[ LLM_Lang_Cards_Shortcode::COOKIE_LEARNING ] ?? '' ) );
+		$known    = LLM_Visitor_Lang::stored_known();
+		$learning = LLM_Visitor_Lang::stored_learning();
 
 		if (
 			LLM_Languages::is_valid( $known ) &&
@@ -212,9 +212,7 @@ class LLM_Home_Redirect {
 	 * @param string $learning
 	 */
 	private static function persist_choice( $known, $learning ) {
-		if ( class_exists( 'LLM_Lang_Cards_Shortcode' ) ) {
-			LLM_Lang_Cards_Shortcode::persist_pair_cookies( $known, $learning );
-		}
+		LLM_Visitor_Lang::set_pair( $known, $learning );
 	}
 
 	/**

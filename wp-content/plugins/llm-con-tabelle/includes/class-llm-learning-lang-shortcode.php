@@ -181,6 +181,7 @@ class LLM_Learning_Lang_Shortcode {
 		}
 
 		update_user_meta( $uid, LLM_User_Meta::LEARNING_LANG, $raw );
+		LLM_Visitor_Lang::set_cookie( LLM_Visitor_Lang::COOKIE_LEARNING, $raw );
 
 		wp_send_json_success(
 			array(

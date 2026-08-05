@@ -6,9 +6,8 @@
  * - Passo 1: chip/bandiere per la lingua che conosci (niente select).
  * - Passo 2: card per la lingua da imparare.
  * - Card con coppia configurata in llm_home_redirect_pairs → POST che:
- *     1. Salva _llm_interface_lang + _llm_learning_lang
- *     2. Salva cookie 30 giorni
- *     3. Redirect alla pagina della coppia
+ *     1. Salva la coppia via LLM_Visitor_Lang (profilo se loggato, cookie sempre)
+ *     2. Redirect alla pagina della coppia
  * - Card senza coppia → badge "Coming Soon".
  *
  * @package LLM_Tabelle
@@ -29,9 +28,10 @@ class LLM_Lang_Cards_Shortcode {
 	const NONCE_FIELD_CARD  = 'llm_lang_cards_card_nonce';
 	const POST_FLAG_CARD    = 'llm_lang_cards_card_submit';
 
-	const COOKIE_KNOWN    = 'llm_interface_lang';
-	const COOKIE_LEARNING = 'llm_learning_lang';
-	const COOKIE_DAYS     = 30;
+	/** Alias storici: la persistenza vive in LLM_Visitor_Lang. */
+	const COOKIE_KNOWN    = LLM_Visitor_Lang::COOKIE_KNOWN;
+	const COOKIE_LEARNING = LLM_Visitor_Lang::COOKIE_LEARNING;
+	const COOKIE_DAYS     = LLM_Visitor_Lang::COOKIE_DAYS;
 
 	/** ID sezione homepage per link anchor (es. [llm_login_form] "Imposta la tua lingua"). */
 	const SECTION_ANCHOR = 'llm-lang-cards';
@@ -76,11 +76,7 @@ class LLM_Lang_Cards_Shortcode {
 			return;
 		}
 
-		if ( is_user_logged_in() ) {
-			update_user_meta( get_current_user_id(), LLM_User_Meta::INTERFACE_LANG, $lang );
-		}
-
-		self::set_cookie( self::COOKIE_KNOWN, $lang );
+		LLM_Visitor_Lang::set_known( $lang );
 
 		$redirect = isset( $_POST['_wp_http_referer'] )
 			? wp_validate_redirect( wp_unslash( $_POST['_wp_http_referer'] ), home_url( '/' ) )
@@ -110,15 +106,8 @@ class LLM_Lang_Cards_Shortcode {
 			return;
 		}
 
-		// Salva per utente loggato.
-		if ( is_user_logged_in() ) {
-			$uid = get_current_user_id();
-			update_user_meta( $uid, LLM_User_Meta::INTERFACE_LANG, $known );
-			update_user_meta( $uid, LLM_User_Meta::LEARNING_LANG, $learning );
-		}
-
-		// Salva cookie (loggati e ospiti).
-		self::persist_pair_cookies( $known, $learning );
+		// Profilo se loggato, cookie sempre (l'ospite lo replica in localStorage).
+		LLM_Visitor_Lang::set_pair( $known, $learning );
 
 		// Redirect alla pagina della coppia.
 		$redirect = ( '' !== $dest )
@@ -284,55 +273,17 @@ class LLM_Lang_Cards_Shortcode {
 	/* ------------------------------------------------------------------ */
 
 	/**
-	 * Salva la coppia linguistica nei cookie (30 giorni).
-	 * Usato anche da [llm_home_redirect] per ospiti e ritorno sul sito.
+	 * Alias storico verso LLM_Visitor_Lang::set_pair().
 	 *
 	 * @param string $known    Codice lingua conosciuta.
 	 * @param string $learning Codice lingua da imparare.
 	 */
 	public static function persist_pair_cookies( $known, $learning ) {
-		$known    = sanitize_key( (string) $known );
-		$learning = sanitize_key( (string) $learning );
-		if ( ! LLM_Languages::is_valid( $known ) || ! LLM_Languages::is_valid( $learning ) ) {
-			return;
-		}
-		self::set_cookie( self::COOKIE_KNOWN, $known );
-		self::set_cookie( self::COOKIE_LEARNING, $learning );
-		$_COOKIE[ self::COOKIE_KNOWN ]    = $known;
-		$_COOKIE[ self::COOKIE_LEARNING ] = $learning;
-	}
-
-	private static function set_cookie( $name, $value ) {
-		if ( headers_sent() ) {
-			return;
-		}
-		setcookie(
-			$name,
-			$value,
-			time() + ( self::COOKIE_DAYS * DAY_IN_SECONDS ),
-			COOKIEPATH ?: '/',
-			COOKIE_DOMAIN ?: '',
-			is_ssl(),
-			true
-		);
+		LLM_Visitor_Lang::set_pair( $known, $learning );
 	}
 
 	private static function get_current_lang() {
-		if ( is_user_logged_in() ) {
-			$lang = sanitize_key(
-				(string) get_user_meta( get_current_user_id(), LLM_User_Meta::INTERFACE_LANG, true )
-			);
-			if ( LLM_Languages::is_valid( $lang ) ) {
-				return $lang;
-			}
-		}
-
-		$cookie = sanitize_key( wp_unslash( $_COOKIE[ self::COOKIE_KNOWN ] ?? '' ) );
-		if ( LLM_Languages::is_valid( $cookie ) ) {
-			return $cookie;
-		}
-
-		return 'it';
+		return LLM_Visitor_Lang::known();
 	}
 
 	/* ------------------------------------------------------------------ */

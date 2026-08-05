@@ -37,10 +37,7 @@ class LLM_User_Settings_I18n {
 	 * @return string
 	 */
 	public static function lang() {
-		if ( is_user_logged_in() ) {
-			return self::lang_for_user( get_current_user_id() );
-		}
-		return 'it';
+		return LLM_Visitor_Lang::known();
 	}
 
 	/**

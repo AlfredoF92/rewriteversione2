@@ -60,13 +60,10 @@ class LLM_Category_Translations {
 	 * @return string
 	 */
 	public static function current_user_lang() {
-		if ( is_user_logged_in() ) {
-			$lang = sanitize_key( (string) get_user_meta( get_current_user_id(), LLM_User_Meta::INTERFACE_LANG, true ) );
-			if ( '' !== $lang && class_exists( 'LLM_Languages' ) && LLM_Languages::is_valid( $lang ) ) {
-				return $lang;
-			}
+		if ( ! class_exists( 'LLM_Visitor_Lang' ) ) {
+			return 'it';
 		}
-		return 'it';
+		return LLM_Visitor_Lang::known();
 	}
 
 	/**
