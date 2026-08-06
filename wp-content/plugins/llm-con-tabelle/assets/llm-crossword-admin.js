@@ -1,6 +1,6 @@
 /*
  * llm-crossword-admin.js — anteprima schema, generazione elenco definizioni,
- * copia dello shortcode.
+ * import CSV definizioni, copia dello shortcode.
  */
 (function (window, document) {
 	'use strict';
@@ -32,21 +32,39 @@
 			});
 	}
 
+	function importDefs(csv, defsCsv) {
+		var body = new window.FormData();
+		body.append('action', cfg.importAction);
+		body.append('nonce', cfg.importNonce);
+		body.append('post_id', String(postId()));
+		body.append('csv', csv || '');
+		body.append('defs_csv', defsCsv);
+
+		return window
+			.fetch(cfg.ajaxUrl, { method: 'POST', body: body, credentials: 'same-origin' })
+			.then(function (response) {
+				return response.json();
+			});
+	}
+
 	function init() {
 		var csvField = el('llm-cw-csv');
 		var defsField = el('llm-cw-defs');
+		var defsCsvField = el('llm-cw-defs-csv');
 		var statusEl = el('llm-cw-status');
+		var importStatusEl = el('llm-cw-import-status');
 		var previewBox = el('llm-cw-preview-box');
 		var previewBtn = el('llm-cw-preview');
 		var skeletonBtn = el('llm-cw-skeleton');
+		var importBtn = el('llm-cw-import-defs');
 		var copyBtn = el('llm-cw-copy');
 
-		function setStatus(text, kind) {
-			if (!statusEl) {
+		function setStatus(target, text, kind) {
+			if (!target) {
 				return;
 			}
-			statusEl.textContent = text || '';
-			statusEl.className = 'llm-cw-admin__status' + (kind ? ' is-' + kind : '');
+			target.textContent = text || '';
+			target.className = 'llm-cw-admin__status' + (kind ? ' is-' + kind : '');
 		}
 
 		if (copyBtn) {
@@ -57,10 +75,10 @@
 				}
 				field.select();
 				var done = function () {
-					setStatus(i18n.copied, 'ok');
+					setStatus(statusEl, i18n.copied, 'ok');
 				};
 				var failed = function () {
-					setStatus(i18n.copyFailed, 'error');
+					setStatus(statusEl, i18n.copyFailed, 'error');
 				};
 				if (window.navigator.clipboard) {
 					window.navigator.clipboard.writeText(field.value).then(done, failed);
@@ -101,22 +119,24 @@
 		}
 
 		function run(applySkeleton) {
-			setStatus(i18n.working, '');
+			setStatus(statusEl, i18n.working, '');
 			analyze(csvField.value, defsField.value).then(
 				function (response) {
 					if (!response || !response.success) {
-						previewBox.hidden = true;
-						setStatus(response && response.data ? response.data.message : i18n.networkError, 'error');
+						if (previewBox) {
+							previewBox.hidden = true;
+						}
+						setStatus(statusEl, response && response.data ? response.data.message : i18n.networkError, 'error');
 						return;
 					}
 					showPreview(response.data);
 					if (applySkeleton) {
 						defsField.value = response.data.skeleton;
 					}
-					setStatus(response.data.summary, 'ok');
+					setStatus(statusEl, response.data.summary, 'ok');
 				},
 				function () {
-					setStatus(i18n.networkError, 'error');
+					setStatus(statusEl, i18n.networkError, 'error');
 				}
 			);
 		}
@@ -133,6 +153,44 @@
 					return;
 				}
 				run(true);
+			});
+		}
+
+		if (importBtn && defsCsvField) {
+			importBtn.addEventListener('click', function () {
+				var raw = defsCsvField.value.trim();
+				if (!raw) {
+					setStatus(importStatusEl, i18n.importEmpty, 'error');
+					return;
+				}
+				if (defsField.value.trim() && !window.confirm(i18n.confirmImport)) {
+					return;
+				}
+				setStatus(importStatusEl, i18n.importing, '');
+				importBtn.disabled = true;
+				importDefs(csvField.value, defsCsvField.value).then(
+					function (response) {
+						importBtn.disabled = false;
+						if (!response || !response.success) {
+							setStatus(
+								importStatusEl,
+								response && response.data ? response.data.message : i18n.networkError,
+								'error'
+							);
+							return;
+						}
+						defsField.value = response.data.defs;
+						var msg = response.data.summary || '';
+						if (response.data.warnings && response.data.warnings.length) {
+							msg += ' ' + response.data.warnings.join(' ');
+						}
+						setStatus(importStatusEl, msg, response.data.warnings && response.data.warnings.length ? '' : 'ok');
+					},
+					function () {
+						importBtn.disabled = false;
+						setStatus(importStatusEl, i18n.networkError, 'error');
+					}
+				);
 			});
 		}
 	}

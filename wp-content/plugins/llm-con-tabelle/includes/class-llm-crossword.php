@@ -450,6 +450,241 @@ class LLM_Crossword {
 	}
 
 	/**
+	 * Il formato interno usa "|": toglie eventuali barre dalle definizioni CSV.
+	 *
+	 * @param string $value Campo testo.
+	 * @return string
+	 */
+	private static function sanitize_def_field( $value ) {
+		$value = str_replace( array( "\r", "\n" ), ' ', (string) $value );
+		$value = str_replace( '|', '/', $value );
+		return trim( $value );
+	}
+
+	/**
+	 * Legge un CSV di definizioni con virgole e campi tra virgolette.
+	 * Formato: numero,direzione,parola,categoria,definizione_en,definizione_it
+	 *
+	 * @param string $raw CSV grezzo.
+	 * @return array{clues:array<string,array{pos:string,en:string,it:string,word:string,number:int,direction:string}>,warnings:string[]}|WP_Error
+	 */
+	public static function parse_definitions_csv( $raw ) {
+		$raw = is_string( $raw ) ? str_replace( array( "\r\n", "\r" ), "\n", $raw ) : '';
+		$raw = trim( $raw );
+		if ( '' === $raw ) {
+			return new WP_Error( 'llm_cw_defs_csv_empty', __( 'Incolla prima il CSV delle definizioni.', 'llm-con-tabelle' ) );
+		}
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+		$h = fopen( 'php://memory', 'rb+' );
+		if ( ! $h ) {
+			return new WP_Error( 'llm_cw_defs_csv_io', __( 'Impossibile leggere il CSV.', 'llm-con-tabelle' ) );
+		}
+		fwrite( $h, $raw );
+		rewind( $h );
+
+		$clues    = array();
+		$warnings = array();
+		$row_num  = 0;
+		$header   = true;
+
+		while ( ( $cells = fgetcsv( $h, 0, ',', '"' ) ) !== false ) {
+			++$row_num;
+			if ( ! is_array( $cells ) ) {
+				continue;
+			}
+			$cells = array_map(
+				static function ( $c ) {
+					return is_string( $c ) ? trim( $c ) : '';
+				},
+				$cells
+			);
+
+			$non_empty = array_filter( $cells, static function ( $c ) {
+				return '' !== $c;
+			} );
+			if ( empty( $non_empty ) ) {
+				continue;
+			}
+
+			if ( $header ) {
+				$header = false;
+				$first  = strtolower( isset( $cells[0] ) ? $cells[0] : '' );
+				if ( function_exists( 'remove_accents' ) ) {
+					$first = remove_accents( $first );
+				}
+				if ( in_array( $first, array( 'numero', 'number', 'n', 'num' ), true ) ) {
+					continue;
+				}
+			}
+
+			if ( count( $cells ) < 2 ) {
+				$warnings[] = sprintf(
+					/* translators: %d: CSV row number */
+					__( 'Riga CSV %d ignorata: troppi pochi campi.', 'llm-con-tabelle' ),
+					$row_num
+				);
+				continue;
+			}
+
+			$number    = absint( $cells[0] );
+			$direction = self::normalize_direction( isset( $cells[1] ) ? $cells[1] : '' );
+			if ( ! $number || '' === $direction ) {
+				$warnings[] = sprintf(
+					/* translators: %d: CSV row number */
+					__( 'Riga CSV %d ignorata: numero o direzione non validi (usa O / V).', 'llm-con-tabelle' ),
+					$row_num
+				);
+				continue;
+			}
+
+			$word = isset( $cells[2] ) ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) $cells[2] ) ) : '';
+			$pos  = self::sanitize_def_field( isset( $cells[3] ) ? $cells[3] : '' );
+			$en   = self::sanitize_def_field( isset( $cells[4] ) ? $cells[4] : '' );
+			$it   = self::sanitize_def_field( isset( $cells[5] ) ? $cells[5] : '' );
+
+			if ( '' === $pos && '' === $en && '' === $it ) {
+				$warnings[] = sprintf(
+					/* translators: %d: CSV row number */
+					__( 'Riga CSV %d ignorata: manca il testo della definizione.', 'llm-con-tabelle' ),
+					$row_num
+				);
+				continue;
+			}
+
+			$key = self::clue_key( $number, $direction );
+			if ( isset( $clues[ $key ] ) ) {
+				$warnings[] = sprintf(
+					/* translators: 1: clue number, 2: direction letter */
+					__( 'La parola %1$d %2$s compare più volte nel CSV: viene usata l’ultima riga.', 'llm-con-tabelle' ),
+					$number,
+					self::direction_letter( $direction )
+				);
+			}
+
+			$clues[ $key ] = array(
+				'number'    => $number,
+				'direction' => $direction,
+				'word'      => $word,
+				'pos'       => $pos,
+				'en'        => $en,
+				'it'        => $it,
+			);
+		}
+		fclose( $h );
+
+		if ( empty( $clues ) ) {
+			return new WP_Error( 'llm_cw_defs_csv_nodata', __( 'Nessuna definizione valida trovata nel CSV.', 'llm-con-tabelle' ) );
+		}
+
+		return array(
+			'clues'    => $clues,
+			'warnings' => $warnings,
+		);
+	}
+
+	/**
+	 * Converte un CSV di definizioni nel formato pipe della textarea admin.
+	 * Se c’è uno schema, allinea le righe alle parole della griglia.
+	 *
+	 * @param string $csv_raw CSV definizioni.
+	 * @param array  $entries Parole della griglia (opzionale).
+	 * @return array{defs:string,imported:int,warnings:string[]}|WP_Error
+	 */
+	public static function import_definitions_csv( $csv_raw, array $entries = array() ) {
+		$parsed = self::parse_definitions_csv( $csv_raw );
+		if ( is_wp_error( $parsed ) ) {
+			return $parsed;
+		}
+
+		$clues    = $parsed['clues'];
+		$warnings = $parsed['warnings'];
+
+		if ( ! empty( $entries ) ) {
+			$pipe_bits = array();
+			foreach ( $clues as $clue ) {
+				$pipe_bits[] = implode(
+					self::DEF_SEPARATOR,
+					array(
+						(string) $clue['number'],
+						self::direction_letter( $clue['direction'] ),
+						$clue['word'],
+						$clue['pos'],
+						$clue['en'],
+						$clue['it'],
+					)
+				);
+			}
+			$defs = self::definitions_skeleton( $entries, implode( "\n", $pipe_bits ) );
+
+			foreach ( $clues as $key => $clue ) {
+				$found = false;
+				foreach ( $entries as $entry ) {
+					if ( self::clue_key( $entry['number'], $entry['direction'] ) === $key ) {
+						$found = true;
+						break;
+					}
+				}
+				if ( ! $found ) {
+					$warnings[] = sprintf(
+						/* translators: 1: clue number, 2: direction letter */
+						__( 'Nel CSV c’è %1$d %2$s, ma nello schema attuale quella parola non esiste: riga ignorata.', 'llm-con-tabelle' ),
+						$clue['number'],
+						self::direction_letter( $clue['direction'] )
+					);
+				}
+			}
+
+			$matched = 0;
+			foreach ( $entries as $entry ) {
+				$key = self::clue_key( $entry['number'], $entry['direction'] );
+				if ( isset( $clues[ $key ] ) ) {
+					++$matched;
+				}
+			}
+
+			return array(
+				'defs'     => $defs,
+				'imported' => $matched,
+				'warnings' => $warnings,
+			);
+		}
+
+		$lines = array(
+			'# numero|direzione|parola|categoria|definizione inglese|definizione italiana',
+			'# importato da CSV',
+		);
+		uasort(
+			$clues,
+			static function ( $a, $b ) {
+				if ( $a['number'] !== $b['number'] ) {
+					return $a['number'] < $b['number'] ? -1 : 1;
+				}
+				return strcmp( $a['direction'], $b['direction'] );
+			}
+		);
+		foreach ( $clues as $clue ) {
+			$lines[] = implode(
+				self::DEF_SEPARATOR,
+				array(
+					(string) $clue['number'],
+					self::direction_letter( $clue['direction'] ),
+					$clue['word'],
+					$clue['pos'],
+					$clue['en'],
+					$clue['it'],
+				)
+			);
+		}
+
+		return array(
+			'defs'     => implode( "\n", $lines ),
+			'imported' => count( $clues ),
+			'warnings' => $warnings,
+		);
+	}
+
+	/**
 	 * Definizione formattata come nel gioco: categoria, testo inglese e
 	 * italiano a capo tra parentesi. Senza inglese resta solo l'italiano.
 	 *

@@ -17,8 +17,10 @@
 
 	font-family: -apple-system, "Segoe UI", Arial, sans-serif;
 	color: var(--cw-text);
-	max-width: 900px;
-	margin: 0 auto;
+	width: 100%;
+	max-width: none;
+	margin: 0;
+	padding: 0;
 }
 
 .llm-crossword *,
@@ -32,9 +34,12 @@
 	gap: 2rem;
 	flex-wrap: wrap;
 	align-items: flex-start;
+	width: 100%;
 }
 
 .llm-crossword .cw-board {
+	flex: 1 1 auto;
+	min-width: 0;
 	max-width: 100%;
 	overflow-x: auto;
 }
@@ -147,9 +152,9 @@
 }
 
 .llm-crossword .cw-panel {
-	flex: 1 1 260px;
-	max-width: 320px;
-	min-width: 220px;
+	flex: 1 1 280px;
+	max-width: none;
+	min-width: 240px;
 	font-size: 14px;
 }
 

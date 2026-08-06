@@ -45,6 +45,21 @@
 	margin: 0 0 6px;
 }
 
+.llm-cw-admin__import {
+	margin-top: 20px;
+	padding-top: 16px;
+	border-top: 1px solid #dcdcde;
+}
+
+.llm-cw-admin__import label {
+	display: block;
+	margin-bottom: 4px;
+}
+
+.llm-cw-admin__import .description {
+	margin: 0 0 6px;
+}
+
 .llm-cw-admin__actions {
 	display: flex;
 	gap: 10px;
