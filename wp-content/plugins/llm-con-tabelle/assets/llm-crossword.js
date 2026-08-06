@@ -289,6 +289,38 @@
 			cell.focus();
 		}
 
+		/**
+		 * Scrive una lettera e avanza. Senza svuotare la casella: quel
+		 * "lampeggio" a 110ms in digitazione veloce faceva accumulare
+		 * timeout e cascate di focus su molte celle insieme.
+		 */
+		var isWriting = false;
+		function writeLetter(cell, letter, fromKeydown) {
+			if (!cell || !letter || isWriting) {
+				return;
+			}
+			isWriting = true;
+			try {
+				cell.value = letter;
+				cell.classList.remove('cw-correct', 'cw-wrong');
+				// Se la lettera arriva da keydown, ignora l'eventuale 'input'
+				// nativo subito dopo (altrimenti si avanza di due caselle).
+				if (fromKeydown) {
+					cell._ignoreNextInput = true;
+				}
+				var entry = activeDirection === 'across' ? cell._acrossEntry : cell._downEntry;
+				if (entry) {
+					var next = entry.cells[entry.cells.indexOf(cell) + 1];
+					if (next) {
+						moveTo(next);
+					}
+				}
+				scheduleSave();
+			} finally {
+				isWriting = false;
+			}
+		}
+
 		function attachCellListeners(input) {
 			input.addEventListener('mousedown', function () {
 				var isSame = activeCell === input;
@@ -310,44 +342,59 @@
 				}, 0);
 			});
 
-			input.addEventListener('input', function (event) {
-				var cell = event.target;
-				cell.value = cell.value.toUpperCase().replace(/[^A-Z]/g, '');
-				cell.classList.remove('cw-correct', 'cw-wrong');
-
-				if (cell.value) {
-					// Se la casella conteneva gia' una lettera la svuotiamo per un istante:
-					// cosi' si vede la sostituzione anche riscrivendo la stessa lettera.
-					if (cell._hadValue) {
-						var written = cell.value;
-						cell._hadValue = '';
-						cell.value = '';
-						window.setTimeout(function () {
-							cell.value = written;
-						}, 110);
-					}
-					var entry = activeDirection === 'across' ? cell._acrossEntry : cell._downEntry;
-					if (entry) {
-						var next = entry.cells[entry.cells.indexOf(cell) + 1];
-						if (next) {
-							moveTo(next);
-						}
-					}
-				}
-				scheduleSave();
-			});
-
 			input.addEventListener('keydown', function (event) {
-				// Serve a sapere se stiamo sostituendo una lettera gia' presente.
-				event.target._hadValue = event.target.value;
-				if (event.key === 'Backspace' && !event.target.value) {
+				if (event.key === 'Backspace' || event.key === 'Delete') {
+					event.preventDefault();
+					if (event.target.value) {
+						event.target.value = '';
+						event.target.classList.remove('cw-correct', 'cw-wrong');
+						scheduleSave();
+						return;
+					}
 					var entry = activeDirection === 'across' ? event.target._acrossEntry : event.target._downEntry;
 					if (entry) {
 						var prev = entry.cells[entry.cells.indexOf(event.target) - 1];
 						if (prev) {
+							prev.value = '';
+							prev.classList.remove('cw-correct', 'cw-wrong');
 							moveTo(prev);
+							scheduleSave();
 						}
 					}
+					return;
+				}
+
+				// Tastiera fisica: gestiamo qui e blocchiamo l'input nativo,
+				// cosi' non partono due avanzamenti (keydown + input).
+				if (event.key && event.key.length === 1 && /[a-zA-Z]/.test(event.key)) {
+					event.preventDefault();
+					writeLetter(event.target, event.key.toUpperCase(), true);
+				}
+			});
+
+			// Soft keyboard / mobile: spesso arriva solo l'evento input.
+			input.addEventListener('input', function (event) {
+				var cell = event.target;
+				if (cell._ignoreNextInput) {
+					cell._ignoreNextInput = false;
+					cell.value = String(cell.value || '')
+						.toUpperCase()
+						.replace(/[^A-Z]/g, '')
+						.slice(-1);
+					return;
+				}
+				if (isWriting) {
+					return;
+				}
+				var letter = String(cell.value || '')
+					.toUpperCase()
+					.replace(/[^A-Z]/g, '')
+					.slice(-1);
+				if (letter) {
+					writeLetter(cell, letter, false);
+				} else {
+					cell.value = '';
+					scheduleSave();
 				}
 			});
 		}
