@@ -38,10 +38,11 @@ class LLM_Crossword_Admin {
 			return;
 		}
 		/* L'anteprima riusa il foglio di stile del gioco per mostrare la grafica reale. */
+		wp_enqueue_style( 'llm-ui' );
 		wp_enqueue_style(
 			'llm-crossword',
 			LLM_TABELLE_URL . 'assets/llm-crossword.css',
-			array(),
+			array( 'llm-ui' ),
 			LLM_TABELLE_VERSION
 		);
 		wp_enqueue_style(
@@ -374,18 +375,25 @@ class LLM_Crossword_Admin {
 		return '<p class="llm-cw-preview-note">'
 			. esc_html__( 'Cosi apparira nel frontend. Qui vedi le lettere della soluzione: nel gioco le caselle partono vuote.', 'llm-con-tabelle' )
 			. '</p>'
-			. '<div class="llm-crossword llm-crossword--preview" style="--cw-cell-size:' . $cell . 'px;" aria-hidden="true">'
+			. '<div class="llm-crossword llm-crossword--preview llm-ui-scope llm-ui-scope--light" style="--cw-cell-size:' . $cell . 'px;" aria-hidden="true">'
 			. '<div class="cw-container">'
 			. '<div class="cw-board">'
 			. '<div class="cw-grid" style="' . esc_attr( $grid_style ) . '">' . $cells . '</div>'
+			. '<div class="cw-reveal-wrap">'
+			. '<span class="llm-ui-btn llm-ui-btn--primary cw-reveal">'
+			. '<svg class="cw-reveal__icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+			. '<path fill="currentColor" d="M12 2a7 7 0 0 0-4 12.75V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.25A7 7 0 0 0 12 2zm2 14h-4v-.4a1 1 0 0 0 .4-.8V14h3.2v.8a1 1 0 0 0 .4.8V16zm.2-3.2H9.8A5 5 0 1 1 14.2 12.8zM10 20a1 1 0 0 0 1 1h2a1 1 0 1 0 0-2h-2a1 1 0 0 0-1 1z"/>'
+			. '</svg>'
+			. '<span>' . esc_html( $i18n['reveal_letter'] ) . '</span>'
+			. '</span>'
+			. '</div>'
 			. '<div class="cw-controls">'
-			. '<span class="cw-btn">' . esc_html( $i18n['check'] ) . '</span>'
-			. '<span class="cw-btn">' . esc_html( $i18n['restart'] ) . '</span>'
+			. '<span class="llm-ui-btn llm-ui-btn--ghost cw-btn">' . esc_html( $i18n['check'] ) . '</span>'
+			. '<span class="llm-ui-btn llm-ui-btn--ghost cw-btn">' . esc_html( $i18n['restart'] ) . '</span>'
 			. '</div>'
 			. '<p class="cw-status">' . esc_html( $i18n['start_hint'] ) . '</p>'
 			. '</div>'
 			. '<div class="cw-panel">'
-			. '<span class="cw-btn cw-primary cw-big">' . esc_html( $i18n['reveal_letter'] ) . '</span>'
 			. '<div class="cw-entrylist">' . self::preview_clues_html( $entries, $clues, $i18n ) . '</div>'
 			. '</div>'
 			. '</div>'

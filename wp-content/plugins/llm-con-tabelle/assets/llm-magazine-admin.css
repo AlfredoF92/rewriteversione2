@@ -1,0 +1,122 @@
+/*
+ * llm-magazine-admin.css
+ */
+
+.llm-mag-admin__row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px;
+	margin-bottom: 16px;
+}
+
+.llm-mag-admin__field {
+	flex: 1 1 180px;
+	min-width: 160px;
+}
+
+.llm-mag-admin__field label {
+	display: block;
+	margin-bottom: 4px;
+}
+
+.llm-mag-admin__homepage {
+	margin: 8px 0 16px;
+	padding: 12px 14px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+}
+
+.llm-mag-admin__homepage label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.llm-mag-admin__homepage .description {
+	margin: 6px 0 0;
+}
+
+.llm-mag-admin__shortcode {
+	margin-top: 8px;
+}
+
+.llm-mag-admin__shortcode-row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	max-width: 520px;
+}
+
+.llm-mag-admin__shortcode-row input {
+	flex: 1 1 auto;
+	font-family: Consolas, Monaco, monospace;
+}
+
+.llm-mag-admin__section {
+	margin-bottom: 22px;
+}
+
+.llm-mag-admin__section h3 {
+	margin: 0 0 6px;
+	font-size: 14px;
+}
+
+.llm-mag-admin__stories {
+	max-height: 360px;
+	overflow-y: auto;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 6px;
+	background: #fff;
+}
+
+.llm-mag-admin__story {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	padding: 8px 10px;
+	border-bottom: 1px solid #f0f0f1;
+	cursor: pointer;
+}
+
+.llm-mag-admin__story[hidden] {
+	display: none !important;
+}
+
+.llm-mag-admin__story:last-child {
+	border-bottom: none;
+}
+
+.llm-mag-admin__story:hover {
+	background: #f6f7f7;
+}
+
+.llm-mag-admin__story-title {
+	font-weight: 600;
+}
+
+.llm-mag-admin__story-meta {
+	font-size: 12px;
+	color: #646970;
+}
+
+.llm-mag-admin__stories-empty {
+	color: #646970;
+	font-style: italic;
+}
+
+.llm-mag-admin__warn {
+	color: #b32d2e;
+	font-weight: 600;
+}
+
+.llm-mag-col-yes {
+	display: inline-block;
+	padding: 1px 8px;
+	border-radius: 999px;
+	background: #d7f5df;
+	color: #1d6b3b;
+	font-weight: 600;
+	font-size: 12px;
+}

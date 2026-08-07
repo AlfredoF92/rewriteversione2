@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LLM_TABELLE_VERSION', '2.2.110' );
+define( 'LLM_TABELLE_VERSION', '2.2.118' );
 define( 'LLM_TABELLE_FILE', __FILE__ );
 define( 'LLM_TABELLE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LLM_TABELLE_URL', plugin_dir_url( __FILE__ ) );
@@ -36,6 +36,9 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-crossword.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-crossword-i18n.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-crossword-admin.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-crossword-shortcode.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-magazine.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-magazine-admin.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-magazine-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-meta.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-visitor-lang.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-repository.php';
@@ -117,6 +120,9 @@ function llm_tabelle_boot() {
 	LLM_Crossword::init();
 	LLM_Crossword_Admin::init();
 	LLM_Crossword_Shortcode::init();
+	LLM_Magazine::init();
+	LLM_Magazine_Admin::init();
+	LLM_Magazine_Shortcode::init();
 	LLM_Story_Meta::init();
 	LLM_User_Meta::init();
 	LLM_Visitor_Lang::init();
@@ -254,6 +260,7 @@ function llm_tabelle_activate() {
 	LLM_Post_Type::register();
 	LLM_Activity_CPT::register();
 	LLM_Crossword::register();
+	LLM_Magazine::register();
 	LLM_Tabelle_Database::install();
 	LLM_Demo_Stories::seed_on_activate();
 	flush_rewrite_rules();

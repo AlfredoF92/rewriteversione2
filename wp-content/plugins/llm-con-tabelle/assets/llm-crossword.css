@@ -1,9 +1,9 @@
 /*
- * llm-crossword.css — griglia giocabile + pannello definizioni.
+ * llm-crossword.css — griglia giocabile + pannello definizioni (layout compatto).
  */
 
 .llm-crossword {
-	--cw-cell-size: 38px;
+	--cw-cell-size: 28px;
 	--cw-border: #d0d0d0;
 	--cw-text: #2c2c2a;
 	--cw-muted: #6b6b66;
@@ -31,14 +31,14 @@
 
 .llm-crossword .cw-container {
 	display: flex;
-	gap: 2rem;
+	gap: 1.1rem;
 	flex-wrap: wrap;
 	align-items: flex-start;
 	width: 100%;
 }
 
 .llm-crossword .cw-board {
-	flex: 1 1 auto;
+	flex: 0 1 auto;
 	min-width: 0;
 	max-width: 100%;
 	overflow-x: auto;
@@ -47,7 +47,7 @@
 .llm-crossword .cw-grid {
 	display: grid;
 	gap: 0;
-	border: 3px solid #000;
+	border: 2px solid #000;
 	background: #000;
 	width: max-content;
 	max-width: 100%;
@@ -65,10 +65,10 @@
 .llm-crossword .cw-number {
 	position: absolute;
 	top: 0;
-	left: 2px;
-	font-size: 9px;
+	left: 1px;
+	font-size: 7px;
 	font-weight: 700;
-	line-height: 1.2;
+	line-height: 1.15;
 	color: #000;
 	pointer-events: none;
 	user-select: none;
@@ -80,7 +80,7 @@
 	height: var(--cw-cell-size);
 	text-align: center;
 	font-family: inherit;
-	font-size: calc(var(--cw-cell-size) * 0.45);
+	font-size: calc(var(--cw-cell-size) * 0.48);
 	font-weight: 700;
 	text-transform: uppercase;
 	padding: 0;
@@ -114,8 +114,8 @@
 
 .llm-crossword .cw-input.cw-active-cell {
 	background: var(--cw-active-bg);
-	outline: 3px solid #000;
-	outline-offset: -3px;
+	outline: 2px solid #000;
+	outline-offset: -2px;
 }
 
 .llm-crossword .cw-input.cw-correct {
@@ -142,82 +142,70 @@
 	user-select: none;
 }
 
-.llm-crossword--preview .cw-btn {
-	display: inline-block;
+.llm-crossword--preview .cw-btn,
+.llm-crossword--preview .cw-reveal {
+	display: inline-flex;
 	text-align: center;
-}
-
-.llm-crossword--preview .cw-big {
-	display: block;
+	pointer-events: none;
 }
 
 .llm-crossword .cw-panel {
-	flex: 1 1 280px;
-	max-width: none;
-	min-width: 240px;
-	font-size: 14px;
+	flex: 1 1 220px;
+	max-width: 360px;
+	min-width: 180px;
+	font-size: 12px;
+}
+
+.llm-crossword .cw-reveal-wrap {
+	margin-top: 0.55rem;
+}
+
+.llm-crossword .cw-reveal {
+	gap: 0.4rem;
+	padding: 0.4rem 0.85rem;
+	font-size: 0.8125rem;
+	line-height: 1.25;
+	white-space: nowrap;
+}
+
+.llm-crossword .cw-reveal__icon {
+	flex: 0 0 auto;
+	display: block;
 }
 
 .llm-crossword .cw-controls {
 	display: flex;
-	gap: 8px;
-	margin-top: 1rem;
+	gap: 6px;
+	margin-top: 0.45rem;
 	flex-wrap: wrap;
 }
 
-.llm-crossword .cw-btn {
-	font-family: inherit;
-	font-size: 13px;
-	padding: 8px 12px;
-	border: 1px solid var(--cw-border);
-	border-radius: 6px;
-	background: #fff;
-	color: var(--cw-text);
-	cursor: pointer;
-}
-
-.llm-crossword .cw-btn:hover {
-	background: #f5f5f3;
-}
-
-.llm-crossword .cw-primary {
-	background: var(--cw-accent);
-	color: #fff;
-	border-color: var(--cw-accent);
-}
-
-.llm-crossword .cw-primary:hover {
-	background: var(--cw-accent);
-	opacity: 0.9;
-}
-
-.llm-crossword .cw-big {
-	width: 100%;
-	padding: 14px;
-	font-size: 15px;
-	font-weight: 700;
-	margin-bottom: 14px;
+.llm-crossword .cw-controls .cw-btn {
+	font-size: 0.75rem;
 }
 
 .llm-crossword .cw-status {
-	font-size: 13px;
+	font-size: 12px;
 	color: var(--cw-muted);
-	margin: 8px 0 0;
-	min-height: 18px;
+	margin: 6px 0 0;
+	min-height: 16px;
 }
 
 .llm-crossword .cw-entrylist {
-	font-size: 13px;
-	max-height: 480px;
+	font-size: 12px;
+	line-height: 1.35;
+	max-height: 420px;
 	overflow-y: auto;
 }
 
 .llm-crossword .cw-entrylist h3 {
-	font-size: 13px;
+	font-size: 11px;
 	font-weight: 700;
-	margin: 10px 0 4px;
+	margin: 8px 0 3px;
 	padding: 0;
 	color: var(--cw-text);
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
 }
 
 .llm-crossword .cw-entrylist h3:first-child {
@@ -225,19 +213,19 @@
 }
 
 .llm-crossword .cw-clue-row {
-	padding: 3px 4px;
+	padding: 2px 3px;
 	border-bottom: 1px solid #eee;
 	cursor: pointer;
 }
 
 .llm-crossword .cw-clue-row:hover {
 	background: #f5f5f3;
-	border-radius: 6px;
+	border-radius: 4px;
 }
 
 .llm-crossword .cw-clue-row.cw-clue-active {
 	background: var(--cw-highlight-bg);
-	border-radius: 6px;
+	border-radius: 4px;
 	font-weight: 600;
 }
 
@@ -247,14 +235,15 @@
 
 .llm-crossword .cw-def-pos {
 	display: inline-block;
-	font-size: 11px;
+	font-size: 9px;
 	font-weight: 700;
 	text-transform: uppercase;
 	color: var(--cw-accent);
 	background: #e6f1fb;
-	padding: 1px 6px;
-	border-radius: 4px;
-	margin-right: 4px;
+	padding: 0 4px;
+	border-radius: 3px;
+	margin-right: 3px;
+	line-height: 1.4;
 }
 
 .llm-crossword-error {
@@ -268,7 +257,7 @@
 
 @media (max-width: 782px) {
 	.llm-crossword .cw-container {
-		gap: 1.25rem;
+		gap: 0.9rem;
 	}
 
 	.llm-crossword .cw-panel {

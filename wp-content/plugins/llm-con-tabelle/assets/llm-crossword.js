@@ -5,9 +5,9 @@
 (function (window, document) {
 	'use strict';
 
-	var MAX_CELL = 48;
-	var MIN_CELL = 20;
-	var PANEL_RESERVE = 340;
+	var MAX_CELL = 30;
+	var MIN_CELL = 18;
+	var PANEL_RESERVE = 260;
 	var SIDE_BY_SIDE_WIDTH = 782;
 
 	function escapeHtml(str) {
