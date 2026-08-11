@@ -61,6 +61,7 @@ class LLM_Magazine_Admin {
 				'noStories'         => __( 'Nessuna storia nella categoria dedicata a questa coppia (escluse le storie “Brani musicali”).', 'llm-con-tabelle' ),
 				'noMusic'           => __( 'Nessun brano: servono storie con la categoria di coppia e anche “Brani musicali”.', 'llm-con-tabelle' ),
 				'noQuiz'            => __( 'Nessuna banca quiz per questa coppia. Creane una in Storie LLM → Quiz.', 'llm-con-tabelle' ),
+				'noIdiom'           => __( 'Nessuna espressione per questa coppia. Creane in Storie LLM → Espressioni.', 'llm-con-tabelle' ),
 				'shortcodeCopied'   => __( 'Shortcode copiato.', 'llm-con-tabelle' ),
 				'ajaxUrl'           => admin_url( 'admin-ajax.php' ),
 				'suggestAction'     => self::AJAX_SUGGEST,
@@ -337,38 +338,37 @@ class LLM_Magazine_Admin {
 			</div>
 
 			<?php
-			$idiom = LLM_Magazine::get_idiom( $post->ID );
-			if ( ! $idiom ) {
-				$idiom = array(
-					'category'   => '',
-					'phrase'     => '',
-					'meaning'    => '',
-					'equivalent' => '',
-				);
-			}
+			$selected_idiom_id = LLM_Magazine::get_idiom_id( $post->ID );
+			$idiom_rows        = self::all_idioms_for_admin();
 			?>
 			<div class="llm-mag-admin__section">
 				<h3><?php esc_html_e( 'Espressione del giorno', 'llm-con-tabelle' ); ?></h3>
 				<p class="description">
-					<?php esc_html_e( 'Un modo di dire nella lingua da imparare: categoria, significato e equivalente nella lingua nota.', 'llm-con-tabelle' ); ?>
+					<?php esc_html_e( 'Scegli un’espressione dalla banca (Storie LLM → Espressioni). Se non selezioni nulla, la rubrica non compare in rivista.', 'llm-con-tabelle' ); ?>
 				</p>
-				<div class="llm-mag-admin__idiom">
-					<p>
-						<label for="llm_mag_idiom_category"><strong><?php esc_html_e( 'Categoria', 'llm-con-tabelle' ); ?></strong></label>
-						<input type="text" class="widefat" id="llm_mag_idiom_category" name="llm_mag_idiom[category]" value="<?php echo esc_attr( $idiom['category'] ); ?>" placeholder="<?php echo esc_attr__( 'Es. 🍕 Espressioni legate al cibo', 'llm-con-tabelle' ); ?>">
-					</p>
-					<p>
-						<label for="llm_mag_idiom_phrase"><strong><?php esc_html_e( 'Espressione / modo di dire', 'llm-con-tabelle' ); ?></strong></label>
-						<input type="text" class="widefat" id="llm_mag_idiom_phrase" name="llm_mag_idiom[phrase]" value="<?php echo esc_attr( $idiom['phrase'] ); ?>" placeholder="<?php echo esc_attr__( 'Es. Facile come bere un bicchiere d’acqua', 'llm-con-tabelle' ); ?>">
-					</p>
-					<p>
-						<label for="llm_mag_idiom_meaning"><strong><?php esc_html_e( 'Significato', 'llm-con-tabelle' ); ?></strong></label>
-						<textarea class="widefat" rows="3" id="llm_mag_idiom_meaning" name="llm_mag_idiom[meaning]" placeholder="<?php echo esc_attr__( 'Cosa significa, in parole semplici', 'llm-con-tabelle' ); ?>"><?php echo esc_textarea( $idiom['meaning'] ); ?></textarea>
-					</p>
-					<p>
-						<label for="llm_mag_idiom_equivalent"><strong><?php esc_html_e( 'Equivalente (lingua nota)', 'llm-con-tabelle' ); ?></strong></label>
-						<textarea class="widefat" rows="2" id="llm_mag_idiom_equivalent" name="llm_mag_idiom[equivalent]" placeholder="<?php echo esc_attr__( 'Es. Equivalente polacco: Bułka z masłem…', 'llm-con-tabelle' ); ?>"><?php echo esc_textarea( $idiom['equivalent'] ); ?></textarea>
-					</p>
+				<p class="llm-mag-admin__stories-empty" id="llm-mag-idiom-empty" <?php echo ( $known && $target ) ? 'hidden' : ''; ?>>
+					<?php esc_html_e( 'Seleziona prima la coppia di lingue nelle impostazioni.', 'llm-con-tabelle' ); ?>
+				</p>
+				<div class="llm-mag-admin__stories llm-mag-admin__idioms" id="llm-mag-idioms">
+					<label class="llm-mag-admin__story llm-mag-admin__idiom-row" data-pairs="*" <?php echo ( $known && $target ) ? '' : 'hidden'; ?>>
+						<input type="radio" name="llm_mag_idiom_id" value="" <?php checked( $selected_idiom_id, '' ); ?>>
+						<span class="llm-mag-admin__story-title"><?php esc_html_e( '— Nessuna espressione —', 'llm-con-tabelle' ); ?></span>
+					</label>
+					<?php foreach ( $idiom_rows as $row ) : ?>
+						<?php
+						$match   = $current_key && $row['pair_key'] === $current_key;
+						$checked = $selected_idiom_id && $selected_idiom_id === $row['id'];
+						?>
+						<label class="llm-mag-admin__story llm-mag-admin__idiom-row"
+							data-pairs="<?php echo esc_attr( $row['pair_key'] ); ?>"
+							<?php echo $match ? '' : 'hidden'; ?>>
+							<input type="radio" name="llm_mag_idiom_id" value="<?php echo esc_attr( $row['id'] ); ?>" <?php checked( $checked ); ?>>
+							<span class="llm-mag-admin__story-title"><?php echo esc_html( $row['phrase'] ); ?></span>
+							<span class="llm-mag-admin__story-meta">
+								<?php echo esc_html( $row['category'] ? $row['category'] : '—' ); ?>
+							</span>
+						</label>
+					<?php endforeach; ?>
 				</div>
 			</div>
 
@@ -416,6 +416,46 @@ class LLM_Magazine_Admin {
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Espressioni di tutte le banche, per filtri admin rivista.
+	 *
+	 * @return array<int,array{id:string,pair_key:string,category:string,phrase:string}>
+	 */
+	private static function all_idioms_for_admin() {
+		if ( ! class_exists( 'LLM_Idiom' ) ) {
+			return array();
+		}
+		$q = new WP_Query(
+			array(
+				'post_type'              => LLM_Idiom::CPT,
+				'post_status'            => array( 'publish', 'draft', 'private' ),
+				'posts_per_page'         => 100,
+				'orderby'                => 'date',
+				'order'                  => 'DESC',
+				'no_found_rows'          => true,
+				'update_post_term_cache' => false,
+			)
+		);
+		$out = array();
+		foreach ( $q->posts as $bank ) {
+			$known  = LLM_Idiom::get_known( $bank->ID );
+			$target = LLM_Idiom::get_target( $bank->ID );
+			if ( ! $known || ! $target ) {
+				continue;
+			}
+			$pair_key = LLM_Magazine::pair_key( $known, $target );
+			foreach ( LLM_Idiom::get_items( $bank->ID ) as $item ) {
+				$out[] = array(
+					'id'       => $item['id'],
+					'pair_key' => $pair_key,
+					'category' => $item['category'],
+					'phrase'   => $item['phrase'] ? $item['phrase'] : __( '(senza testo)', 'llm-con-tabelle' ),
+				);
+			}
+		}
+		return $out;
 	}
 
 	/**
@@ -731,7 +771,7 @@ class LLM_Magazine_Admin {
 		$music_ids   = self::sanitize_id_list_from_post( 'llm_mag_music' );
 		$quiz_qids   = self::sanitize_quiz_qid_list_from_post();
 		$videos      = self::sanitize_videos_from_post();
-		$idiom       = self::sanitize_idiom_from_post();
+		$idiom_id    = isset( $_POST['llm_mag_idiom_id'] ) ? sanitize_key( wp_unslash( $_POST['llm_mag_idiom_id'] ) ) : '';
 
 		/* Se nessuna domanda scelta: auto-pick evitando ripetizioni. */
 		if ( empty( $quiz_qids ) && $known && $target ) {
@@ -747,10 +787,10 @@ class LLM_Magazine_Admin {
 		update_post_meta( $post_id, LLM_Magazine::META_MUSIC_IDS, $music_ids );
 		update_post_meta( $post_id, LLM_Magazine::META_QUIZ_QIDS, $quiz_qids );
 		update_post_meta( $post_id, LLM_Magazine::META_VIDEOS, $videos );
-		if ( $idiom ) {
-			update_post_meta( $post_id, LLM_Magazine::META_IDIOM, $idiom );
+		if ( $idiom_id ) {
+			update_post_meta( $post_id, LLM_Magazine::META_IDIOM_ID, $idiom_id );
 		} else {
-			delete_post_meta( $post_id, LLM_Magazine::META_IDIOM );
+			delete_post_meta( $post_id, LLM_Magazine::META_IDIOM_ID );
 		}
 
 		if ( '1' === $homepage && $known && $target ) {

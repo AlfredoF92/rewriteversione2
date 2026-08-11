@@ -46,7 +46,8 @@
 
 		list.querySelectorAll('.llm-mag-admin__story').forEach(function (row) {
 			var pairs = (row.getAttribute('data-pairs') || '').split(',').filter(Boolean);
-			var pairMatch = hasPair && pairs.indexOf(pairKey) !== -1;
+			var pairMatch =
+				hasPair && (pairs.indexOf('*') !== -1 || pairs.indexOf(pairKey) !== -1);
 			var match = pairMatch;
 			if (wantMusic !== null) {
 				var isMusic = row.getAttribute('data-music') === '1';
@@ -60,6 +61,10 @@
 				var cb = row.querySelector('input[type="checkbox"]');
 				if (cb) {
 					cb.checked = false;
+				}
+				var radio = row.querySelector('input[type="radio"]');
+				if (radio && radio.checked && pairs.indexOf('*') === -1) {
+					radio.checked = false;
 				}
 			}
 		});
@@ -170,6 +175,7 @@
 		syncList('llm-mag-stories', 'llm-mag-stories-empty', false, hasPair, pairKey, cfg.noStories || '');
 		syncList('llm-mag-music', 'llm-mag-music-empty', true, hasPair, pairKey, cfg.noMusic || '');
 		syncList('llm-mag-quiz', 'llm-mag-quiz-empty', null, hasPair, pairKey, cfg.noQuiz || '');
+		syncList('llm-mag-idioms', 'llm-mag-idiom-empty', null, hasPair, pairKey, cfg.noIdiom || '');
 
 		var field = el('llm-mag-shortcode');
 		var sc = shortcodeFor(k, t);

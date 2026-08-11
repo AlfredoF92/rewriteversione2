@@ -23,6 +23,7 @@ class LLM_Magazine {
 	const META_QUIZ_QIDS  = '_llm_magazine_quiz_qids';
 	const META_VIDEOS     = '_llm_magazine_videos';
 	const META_IDIOM      = '_llm_magazine_idiom';
+	const META_IDIOM_ID   = '_llm_magazine_idiom_id';
 
 	/** Quante domande quiz in una rivista (default automatico). */
 	const QUIZ_PER_ISSUE = 3;
@@ -486,13 +487,33 @@ class LLM_Magazine {
 	}
 
 	/**
-	 * Espressione / modo di dire della rivista.
+	 * ID espressione scelta dalla banca (se presente).
+	 *
+	 * @param int $post_id ID rivista.
+	 * @return string
+	 */
+	public static function get_idiom_id( $post_id ) {
+		return sanitize_key( (string) get_post_meta( absint( $post_id ), self::META_IDIOM_ID, true ) );
+	}
+
+	/**
+	 * Espressione / modo di dire della rivista (dalla banca o snapshot legacy).
 	 *
 	 * @param int $post_id ID rivista.
 	 * @return array{category:string,phrase:string,meaning:string,equivalent:string}|null
 	 */
 	public static function get_idiom( $post_id ) {
-		return self::normalize_idiom( get_post_meta( absint( $post_id ), self::META_IDIOM, true ) );
+		$post_id = absint( $post_id );
+		$item_id = self::get_idiom_id( $post_id );
+		if ( $item_id && class_exists( 'LLM_Idiom' ) ) {
+			$known  = self::get_known( $post_id );
+			$target = self::get_target( $post_id );
+			$item   = LLM_Idiom::find_item_for_pair( $known, $target, $item_id );
+			if ( $item ) {
+				return self::normalize_idiom( $item );
+			}
+		}
+		return self::normalize_idiom( get_post_meta( $post_id, self::META_IDIOM, true ) );
 	}
 
 	/**
