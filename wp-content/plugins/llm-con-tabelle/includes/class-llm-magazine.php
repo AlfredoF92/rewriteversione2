@@ -21,9 +21,13 @@ class LLM_Magazine {
 	const META_STORY_IDS  = '_llm_magazine_story_ids';
 	const META_MUSIC_IDS  = '_llm_magazine_music_ids';
 	const META_QUIZ_QIDS  = '_llm_magazine_quiz_qids';
+	const META_VIDEOS     = '_llm_magazine_videos';
 
 	/** Quante domande quiz in una rivista (default automatico). */
 	const QUIZ_PER_ISSUE = 3;
+
+	/** Quanti video YouTube suggeriti in una rivista. */
+	const VIDEOS_PER_ISSUE = 2;
 
 	/** Slug categoria WordPress per i brani (oltre alla categoria di coppia). */
 	const MUSIC_CATEGORY_SLUG = 'brani-musicali';
@@ -369,6 +373,82 @@ class LLM_Magazine {
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * Estrae l’ID video da URL YouTube (watch, youtu.be, embed, shorts).
+	 *
+	 * @param string $url URL o ID grezzo.
+	 * @return string ID o stringa vuota.
+	 */
+	public static function parse_youtube_id( $url ) {
+		$url = trim( (string) $url );
+		if ( '' === $url ) {
+			return '';
+		}
+		if ( preg_match( '/^[A-Za-z0-9_-]{11}$/', $url ) ) {
+			return $url;
+		}
+		if ( preg_match( '~(?:youtube\.com/(?:watch\?.*?v=|embed/|shorts/|live/)|youtu\.be/)([A-Za-z0-9_-]{11})~i', $url, $m ) ) {
+			return $m[1];
+		}
+		return '';
+	}
+
+	/**
+	 * @param mixed $raw Meta grezzo.
+	 * @return array<int,array{title:string,url:string,youtube_id:string,description:string}>
+	 */
+	public static function normalize_videos( $raw ) {
+		if ( is_string( $raw ) && '' !== $raw ) {
+			$decoded = json_decode( $raw, true );
+			if ( is_array( $decoded ) ) {
+				$raw = $decoded;
+			}
+		}
+		if ( ! is_array( $raw ) ) {
+			return array();
+		}
+
+		$out = array();
+		foreach ( $raw as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$title = isset( $row['title'] ) ? sanitize_text_field( (string) $row['title'] ) : '';
+			$url   = isset( $row['url'] ) ? esc_url_raw( trim( (string) $row['url'] ) ) : '';
+			$desc  = isset( $row['description'] ) ? sanitize_textarea_field( (string) $row['description'] ) : '';
+			$yt_id = self::parse_youtube_id( $url );
+			if ( '' === $yt_id && isset( $row['youtube_id'] ) ) {
+				$yt_id = self::parse_youtube_id( (string) $row['youtube_id'] );
+			}
+			if ( '' === $yt_id ) {
+				continue;
+			}
+			if ( '' === $url ) {
+				$url = 'https://www.youtube.com/watch?v=' . $yt_id;
+			}
+			$out[] = array(
+				'title'       => $title,
+				'url'         => $url,
+				'youtube_id'  => $yt_id,
+				'description' => $desc,
+			);
+			if ( count( $out ) >= self::VIDEOS_PER_ISSUE ) {
+				break;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Video YouTube della rivista (max VIDEOS_PER_ISSUE).
+	 *
+	 * @param int $post_id ID rivista.
+	 * @return array<int,array{title:string,url:string,youtube_id:string,description:string}>
+	 */
+	public static function get_videos( $post_id ) {
+		return self::normalize_videos( get_post_meta( absint( $post_id ), self::META_VIDEOS, true ) );
 	}
 
 	/**

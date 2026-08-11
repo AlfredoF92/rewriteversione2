@@ -132,6 +132,44 @@
 	font-weight: 500;
 }
 
+.llm-mag-admin__videos {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 1rem;
+}
+
+.llm-mag-admin__video {
+	margin: 0;
+	padding: 0.85rem 1rem;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	background: #fff;
+}
+
+.llm-mag-admin__video-heading {
+	margin: 0 0 0.65rem;
+	font-size: 13px;
+}
+
+.llm-mag-admin__video p {
+	margin: 0 0 0.65rem;
+}
+
+.llm-mag-admin__video p:last-child {
+	margin-bottom: 0;
+}
+
+.llm-mag-admin__video label {
+	display: block;
+	margin-bottom: 0.25rem;
+}
+
+@media (max-width: 900px) {
+	.llm-mag-admin__videos {
+		grid-template-columns: 1fr;
+	}
+}
+
 .llm-mag-col-yes {
 	display: inline-block;
 	padding: 1px 8px;

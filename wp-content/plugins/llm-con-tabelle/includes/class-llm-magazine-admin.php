@@ -335,6 +335,49 @@ class LLM_Magazine_Admin {
 					<?php endforeach; ?>
 				</div>
 			</div>
+
+			<?php
+			$videos = LLM_Magazine::get_videos( $post->ID );
+			while ( count( $videos ) < LLM_Magazine::VIDEOS_PER_ISSUE ) {
+				$videos[] = array(
+					'title'       => '',
+					'url'         => '',
+					'youtube_id'  => '',
+					'description' => '',
+				);
+			}
+			?>
+			<div class="llm-mag-admin__section">
+				<h3><?php esc_html_e( 'Video da ascoltare', 'llm-con-tabelle' ); ?></h3>
+				<p class="description">
+					<?php
+					printf(
+						/* translators: %d: number of videos */
+						esc_html__( 'Proponi fino a %d video YouTube di madrelingua (titolo, URL, breve spiegazione). In rivista restano incorporati nella pagina.', 'llm-con-tabelle' ),
+						LLM_Magazine::VIDEOS_PER_ISSUE
+					);
+					?>
+				</p>
+				<div class="llm-mag-admin__videos">
+					<?php foreach ( $videos as $i => $video ) : ?>
+						<div class="llm-mag-admin__video">
+							<h4 class="llm-mag-admin__video-heading"><?php echo esc_html( sprintf( __( 'Video %d', 'llm-con-tabelle' ), $i + 1 ) ); ?></h4>
+							<p>
+								<label for="llm_mag_video_title_<?php echo (int) $i; ?>"><strong><?php esc_html_e( 'Titolo', 'llm-con-tabelle' ); ?></strong></label>
+								<input type="text" class="widefat" id="llm_mag_video_title_<?php echo (int) $i; ?>" name="llm_mag_videos[<?php echo (int) $i; ?>][title]" value="<?php echo esc_attr( $video['title'] ); ?>" placeholder="<?php echo esc_attr__( 'Es. Consigli di pronuncia', 'llm-con-tabelle' ); ?>">
+							</p>
+							<p>
+								<label for="llm_mag_video_url_<?php echo (int) $i; ?>"><strong><?php esc_html_e( 'URL YouTube', 'llm-con-tabelle' ); ?></strong></label>
+								<input type="url" class="widefat" id="llm_mag_video_url_<?php echo (int) $i; ?>" name="llm_mag_videos[<?php echo (int) $i; ?>][url]" value="<?php echo esc_attr( $video['url'] ); ?>" placeholder="https://www.youtube.com/watch?v=…">
+							</p>
+							<p>
+								<label for="llm_mag_video_desc_<?php echo (int) $i; ?>"><strong><?php esc_html_e( 'Breve spiegazione', 'llm-con-tabelle' ); ?></strong></label>
+								<textarea class="widefat" rows="2" id="llm_mag_video_desc_<?php echo (int) $i; ?>" name="llm_mag_videos[<?php echo (int) $i; ?>][description]" placeholder="<?php echo esc_attr__( 'Perché ascoltarlo / di cosa parla', 'llm-con-tabelle' ); ?>"><?php echo esc_textarea( $video['description'] ); ?></textarea>
+							</p>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			</div>
 		</div>
 		<?php
 	}
@@ -528,6 +571,18 @@ class LLM_Magazine_Admin {
 		return array_values( array_unique( $ids ) );
 	}
 
+	/**
+	 * Video YouTube dal form rivista.
+	 *
+	 * @return array<int,array{title:string,url:string,youtube_id:string,description:string}>
+	 */
+	private static function sanitize_videos_from_post() {
+		if ( empty( $_POST['llm_mag_videos'] ) || ! is_array( $_POST['llm_mag_videos'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			return array();
+		}
+		return LLM_Magazine::normalize_videos( wp_unslash( $_POST['llm_mag_videos'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+	}
+
 	public static function ajax_suggest_quiz() {
 		if ( ! check_ajax_referer( self::AJAX_SUGGEST, 'nonce', false ) ) {
 			wp_send_json_error( array( 'message' => __( 'Sessione scaduta. Ricarica la pagina.', 'llm-con-tabelle' ) ), 403 );
@@ -629,6 +684,7 @@ class LLM_Magazine_Admin {
 		$story_ids   = self::sanitize_id_list_from_post( 'llm_mag_stories' );
 		$music_ids   = self::sanitize_id_list_from_post( 'llm_mag_music' );
 		$quiz_qids   = self::sanitize_quiz_qid_list_from_post();
+		$videos      = self::sanitize_videos_from_post();
 
 		/* Se nessuna domanda scelta: auto-pick evitando ripetizioni. */
 		if ( empty( $quiz_qids ) && $known && $target ) {
@@ -643,6 +699,7 @@ class LLM_Magazine_Admin {
 		update_post_meta( $post_id, LLM_Magazine::META_STORY_IDS, $story_ids );
 		update_post_meta( $post_id, LLM_Magazine::META_MUSIC_IDS, $music_ids );
 		update_post_meta( $post_id, LLM_Magazine::META_QUIZ_QIDS, $quiz_qids );
+		update_post_meta( $post_id, LLM_Magazine::META_VIDEOS, $videos );
 
 		if ( '1' === $homepage && $known && $target ) {
 			update_post_meta( $post_id, LLM_Magazine::META_HOMEPAGE, '1' );

@@ -130,6 +130,7 @@ class LLM_Magazine_Shortcode {
 		$story_ids    = LLM_Magazine::get_story_ids( $mag_id );
 		$music_ids    = LLM_Magazine::get_music_ids( $mag_id );
 		$quiz_qs      = LLM_Magazine::get_quiz_questions_for_magazine( $mag_id );
+		$videos       = LLM_Magazine::get_videos( $mag_id );
 		$date_label   = mysql2date( get_option( 'date_format' ), $date . ' 00:00:00' );
 
 		ob_start();
@@ -179,7 +180,57 @@ class LLM_Magazine_Shortcode {
 					<?php echo self::render_quiz( $mag_id, $quiz_qs ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 				</section>
 			<?php endif; ?>
+
+			<?php if ( ! empty( $videos ) ) : ?>
+				<section class="llm-magazine__section llm-magazine__section--videos">
+					<h3 class="llm-magazine__section-title"><?php esc_html_e( 'Video da ascoltare', 'llm-con-tabelle' ); ?></h3>
+					<div class="llm-magazine__videos">
+						<?php foreach ( $videos as $video ) : ?>
+							<?php echo self::render_video_card( $video ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+						<?php endforeach; ?>
+					</div>
+				</section>
+			<?php endif; ?>
 		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Card video YouTube incorporato (resta nella rivista).
+	 *
+	 * @param array{title?:string,url?:string,youtube_id?:string,description?:string} $video Video.
+	 * @return string
+	 */
+	private static function render_video_card( array $video ) {
+		$yt_id = isset( $video['youtube_id'] ) ? (string) $video['youtube_id'] : '';
+		if ( '' === $yt_id ) {
+			return '';
+		}
+		$title = isset( $video['title'] ) ? (string) $video['title'] : '';
+		$desc  = isset( $video['description'] ) ? (string) $video['description'] : '';
+		$embed = 'https://www.youtube-nocookie.com/embed/' . rawurlencode( $yt_id );
+
+		ob_start();
+		?>
+		<article class="llm-magazine__video">
+			<?php if ( $title ) : ?>
+				<h4 class="llm-magazine__video-title"><?php echo esc_html( $title ); ?></h4>
+			<?php endif; ?>
+			<?php if ( $desc ) : ?>
+				<p class="llm-magazine__video-desc"><?php echo esc_html( $desc ); ?></p>
+			<?php endif; ?>
+			<div class="llm-magazine__video-frame">
+				<iframe
+					src="<?php echo esc_url( $embed ); ?>"
+					title="<?php echo esc_attr( $title ? $title : __( 'Video YouTube', 'llm-con-tabelle' ) ); ?>"
+					loading="lazy"
+					allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+					allowfullscreen
+					referrerpolicy="strict-origin-when-cross-origin"
+				></iframe>
+			</div>
+		</article>
 		<?php
 		return (string) ob_get_clean();
 	}
