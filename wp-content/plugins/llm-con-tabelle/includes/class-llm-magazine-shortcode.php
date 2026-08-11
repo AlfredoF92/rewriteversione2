@@ -175,7 +175,7 @@ class LLM_Magazine_Shortcode {
 				</section>
 			<?php endif; ?>
 
-			<?php if ( $idiom && ( $idiom['phrase'] || $idiom['meaning'] || $idiom['example'] ) ) : ?>
+			<?php if ( $idiom && ( $idiom['phrase'] || $idiom['meaning'] || $idiom['equivalent'] || $idiom['category'] ) ) : ?>
 				<section class="llm-magazine__section llm-magazine__section--idiom">
 					<h3 class="llm-magazine__section-title"><?php esc_html_e( 'Espressione del giorno', 'llm-con-tabelle' ); ?></h3>
 					<?php echo self::render_idiom( $idiom ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
@@ -207,13 +207,16 @@ class LLM_Magazine_Shortcode {
 	/**
 	 * Espressione / modo di dire.
 	 *
-	 * @param array{phrase:string,meaning:string,example:string} $idiom Dati.
+	 * @param array{category:string,phrase:string,meaning:string,equivalent:string} $idiom Dati.
 	 * @return string
 	 */
 	private static function render_idiom( array $idiom ) {
 		ob_start();
 		?>
 		<article class="llm-magazine__idiom">
+			<?php if ( ! empty( $idiom['category'] ) ) : ?>
+				<p class="llm-magazine__idiom-category"><?php echo esc_html( $idiom['category'] ); ?></p>
+			<?php endif; ?>
 			<?php if ( ! empty( $idiom['phrase'] ) ) : ?>
 				<p class="llm-magazine__idiom-phrase"><?php echo esc_html( $idiom['phrase'] ); ?></p>
 			<?php endif; ?>
@@ -223,10 +226,10 @@ class LLM_Magazine_Shortcode {
 					<p class="llm-magazine__idiom-text"><?php echo esc_html( $idiom['meaning'] ); ?></p>
 				</div>
 			<?php endif; ?>
-			<?php if ( ! empty( $idiom['example'] ) ) : ?>
-				<div class="llm-magazine__idiom-block">
-					<span class="llm-magazine__idiom-label"><?php esc_html_e( 'Esempio', 'llm-con-tabelle' ); ?></span>
-					<p class="llm-magazine__idiom-text llm-magazine__idiom-text--example"><?php echo esc_html( $idiom['example'] ); ?></p>
+			<?php if ( ! empty( $idiom['equivalent'] ) ) : ?>
+				<div class="llm-magazine__idiom-block llm-magazine__idiom-block--equivalent">
+					<span class="llm-magazine__idiom-label"><?php esc_html_e( 'Equivalente', 'llm-con-tabelle' ); ?></span>
+					<p class="llm-magazine__idiom-text llm-magazine__idiom-text--equivalent"><?php echo esc_html( $idiom['equivalent'] ); ?></p>
 				</div>
 			<?php endif; ?>
 		</article>

@@ -552,6 +552,14 @@
 	color: #18181b;
 }
 
+.llm-magazine__idiom-category {
+	margin: 0 0 0.55rem;
+	font-size: 0.82rem;
+	font-weight: 700;
+	line-height: 1.35;
+	color: #52525b;
+}
+
 .llm-magazine__idiom-block {
 	margin: 0 0 0.75rem;
 }
@@ -577,9 +585,14 @@
 	color: #3f3f46;
 }
 
-.llm-magazine__idiom-text--example {
+.llm-magazine__idiom-text--equivalent {
 	font-style: italic;
 	color: #52525b;
+}
+
+.llm-magazine__idiom-block--equivalent {
+	padding-top: 0.55rem;
+	border-top: 1px dashed #e4e4e7;
 }
 
 /* —— Video da ascoltare —— */

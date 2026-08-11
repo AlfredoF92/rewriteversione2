@@ -340,29 +340,34 @@ class LLM_Magazine_Admin {
 			$idiom = LLM_Magazine::get_idiom( $post->ID );
 			if ( ! $idiom ) {
 				$idiom = array(
-					'phrase'  => '',
-					'meaning' => '',
-					'example' => '',
+					'category'   => '',
+					'phrase'     => '',
+					'meaning'    => '',
+					'equivalent' => '',
 				);
 			}
 			?>
 			<div class="llm-mag-admin__section">
 				<h3><?php esc_html_e( 'Espressione del giorno', 'llm-con-tabelle' ); ?></h3>
 				<p class="description">
-					<?php esc_html_e( 'Un modo di dire nella lingua da imparare, con significato (nella lingua nota) e un esempio d’uso.', 'llm-con-tabelle' ); ?>
+					<?php esc_html_e( 'Un modo di dire nella lingua da imparare: categoria, significato e equivalente nella lingua nota.', 'llm-con-tabelle' ); ?>
 				</p>
 				<div class="llm-mag-admin__idiom">
 					<p>
+						<label for="llm_mag_idiom_category"><strong><?php esc_html_e( 'Categoria', 'llm-con-tabelle' ); ?></strong></label>
+						<input type="text" class="widefat" id="llm_mag_idiom_category" name="llm_mag_idiom[category]" value="<?php echo esc_attr( $idiom['category'] ); ?>" placeholder="<?php echo esc_attr__( 'Es. 🍕 Espressioni legate al cibo', 'llm-con-tabelle' ); ?>">
+					</p>
+					<p>
 						<label for="llm_mag_idiom_phrase"><strong><?php esc_html_e( 'Espressione / modo di dire', 'llm-con-tabelle' ); ?></strong></label>
-						<input type="text" class="widefat" id="llm_mag_idiom_phrase" name="llm_mag_idiom[phrase]" value="<?php echo esc_attr( $idiom['phrase'] ); ?>" placeholder="<?php echo esc_attr__( 'Es. Break a leg!', 'llm-con-tabelle' ); ?>">
+						<input type="text" class="widefat" id="llm_mag_idiom_phrase" name="llm_mag_idiom[phrase]" value="<?php echo esc_attr( $idiom['phrase'] ); ?>" placeholder="<?php echo esc_attr__( 'Es. Facile come bere un bicchiere d’acqua', 'llm-con-tabelle' ); ?>">
 					</p>
 					<p>
 						<label for="llm_mag_idiom_meaning"><strong><?php esc_html_e( 'Significato', 'llm-con-tabelle' ); ?></strong></label>
-						<textarea class="widefat" rows="2" id="llm_mag_idiom_meaning" name="llm_mag_idiom[meaning]" placeholder="<?php echo esc_attr__( 'Cosa significa, in parole semplici', 'llm-con-tabelle' ); ?>"><?php echo esc_textarea( $idiom['meaning'] ); ?></textarea>
+						<textarea class="widefat" rows="3" id="llm_mag_idiom_meaning" name="llm_mag_idiom[meaning]" placeholder="<?php echo esc_attr__( 'Cosa significa, in parole semplici', 'llm-con-tabelle' ); ?>"><?php echo esc_textarea( $idiom['meaning'] ); ?></textarea>
 					</p>
 					<p>
-						<label for="llm_mag_idiom_example"><strong><?php esc_html_e( 'Esempio d’uso', 'llm-con-tabelle' ); ?></strong></label>
-						<textarea class="widefat" rows="2" id="llm_mag_idiom_example" name="llm_mag_idiom[example]" placeholder="<?php echo esc_attr__( 'Una frase di esempio in contesto', 'llm-con-tabelle' ); ?>"><?php echo esc_textarea( $idiom['example'] ); ?></textarea>
+						<label for="llm_mag_idiom_equivalent"><strong><?php esc_html_e( 'Equivalente (lingua nota)', 'llm-con-tabelle' ); ?></strong></label>
+						<textarea class="widefat" rows="2" id="llm_mag_idiom_equivalent" name="llm_mag_idiom[equivalent]" placeholder="<?php echo esc_attr__( 'Es. Equivalente polacco: Bułka z masłem…', 'llm-con-tabelle' ); ?>"><?php echo esc_textarea( $idiom['equivalent'] ); ?></textarea>
 					</p>
 				</div>
 			</div>
@@ -615,7 +620,7 @@ class LLM_Magazine_Admin {
 	}
 
 	/**
-	 * @return array{phrase:string,meaning:string,example:string}|null
+	 * @return array{category:string,phrase:string,meaning:string,equivalent:string}|null
 	 */
 	private static function sanitize_idiom_from_post() {
 		if ( empty( $_POST['llm_mag_idiom'] ) || ! is_array( $_POST['llm_mag_idiom'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing

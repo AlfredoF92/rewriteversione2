@@ -454,7 +454,7 @@ class LLM_Magazine {
 
 	/**
 	 * @param mixed $raw Meta grezzo.
-	 * @return array{phrase:string,meaning:string,example:string}|null
+	 * @return array{category:string,phrase:string,meaning:string,equivalent:string}|null
 	 */
 	public static function normalize_idiom( $raw ) {
 		if ( is_string( $raw ) && '' !== $raw ) {
@@ -466,16 +466,22 @@ class LLM_Magazine {
 		if ( ! is_array( $raw ) ) {
 			return null;
 		}
-		$phrase  = isset( $raw['phrase'] ) ? sanitize_text_field( (string) $raw['phrase'] ) : '';
-		$meaning = isset( $raw['meaning'] ) ? sanitize_textarea_field( (string) $raw['meaning'] ) : '';
-		$example = isset( $raw['example'] ) ? sanitize_textarea_field( (string) $raw['example'] ) : '';
-		if ( '' === $phrase && '' === $meaning && '' === $example ) {
+		$category   = isset( $raw['category'] ) ? sanitize_text_field( (string) $raw['category'] ) : '';
+		$phrase     = isset( $raw['phrase'] ) ? sanitize_text_field( (string) $raw['phrase'] ) : '';
+		$meaning    = isset( $raw['meaning'] ) ? sanitize_textarea_field( (string) $raw['meaning'] ) : '';
+		$equivalent = isset( $raw['equivalent'] ) ? sanitize_textarea_field( (string) $raw['equivalent'] ) : '';
+		/* Retrocompatibilità col vecchio campo “example”. */
+		if ( '' === $equivalent && isset( $raw['example'] ) ) {
+			$equivalent = sanitize_textarea_field( (string) $raw['example'] );
+		}
+		if ( '' === $category && '' === $phrase && '' === $meaning && '' === $equivalent ) {
 			return null;
 		}
 		return array(
-			'phrase'  => $phrase,
-			'meaning' => $meaning,
-			'example' => $example,
+			'category'   => $category,
+			'phrase'     => $phrase,
+			'meaning'    => $meaning,
+			'equivalent' => $equivalent,
 		);
 	}
 
@@ -483,7 +489,7 @@ class LLM_Magazine {
 	 * Espressione / modo di dire della rivista.
 	 *
 	 * @param int $post_id ID rivista.
-	 * @return array{phrase:string,meaning:string,example:string}|null
+	 * @return array{category:string,phrase:string,meaning:string,equivalent:string}|null
 	 */
 	public static function get_idiom( $post_id ) {
 		return self::normalize_idiom( get_post_meta( absint( $post_id ), self::META_IDIOM, true ) );
