@@ -2,13 +2,16 @@
 /**
  * Seed: 2 banche quiz di prova (it→en, it→pl), 10 domande ciascuna.
  *
- * Uso (da root WP):
+ * Uso CLI (da root WP):
  *   C:\xampp\php\php.exe wp-content/plugins/llm-con-tabelle/scripts/seed-quiz-sample-questions.php
+ *
+ * Uso web (solo se LLM_QUIZ_SEED_WEB è definito dal wrapper one-shot).
  *
  * @package LLM_Tabelle
  */
 
-if ( php_sapi_name() !== 'cli' ) {
+$llm_quiz_seed_web = defined( 'LLM_QUIZ_SEED_WEB' ) && LLM_QUIZ_SEED_WEB;
+if ( php_sapi_name() !== 'cli' && ! $llm_quiz_seed_web ) {
 	exit( "CLI only.\n" );
 }
 
