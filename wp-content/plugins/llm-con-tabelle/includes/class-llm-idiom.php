@@ -85,7 +85,7 @@ class LLM_Idiom {
 
 	/**
 	 * @param int $post_id ID banca.
-	 * @return array<int,array{id:string,category:string,phrase:string,meaning:string,equivalent:string}>
+	 * @return array<int,array{id:string,category:string,phrase:string,explanation:string}>
 	 */
 	public static function get_items( $post_id ) {
 		return self::normalize_items( get_post_meta( absint( $post_id ), self::META_ITEMS, true ) );
@@ -100,8 +100,30 @@ class LLM_Idiom {
 	}
 
 	/**
+	 * Unisce i campi legacy in un’unica spiegazione.
+	 *
+	 * @param array $row Riga grezza.
+	 * @return string
+	 */
+	public static function compose_explanation( array $row ) {
+		if ( isset( $row['explanation'] ) && '' !== trim( (string) $row['explanation'] ) ) {
+			return sanitize_textarea_field( (string) $row['explanation'] );
+		}
+		$parts = array();
+		if ( ! empty( $row['meaning'] ) ) {
+			$parts[] = sanitize_textarea_field( (string) $row['meaning'] );
+		}
+		if ( ! empty( $row['equivalent'] ) ) {
+			$parts[] = sanitize_textarea_field( (string) $row['equivalent'] );
+		} elseif ( ! empty( $row['example'] ) ) {
+			$parts[] = sanitize_textarea_field( (string) $row['example'] );
+		}
+		return implode( "\n\n", $parts );
+	}
+
+	/**
 	 * @param mixed $raw Meta grezzo.
-	 * @return array<int,array{id:string,category:string,phrase:string,meaning:string,equivalent:string}>
+	 * @return array<int,array{id:string,category:string,phrase:string,explanation:string}>
 	 */
 	public static function normalize_items( $raw ) {
 		if ( is_string( $raw ) && '' !== $raw ) {
@@ -119,11 +141,10 @@ class LLM_Idiom {
 			if ( ! is_array( $row ) ) {
 				continue;
 			}
-			$category   = isset( $row['category'] ) ? sanitize_text_field( (string) $row['category'] ) : '';
-			$phrase     = isset( $row['phrase'] ) ? sanitize_text_field( (string) $row['phrase'] ) : '';
-			$meaning    = isset( $row['meaning'] ) ? sanitize_textarea_field( (string) $row['meaning'] ) : '';
-			$equivalent = isset( $row['equivalent'] ) ? sanitize_textarea_field( (string) $row['equivalent'] ) : '';
-			if ( '' === $phrase && '' === $meaning && '' === $equivalent && '' === $category ) {
+			$category    = isset( $row['category'] ) ? sanitize_text_field( (string) $row['category'] ) : '';
+			$phrase      = isset( $row['phrase'] ) ? sanitize_text_field( (string) $row['phrase'] ) : '';
+			$explanation = self::compose_explanation( $row );
+			if ( '' === $phrase && '' === $explanation && '' === $category ) {
 				continue;
 			}
 			$id = isset( $row['id'] ) ? sanitize_key( (string) $row['id'] ) : '';
@@ -131,11 +152,10 @@ class LLM_Idiom {
 				$id = self::new_item_id();
 			}
 			$out[] = array(
-				'id'         => $id,
-				'category'   => $category,
-				'phrase'     => $phrase,
-				'meaning'    => $meaning,
-				'equivalent' => $equivalent,
+				'id'          => $id,
+				'category'    => $category,
+				'phrase'      => $phrase,
+				'explanation' => $explanation,
 			);
 		}
 		return array_values( $out );
@@ -222,7 +242,7 @@ class LLM_Idiom {
 	 * @param string $known  Lingua nota.
 	 * @param string $target Lingua obiettivo.
 	 * @param string $item_id ID espressione.
-	 * @return array{id:string,category:string,phrase:string,meaning:string,equivalent:string}|null
+	 * @return array{id:string,category:string,phrase:string,explanation:string}|null
 	 */
 	public static function find_item_for_pair( $known, $target, $item_id ) {
 		$item_id = sanitize_key( (string) $item_id );

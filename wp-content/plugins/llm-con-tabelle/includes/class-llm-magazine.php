@@ -455,7 +455,7 @@ class LLM_Magazine {
 
 	/**
 	 * @param mixed $raw Meta grezzo.
-	 * @return array{category:string,phrase:string,meaning:string,equivalent:string}|null
+	 * @return array{category:string,phrase:string,explanation:string}|null
 	 */
 	public static function normalize_idiom( $raw ) {
 		if ( is_string( $raw ) && '' !== $raw ) {
@@ -467,22 +467,18 @@ class LLM_Magazine {
 		if ( ! is_array( $raw ) ) {
 			return null;
 		}
-		$category   = isset( $raw['category'] ) ? sanitize_text_field( (string) $raw['category'] ) : '';
-		$phrase     = isset( $raw['phrase'] ) ? sanitize_text_field( (string) $raw['phrase'] ) : '';
-		$meaning    = isset( $raw['meaning'] ) ? sanitize_textarea_field( (string) $raw['meaning'] ) : '';
-		$equivalent = isset( $raw['equivalent'] ) ? sanitize_textarea_field( (string) $raw['equivalent'] ) : '';
-		/* Retrocompatibilità col vecchio campo “example”. */
-		if ( '' === $equivalent && isset( $raw['example'] ) ) {
-			$equivalent = sanitize_textarea_field( (string) $raw['example'] );
-		}
-		if ( '' === $category && '' === $phrase && '' === $meaning && '' === $equivalent ) {
+		$category    = isset( $raw['category'] ) ? sanitize_text_field( (string) $raw['category'] ) : '';
+		$phrase      = isset( $raw['phrase'] ) ? sanitize_text_field( (string) $raw['phrase'] ) : '';
+		$explanation = class_exists( 'LLM_Idiom' )
+			? LLM_Idiom::compose_explanation( $raw )
+			: ( isset( $raw['explanation'] ) ? sanitize_textarea_field( (string) $raw['explanation'] ) : '' );
+		if ( '' === $category && '' === $phrase && '' === $explanation ) {
 			return null;
 		}
 		return array(
-			'category'   => $category,
-			'phrase'     => $phrase,
-			'meaning'    => $meaning,
-			'equivalent' => $equivalent,
+			'category'    => $category,
+			'phrase'      => $phrase,
+			'explanation' => $explanation,
 		);
 	}
 
@@ -500,7 +496,7 @@ class LLM_Magazine {
 	 * Espressione / modo di dire della rivista (dalla banca o snapshot legacy).
 	 *
 	 * @param int $post_id ID rivista.
-	 * @return array{category:string,phrase:string,meaning:string,equivalent:string}|null
+	 * @return array{category:string,phrase:string,explanation:string}|null
 	 */
 	public static function get_idiom( $post_id ) {
 		$post_id = absint( $post_id );

@@ -660,7 +660,7 @@ class LLM_Magazine_Admin {
 	}
 
 	/**
-	 * @return array{category:string,phrase:string,meaning:string,equivalent:string}|null
+	 * @return array{category:string,phrase:string,explanation:string}|null
 	 */
 	private static function sanitize_idiom_from_post() {
 		if ( empty( $_POST['llm_mag_idiom'] ) || ! is_array( $_POST['llm_mag_idiom'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing

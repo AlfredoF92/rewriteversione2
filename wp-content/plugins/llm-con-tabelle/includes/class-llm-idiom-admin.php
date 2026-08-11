@@ -143,11 +143,10 @@ class LLM_Idiom_Admin {
 			<?php
 			self::render_item_block(
 				array(
-					'id'         => '',
-					'category'   => '',
-					'phrase'     => '',
-					'meaning'    => '',
-					'equivalent' => '',
+					'id'          => '',
+					'category'    => '',
+					'phrase'      => '',
+					'explanation' => '',
 				),
 				0,
 				true
@@ -168,13 +167,12 @@ class LLM_Idiom_Admin {
 	 * @param bool  $open  Open editor.
 	 */
 	private static function render_item_block( array $item, $index, $open = false ) {
-		$id       = isset( $item['id'] ) ? (string) $item['id'] : '';
-		$category = isset( $item['category'] ) ? (string) $item['category'] : '';
-		$phrase   = isset( $item['phrase'] ) ? (string) $item['phrase'] : '';
-		$meaning  = isset( $item['meaning'] ) ? (string) $item['meaning'] : '';
-		$equiv    = isset( $item['equivalent'] ) ? (string) $item['equivalent'] : '';
-		$preview  = $phrase !== '' ? $phrase : __( '(vuota)', 'llm-con-tabelle' );
-		$open_cls = $open ? ' is-open' : '';
+		$id          = isset( $item['id'] ) ? (string) $item['id'] : '';
+		$category    = isset( $item['category'] ) ? (string) $item['category'] : '';
+		$phrase      = isset( $item['phrase'] ) ? (string) $item['phrase'] : '';
+		$explanation = isset( $item['explanation'] ) ? (string) $item['explanation'] : '';
+		$preview     = $phrase !== '' ? $phrase : __( '(vuota)', 'llm-con-tabelle' );
+		$open_cls    = $open ? ' is-open' : '';
 		?>
 		<div class="llm-idiom-admin__item<?php echo esc_attr( $open_cls ); ?>" data-index="<?php echo esc_attr( (string) $index ); ?>">
 			<div class="llm-idiom-admin__row">
@@ -195,12 +193,8 @@ class LLM_Idiom_Admin {
 					<input type="text" class="widefat llm-idiom-phrase" name="llm_idiom_items[<?php echo (int) $index; ?>][phrase]" value="<?php echo esc_attr( $phrase ); ?>">
 				</p>
 				<p>
-					<label><?php esc_html_e( 'Significato', 'llm-con-tabelle' ); ?></label>
-					<textarea class="widefat llm-idiom-meaning" rows="2" name="llm_idiom_items[<?php echo (int) $index; ?>][meaning]"><?php echo esc_textarea( $meaning ); ?></textarea>
-				</p>
-				<p>
-					<label><?php esc_html_e( 'Equivalente (lingua nota)', 'llm-con-tabelle' ); ?></label>
-					<textarea class="widefat llm-idiom-equivalent" rows="2" name="llm_idiom_items[<?php echo (int) $index; ?>][equivalent]"><?php echo esc_textarea( $equiv ); ?></textarea>
+					<label><?php esc_html_e( 'Spiegazione (traduzione + significato + equivalente)', 'llm-con-tabelle' ); ?></label>
+					<textarea class="widefat llm-idiom-explanation" rows="4" name="llm_idiom_items[<?php echo (int) $index; ?>][explanation]" placeholder="<?php echo esc_attr__( 'Es. Si può tradurre come «Un pezzo di torta»: significa che qualcosa è semplicissimo… Equivalente italiano: …', 'llm-con-tabelle' ); ?>"><?php echo esc_textarea( $explanation ); ?></textarea>
 				</p>
 			</div>
 		</div>

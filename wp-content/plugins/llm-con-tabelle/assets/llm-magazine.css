@@ -604,19 +604,10 @@
 }
 
 .llm-magazine__idiom-text {
-	margin: 0 0 0.55rem;
+	margin: 0;
 	font-size: 0.98rem;
 	line-height: 1.55;
 	color: #3f3f46;
-}
-
-.llm-magazine__idiom-text:last-child {
-	margin-bottom: 0;
-}
-
-.llm-magazine__idiom-text--equivalent {
-	font-style: italic;
-	color: #52525b;
 }
 
 /* —— Video da ascoltare —— */

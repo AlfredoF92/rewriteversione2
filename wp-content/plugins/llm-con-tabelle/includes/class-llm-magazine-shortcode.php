@@ -193,7 +193,7 @@ class LLM_Magazine_Shortcode {
 				</section>
 			<?php endif; ?>
 
-			<?php if ( $idiom && ( $idiom['phrase'] || $idiom['meaning'] || $idiom['equivalent'] || $idiom['category'] ) ) : ?>
+			<?php if ( $idiom && ( $idiom['phrase'] || $idiom['explanation'] || $idiom['category'] ) ) : ?>
 				<section class="llm-magazine__section llm-magazine__section--idiom">
 					<h3 class="llm-magazine__section-title"><?php esc_html_e( 'Espressione del giorno', 'llm-con-tabelle' ); ?></h3>
 					<?php echo self::render_idiom( $idiom ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
@@ -207,11 +207,11 @@ class LLM_Magazine_Shortcode {
 	/**
 	 * Espressione / modo di dire.
 	 *
-	 * @param array{category:string,phrase:string,meaning:string,equivalent:string} $idiom Dati.
+	 * @param array{category:string,phrase:string,explanation:string} $idiom Dati.
 	 * @return string
 	 */
 	private static function render_idiom( array $idiom ) {
-		$has_explain = ( ! empty( $idiom['meaning'] ) || ! empty( $idiom['equivalent'] ) );
+		$has_explain = ! empty( $idiom['explanation'] );
 		ob_start();
 		?>
 		<article class="llm-magazine__idiom">
@@ -228,12 +228,7 @@ class LLM_Magazine_Shortcode {
 					</summary>
 					<div class="llm-magazine__idiom-explain">
 						<span class="llm-magazine__idiom-label"><?php esc_html_e( 'Significato', 'llm-con-tabelle' ); ?></span>
-						<?php if ( ! empty( $idiom['meaning'] ) ) : ?>
-							<p class="llm-magazine__idiom-text"><?php echo esc_html( $idiom['meaning'] ); ?></p>
-						<?php endif; ?>
-						<?php if ( ! empty( $idiom['equivalent'] ) ) : ?>
-							<p class="llm-magazine__idiom-text llm-magazine__idiom-text--equivalent"><?php echo esc_html( $idiom['equivalent'] ); ?></p>
-						<?php endif; ?>
+						<p class="llm-magazine__idiom-text"><?php echo nl2br( esc_html( $idiom['explanation'] ) ); ?></p>
 					</div>
 				</details>
 			<?php endif; ?>
