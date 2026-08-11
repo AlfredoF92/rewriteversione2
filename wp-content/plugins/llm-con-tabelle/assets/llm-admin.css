@@ -443,6 +443,16 @@ body.llm-csv-modal-open {
 	border-bottom: 1px solid #dcdcde;
 }
 
+.llm-story-export-bar {
+	margin: 0 0 1em;
+	padding: 0.75em 0;
+	border-bottom: 1px solid #dcdcde;
+}
+
+.llm-story-export-bar .button {
+	min-height: 36px;
+}
+
 .llm-full-import-meta-table {
 	margin-bottom: 0;
 	table-layout: fixed;

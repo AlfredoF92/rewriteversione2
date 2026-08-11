@@ -18,6 +18,7 @@ class LLM_Admin_Story {
 		add_action( 'add_meta_boxes', array( __CLASS__, 'meta_boxes' ) );
 		add_action( 'save_post_' . LLM_STORY_CPT, array( __CLASS__, 'save_post' ), 10, 2 );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue' ) );
+		add_action( 'edit_form_after_title', array( __CLASS__, 'render_export_bar' ) );
 		add_action( 'before_delete_post', array( __CLASS__, 'before_delete_post' ) );
 		add_filter( 'manage_' . LLM_STORY_CPT . '_posts_columns', array( __CLASS__, 'columns' ) );
 		add_action( 'manage_' . LLM_STORY_CPT . '_posts_custom_column', array( __CLASS__, 'column_content' ), 10, 2 );
@@ -127,8 +128,53 @@ class LLM_Admin_Story {
 			'fullImportLogTitle'      => __( 'Log importazione', 'llm-con-tabelle' ),
 			'fullImportNeedSave'      => __( 'Salva prima la bozza per usare l\'importazione.', 'llm-con-tabelle' ),
 			'fullImportDemoContent'   => LLM_Story_Full_Import::get_demo_import_content(),
+			'fullExportAction'        => 'llm_story_full_export',
+			'fullExportTitle'         => __( 'Esporta storia', 'llm-con-tabelle' ),
+			'fullExportLoading'       => __( 'Generazione…', 'llm-con-tabelle' ),
+			'fullExportCopy'          => __( 'Copia negli appunti', 'llm-con-tabelle' ),
+			'fullExportCopied'        => __( 'Copiato!', 'llm-con-tabelle' ),
+			'fullExportClose'         => __( 'Chiudi', 'llm-con-tabelle' ),
+			'fullExportErrGeneric'    => __( 'Esportazione non riuscita.', 'llm-con-tabelle' ),
+			'fullExportNeedSave'      => __( 'Salva prima la bozza per esportare la storia.', 'llm-con-tabelle' ),
+			'fullExportHint'          => __( 'Testo nello stesso formato di Story Importer: copialo e usalo in «Importa dati della storia».', 'llm-con-tabelle' ),
 		)
 		);
+	}
+
+	/**
+	 * Barra export in cima alla scheda storia (sotto il titolo).
+	 *
+	 * @param WP_Post $post Post.
+	 */
+	public static function render_export_bar( $post ) {
+		if ( ! $post || LLM_STORY_CPT !== $post->post_type ) {
+			return;
+		}
+		?>
+		<div class="llm-story-export-bar">
+			<button type="button" id="llm-full-export-btn" class="button button-primary">
+				<?php esc_html_e( 'Esporta storia', 'llm-con-tabelle' ); ?>
+			</button>
+		</div>
+
+		<div id="llm-full-export-modal" class="llm-csv-modal" hidden aria-hidden="true" role="dialog" aria-labelledby="llm-full-export-modal-title">
+			<div class="llm-csv-modal__backdrop"></div>
+			<div class="llm-csv-modal__dialog">
+				<div class="llm-csv-modal__head">
+					<h2 class="llm-csv-modal__title" id="llm-full-export-modal-title"><?php esc_html_e( 'Esporta storia', 'llm-con-tabelle' ); ?></h2>
+					<a href="#" id="llm-full-export-modal-close" class="llm-csv-modal__x" aria-label="<?php esc_attr_e( 'Chiudi', 'llm-con-tabelle' ); ?>">&times;</a>
+				</div>
+				<div class="llm-csv-modal__body">
+					<p class="description" id="llm-full-export-hint"><?php esc_html_e( 'Testo nello stesso formato di Story Importer: copialo e usalo in «Importa dati della storia».', 'llm-con-tabelle' ); ?></p>
+					<textarea id="llm-full-export-text" class="widefat llm-full-import-paste-textarea" rows="16" readonly></textarea>
+				</div>
+				<div class="llm-csv-modal__foot">
+					<button type="button" class="button button-primary" id="llm-full-export-copy"><?php esc_html_e( 'Copia negli appunti', 'llm-con-tabelle' ); ?></button>
+					<button type="button" class="button" id="llm-full-export-done"><?php esc_html_e( 'Chiudi', 'llm-con-tabelle' ); ?></button>
+				</div>
+			</div>
+		</div>
+		<?php
 	}
 
 	public static function meta_boxes() {

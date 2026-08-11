@@ -969,4 +969,122 @@
 
 	} ); // fine DOMReady full import
 
+	$( function () {
+
+	function llmFullExportShowModal( show ) {
+		var $m = $( '#llm-full-export-modal' );
+		if ( ! $m.length ) { return; }
+		$m.prop( 'hidden', ! show );
+		$m.attr( 'aria-hidden', show ? 'false' : 'true' );
+		if ( show ) {
+			$( document.body ).addClass( 'llm-csv-modal-open' );
+		} else {
+			$( document.body ).removeClass( 'llm-csv-modal-open' );
+		}
+	}
+
+	function llmFullExportEnsurePostId() {
+		if ( typeof llmAdmin === 'undefined' || ! llmAdmin.postId ) {
+			alert( ( llmAdmin && llmAdmin.fullExportNeedSave ) ? llmAdmin.fullExportNeedSave : 'Salva prima la bozza della storia.' );
+			return false;
+		}
+		return true;
+	}
+
+	function llmFullExportCopyText() {
+		var $ta = $( '#llm-full-export-text' );
+		var text = $ta.val() || '';
+		if ( ! text ) {
+			return;
+		}
+		var doneLabel = ( llmAdmin && llmAdmin.fullExportCopied ) ? llmAdmin.fullExportCopied : 'Copiato!';
+		var copyLabel = ( llmAdmin && llmAdmin.fullExportCopy ) ? llmAdmin.fullExportCopy : 'Copia negli appunti';
+		var $btn = $( '#llm-full-export-copy' );
+
+		function markCopied() {
+			$btn.text( doneLabel );
+			window.setTimeout( function () {
+				$btn.text( copyLabel );
+			}, 1500 );
+		}
+
+		if ( navigator.clipboard && navigator.clipboard.writeText ) {
+			navigator.clipboard.writeText( text ).then( markCopied ).catch( function () {
+				$ta.trigger( 'focus' );
+				$ta[0].select();
+				try {
+					document.execCommand( 'copy' );
+					markCopied();
+				} catch ( err ) {
+					/* ignore */
+				}
+			} );
+			return;
+		}
+		$ta.trigger( 'focus' );
+		$ta[0].select();
+		try {
+			document.execCommand( 'copy' );
+			markCopied();
+		} catch ( err2 ) {
+			/* ignore */
+		}
+	}
+
+	if ( $( '#llm-full-export-modal' ).length ) {
+		$( document ).on( 'click', '#llm-full-export-btn', function ( e ) {
+			e.preventDefault();
+			e.stopPropagation();
+			if ( ! llmFullExportEnsurePostId() ) {
+				return;
+			}
+			$( '#llm-full-export-text' ).val( ( llmAdmin && llmAdmin.fullExportLoading ) ? llmAdmin.fullExportLoading : 'Generazione…' );
+			llmFullExportShowModal( true );
+
+			$.ajax( {
+				url:      llmAdmin.ajaxUrl,
+				type:     'POST',
+				dataType: 'json',
+				data: {
+					action:     llmAdmin.fullExportAction || 'llm_story_full_export',
+					nonce:      llmAdmin.fullImportNonce || '',
+					nonce_post: llmAdmin.fullImportNoncePost || '',
+					post_id:    llmAdmin.postId,
+				},
+			} )
+				.done( function ( res ) {
+					if ( ! res || ! res.success || ! res.data || typeof res.data.content !== 'string' ) {
+						var msg = ( res && res.data && res.data.message ) ? res.data.message : ( ( llmAdmin && llmAdmin.fullExportErrGeneric ) ? llmAdmin.fullExportErrGeneric : 'Errore' );
+						alert( msg );
+						llmFullExportShowModal( false );
+						return;
+					}
+					$( '#llm-full-export-text' ).val( res.data.content );
+					window.setTimeout( function () {
+						$( '#llm-full-export-text' ).trigger( 'focus' ).trigger( 'select' );
+					}, 80 );
+				} )
+				.fail( function ( xhr ) {
+					var msg = ( llmAdmin && llmAdmin.fullExportErrGeneric ) ? llmAdmin.fullExportErrGeneric : 'Errore';
+					if ( xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message ) {
+						msg = xhr.responseJSON.data.message;
+					}
+					alert( msg );
+					llmFullExportShowModal( false );
+				} );
+		} );
+
+		$( '#llm-full-export-copy' ).on( 'click', function ( e ) {
+			e.preventDefault();
+			llmFullExportCopyText();
+		} );
+
+		$( '#llm-full-export-done, #llm-full-export-modal-close, #llm-full-export-modal .llm-csv-modal__backdrop' ).on( 'click', function ( e ) {
+			e.preventDefault();
+			llmFullExportShowModal( false );
+		} );
+	}
+
+	} ); // fine DOMReady full export
+
 }( jQuery ) );

@@ -106,6 +106,123 @@ class LLM_Story_Full_Import {
 	public static function init() {
 		add_action( 'wp_ajax_llm_story_full_import_preview', array( __CLASS__, 'ajax_preview' ) );
 		add_action( 'wp_ajax_llm_story_full_import_commit',  array( __CLASS__, 'ajax_commit' ) );
+		add_action( 'wp_ajax_llm_story_full_export', array( __CLASS__, 'ajax_export' ) );
+	}
+
+	/**
+	 * Genera il testo Story Importer (meta + ---FRASI--- + CSV) per una storia salvata.
+	 *
+	 * @param int $post_id ID storia.
+	 * @return string|\WP_Error
+	 */
+	public static function build_export_string( $post_id ) {
+		$post_id = absint( $post_id );
+		$post    = get_post( $post_id );
+		if ( ! $post || LLM_STORY_CPT !== $post->post_type ) {
+			return new \WP_Error( 'llm_fi_export', __( 'Storia non valida.', 'llm-con-tabelle' ) );
+		}
+
+		$known   = (string) get_post_meta( $post_id, LLM_Story_Meta::KNOWN_LANG, true );
+		$target  = (string) get_post_meta( $post_id, LLM_Story_Meta::TARGET_LANG, true );
+		$title_t = (string) get_post_meta( $post_id, LLM_Story_Meta::TITLE_TARGET, true );
+		$plot    = (string) get_post_meta( $post_id, LLM_Story_Meta::STORY_PLOT, true );
+		$intro   = (string) get_post_meta( $post_id, LLM_Story_Meta::STORY_INTRO, true );
+		$finale  = (string) get_post_meta( $post_id, LLM_Story_Meta::STORY_FINALE, true );
+		$scheda  = (string) get_post_meta( $post_id, LLM_Story_Meta::STORY_CARD_TEXT, true );
+		$livello = (string) get_post_meta( $post_id, LLM_Story_Meta::STORY_CEFR_LEVEL, true );
+		$gram    = (string) get_post_meta( $post_id, LLM_Story_Meta::STORY_GRAMMAR_TOPICS, true );
+
+		$cat_name = '';
+		$terms    = get_the_terms( $post_id, 'category' );
+		if ( is_array( $terms ) && ! empty( $terms ) && ! is_wp_error( $terms ) ) {
+			$cat_name = (string) $terms[0]->name;
+		}
+
+		$meta_pairs = array(
+			'TITOLO'             => (string) $post->post_title,
+			'LINGUA_INTERFACCIA' => $known,
+			'LINGUA_OBIETTIVO'   => $target,
+			'TITOLO_OBIETTIVO'   => $title_t,
+			'TRAMA'              => $plot,
+			'INTRODUZIONE'       => $intro,
+			'FINALE'             => $finale,
+			'SCHEDA'             => $scheda,
+			'CATEGORIA'          => $cat_name,
+			'LIVELLO'            => $livello,
+			'GRAMMATICA'         => $gram,
+		);
+
+		$lines = array();
+		foreach ( $meta_pairs as $key => $value ) {
+			$lines[] = $key . self::META_DELIMITER . str_replace( array( "\r\n", "\r" ), "\n", (string) $value );
+		}
+
+		$lines[] = self::SECTION_SEPARATOR;
+
+		$csv_buf = fopen( 'php://temp', 'r+' );
+		if ( ! $csv_buf ) {
+			return new \WP_Error( 'llm_fi_export', __( 'Impossibile generare le frasi.', 'llm-con-tabelle' ) );
+		}
+		fputcsv( $csv_buf, LLM_Story_Phrases_Csv::export_headers(), LLM_Story_Phrases_Csv::CSV_DELIMITER );
+		$phrases = LLM_Story_Repository::get_phrases( $post_id );
+		$i       = 0;
+		foreach ( $phrases as $row ) {
+			++$i;
+			fputcsv(
+				$csv_buf,
+				array(
+					(string) $i,
+					isset( $row['interface'] ) ? (string) $row['interface'] : '',
+					isset( $row['target'] ) ? (string) $row['target'] : '',
+					isset( $row['grammar'] ) ? (string) $row['grammar'] : '',
+					isset( $row['alt'] ) ? (string) $row['alt'] : '',
+				),
+				LLM_Story_Phrases_Csv::CSV_DELIMITER
+			);
+		}
+		rewind( $csv_buf );
+		$csv_raw = stream_get_contents( $csv_buf );
+		fclose( $csv_buf );
+		$csv_raw = str_replace( array( "\r\n", "\r" ), "\n", (string) $csv_raw );
+		$csv_raw = rtrim( $csv_raw, "\n" );
+		if ( $csv_raw !== '' ) {
+			$lines[] = $csv_raw;
+		}
+
+		return implode( "\n", $lines );
+	}
+
+	/**
+	 * AJAX: restituisce il testo Story Importer da copiare.
+	 */
+	public static function ajax_export() {
+		if ( ! check_ajax_referer( self::NONCE_ACTION, 'nonce', false ) ) {
+			wp_send_json_error( array( 'message' => __( 'Sessione scaduta. Ricarica la pagina.', 'llm-con-tabelle' ) ), 403 );
+		}
+
+		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
+		if (
+			! $post_id ||
+			! isset( $_POST['nonce_post'] ) ||
+			! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce_post'] ) ), self::NONCE_ACTION . '_' . $post_id )
+		) {
+			wp_send_json_error( array( 'message' => __( 'Richiesta non valida.', 'llm-con-tabelle' ) ), 400 );
+		}
+
+		if ( ! LLM_Story_Phrases_Csv::user_can_edit_story( $post_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permessi insufficienti.', 'llm-con-tabelle' ) ), 403 );
+		}
+
+		$content = self::build_export_string( $post_id );
+		if ( is_wp_error( $content ) ) {
+			wp_send_json_error( array( 'message' => $content->get_error_message() ), 400 );
+		}
+
+		wp_send_json_success(
+			array(
+				'content' => $content,
+			)
+		);
 	}
 
 	/* ── Parsing ─────────────────────────────────────────────────── */
