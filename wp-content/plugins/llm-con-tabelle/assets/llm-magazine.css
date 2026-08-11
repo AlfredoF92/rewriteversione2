@@ -351,7 +351,22 @@
 	background: #18181b;
 }
 
-.llm-mag-quiz__answer.is-disabled:not(.is-chosen) {
+.llm-mag-quiz__answer.is-explored:not(.is-chosen):not(.is-correct) {
+	border-style: dashed;
+}
+
+.llm-mag-quiz__answer.is-correct {
+	border-color: #18181b;
+	background: #ececec;
+	color: #18181b !important;
+}
+
+.llm-mag-quiz__answer.is-correct .llm-mag-quiz__answer-letter {
+	color: #fafafa !important;
+	background: #18181b;
+}
+
+.llm-mag-quiz__answer.is-disabled:not(.is-correct):not(.is-chosen) {
 	opacity: 0.55;
 }
 
@@ -362,6 +377,18 @@
 	border: 1px solid #e4e4e7;
 	background: #fafafa;
 	animation: llm-mag-quiz-in 0.22s ease;
+}
+
+.llm-mag-quiz__feedback.is-correct {
+	border-color: #27272a;
+	background: #f4f4f5;
+}
+
+.llm-mag-quiz__verdict {
+	margin: 0 0 0.45rem;
+	font-size: 0.95rem;
+	font-weight: 800;
+	color: #18181b;
 }
 
 .llm-mag-quiz__explanation-label {

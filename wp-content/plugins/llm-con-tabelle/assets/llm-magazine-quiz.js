@@ -1,6 +1,6 @@
 /*
- * llm-magazine-quiz.js — quiz rivista: click risposta → solo approfondimento → avanti.
- * Non rivela subito la risposta esatta.
+ * llm-magazine-quiz.js — quiz rivista: esplora le risposte, ognuna con
+ * approfondimento; avanti solo quando trovi quella esatta.
  */
 (function (document) {
 	'use strict';
@@ -44,7 +44,7 @@
 		var progressEl = root.querySelector('[data-quiz-progress]');
 		var stageEl = root.querySelector('[data-quiz-stage]');
 		var index = 0;
-		var answered = false;
+		var foundCorrect = false;
 
 		function setProgress() {
 			if (!progressEl) {
@@ -57,7 +57,7 @@
 		}
 
 		function renderQuestion() {
-			answered = false;
+			foundCorrect = false;
 			var q = questions[index];
 			if (!q) {
 				renderResult();
@@ -105,33 +105,39 @@
 			stageEl.innerHTML = html;
 		}
 
-		function showFeedback(chosenIndex) {
-			if (answered) {
+		function showAnswer(chosenIndex) {
+			if (foundCorrect) {
 				return;
 			}
-			answered = true;
 
 			var q = questions[index];
+			var correctIndex = typeof q.correct === 'number' ? q.correct : 0;
+			var isCorrect = chosenIndex === correctIndex;
+			var answers = q.answers || [];
+			var chosen = answers[chosenIndex] || {};
+			var explanation = chosen.explanation ? String(chosen.explanation) : '';
+
 			var buttons = stageEl.querySelectorAll('.llm-mag-quiz__answer');
 			buttons.forEach(function (btn, i) {
-				btn.disabled = true;
-				btn.classList.add('is-disabled');
+				btn.classList.toggle('is-chosen', i === chosenIndex);
 				if (i === chosenIndex) {
-					btn.classList.add('is-chosen');
+					btn.classList.add('is-explored');
 				}
 			});
 
-			var answers = q.answers || [];
-			var chosen = answers[chosenIndex] || {};
 			var feedbackEl = stageEl.querySelector('[data-quiz-feedback]');
-			var actionsEl = stageEl.querySelector('[data-quiz-actions]');
-			var nextBtn = stageEl.querySelector('[data-quiz-next]');
-			var explanation = chosen.explanation ? String(chosen.explanation) : '';
-
 			if (feedbackEl) {
 				feedbackEl.hidden = false;
-				feedbackEl.className = 'llm-mag-quiz__feedback';
-				feedbackEl.innerHTML = explanation
+				feedbackEl.className =
+					'llm-mag-quiz__feedback' + (isCorrect ? ' is-correct' : '');
+				var body = '';
+				if (isCorrect) {
+					body +=
+						'<p class="llm-mag-quiz__verdict">' +
+						escapeHtml(i18n.correct || 'Corretto!') +
+						'</p>';
+				}
+				body += explanation
 					? '<p class="llm-mag-quiz__explanation-label">' +
 					  escapeHtml(i18n.explanation || 'Approfondimento') +
 					  '</p><p class="llm-mag-quiz__explanation">' +
@@ -140,8 +146,24 @@
 					: '<p class="llm-mag-quiz__explanation">' +
 					  escapeHtml(i18n.noExplanation || '') +
 					  '</p>';
+				feedbackEl.innerHTML = body;
 			}
 
+			if (!isCorrect) {
+				return;
+			}
+
+			foundCorrect = true;
+			buttons.forEach(function (btn, i) {
+				btn.disabled = true;
+				btn.classList.add('is-disabled');
+				if (i === correctIndex) {
+					btn.classList.add('is-correct');
+				}
+			});
+
+			var actionsEl = stageEl.querySelector('[data-quiz-actions]');
+			var nextBtn = stageEl.querySelector('[data-quiz-next]');
 			if (actionsEl && nextBtn) {
 				var isLast = index >= questions.length - 1;
 				nextBtn.textContent = isLast
@@ -179,7 +201,7 @@
 			if (answerBtn && stageEl.contains(answerBtn) && !answerBtn.disabled) {
 				var idx = parseInt(answerBtn.getAttribute('data-answer-index'), 10);
 				if (!isNaN(idx)) {
-					showFeedback(idx);
+					showAnswer(idx);
 				}
 				return;
 			}
