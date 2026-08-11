@@ -1,5 +1,6 @@
 /*
- * llm-magazine-quiz.js — quiz rivista: click risposta → spiegazione → avanti.
+ * llm-magazine-quiz.js — quiz rivista: click risposta → solo approfondimento → avanti.
+ * Non rivela subito la risposta esatta.
  */
 (function (document) {
 	'use strict';
@@ -43,7 +44,6 @@
 		var progressEl = root.querySelector('[data-quiz-progress]');
 		var stageEl = root.querySelector('[data-quiz-stage]');
 		var index = 0;
-		var score = 0;
 		var answered = false;
 
 		function setProgress() {
@@ -75,7 +75,10 @@
 				html += '<p class="llm-mag-quiz__category">' + escapeHtml(cat) + '</p>';
 			}
 			html += '<h4 class="llm-mag-quiz__question">' + escapeHtml(q.question || '') + '</h4>';
-			html += '<div class="llm-mag-quiz__answers" role="group" aria-label="' + escapeHtml(i18n.pickAnswer || '') + '">';
+			html +=
+				'<div class="llm-mag-quiz__answers" role="group" aria-label="' +
+				escapeHtml(i18n.pickAnswer || '') +
+				'">';
 
 			var answers = q.answers || [];
 			for (var i = 0; i < answers.length; i++) {
@@ -109,24 +112,12 @@
 			answered = true;
 
 			var q = questions[index];
-			var correctIndex = typeof q.correct === 'number' ? q.correct : 0;
-			var isCorrect = chosenIndex === correctIndex;
-			if (isCorrect) {
-				score += 1;
-			}
-
 			var buttons = stageEl.querySelectorAll('.llm-mag-quiz__answer');
 			buttons.forEach(function (btn, i) {
 				btn.disabled = true;
 				btn.classList.add('is-disabled');
-				if (i === correctIndex) {
-					btn.classList.add('is-correct');
-				}
 				if (i === chosenIndex) {
 					btn.classList.add('is-chosen');
-					if (!isCorrect) {
-						btn.classList.add('is-wrong');
-					}
 				}
 			});
 
@@ -135,32 +126,26 @@
 			var feedbackEl = stageEl.querySelector('[data-quiz-feedback]');
 			var actionsEl = stageEl.querySelector('[data-quiz-actions]');
 			var nextBtn = stageEl.querySelector('[data-quiz-next]');
+			var explanation = chosen.explanation ? String(chosen.explanation) : '';
 
 			if (feedbackEl) {
-				var verdict = isCorrect
-					? i18n.correct || 'Corretto!'
-					: i18n.incorrect || 'Non esatto';
-				var explanation = chosen.explanation ? String(chosen.explanation) : '';
 				feedbackEl.hidden = false;
-				feedbackEl.className =
-					'llm-mag-quiz__feedback ' + (isCorrect ? 'is-correct' : 'is-wrong');
-				feedbackEl.innerHTML =
-					'<p class="llm-mag-quiz__verdict">' +
-					escapeHtml(verdict) +
-					'</p>' +
-					(explanation
-						? '<p class="llm-mag-quiz__explanation-label">' +
-						  escapeHtml(i18n.explanation || 'Approfondimento') +
-						  '</p><p class="llm-mag-quiz__explanation">' +
-						  escapeHtml(explanation) +
-						  '</p>'
-						: '');
+				feedbackEl.className = 'llm-mag-quiz__feedback';
+				feedbackEl.innerHTML = explanation
+					? '<p class="llm-mag-quiz__explanation-label">' +
+					  escapeHtml(i18n.explanation || 'Approfondimento') +
+					  '</p><p class="llm-mag-quiz__explanation">' +
+					  escapeHtml(explanation) +
+					  '</p>'
+					: '<p class="llm-mag-quiz__explanation">' +
+					  escapeHtml(i18n.noExplanation || '') +
+					  '</p>';
 			}
 
 			if (actionsEl && nextBtn) {
 				var isLast = index >= questions.length - 1;
 				nextBtn.textContent = isLast
-					? i18n.finish || 'Vedi risultato'
+					? i18n.finish || 'Fine'
 					: i18n.next || 'Prossima domanda';
 				actionsEl.hidden = false;
 			}
@@ -176,12 +161,7 @@
 				escapeHtml(i18n.resultTitle || 'Quiz completato') +
 				'</h4>' +
 				'<p class="llm-mag-quiz__result-score">' +
-				escapeHtml(
-					format(i18n.resultScore || 'Hai risposto bene a %1$d su %2$d', [
-						score,
-						questions.length,
-					])
-				) +
+				escapeHtml(i18n.resultDone || '') +
 				'</p>' +
 				'<button type="button" class="llm-ui-btn llm-ui-btn--primary" data-quiz-restart>' +
 				escapeHtml(i18n.restart || 'Rigioca') +
@@ -216,7 +196,6 @@
 
 			if (t.closest('[data-quiz-restart]')) {
 				index = 0;
-				score = 0;
 				renderQuestion();
 			}
 		});

@@ -283,7 +283,7 @@
 	font: inherit;
 	font-size: 0.95rem;
 	line-height: 1.4;
-	color: #18181b;
+	color: #18181b !important;
 	background: #fafafa;
 	border: 1px solid #e4e4e7;
 	border-radius: 8px;
@@ -292,10 +292,21 @@
 }
 
 .llm-mag-quiz__answer:hover:not(:disabled),
+.llm-mag-quiz__answer:focus:not(:disabled),
 .llm-mag-quiz__answer:focus-visible:not(:disabled) {
+	color: #18181b !important;
 	background: #f4f4f5;
 	border-color: #a1a1aa;
 	outline: none;
+}
+
+.llm-mag-quiz__answer:hover:not(:disabled) .llm-mag-quiz__answer-text,
+.llm-mag-quiz__answer:focus:not(:disabled) .llm-mag-quiz__answer-text,
+.llm-mag-quiz__answer:focus-visible:not(:disabled) .llm-mag-quiz__answer-text,
+.llm-mag-quiz__answer:hover:not(:disabled) .llm-mag-quiz__answer-letter,
+.llm-mag-quiz__answer:focus:not(:disabled) .llm-mag-quiz__answer-letter,
+.llm-mag-quiz__answer:focus-visible:not(:disabled) .llm-mag-quiz__answer-letter {
+	color: #18181b !important;
 }
 
 .llm-mag-quiz__answer:active:not(:disabled) {
@@ -304,6 +315,7 @@
 
 .llm-mag-quiz__answer:disabled {
 	cursor: default;
+	color: #18181b !important;
 }
 
 .llm-mag-quiz__answer-letter {
@@ -317,7 +329,7 @@
 	font-size: 0.75rem;
 	font-weight: 800;
 	line-height: 1;
-	color: #52525b;
+	color: #3f3f46 !important;
 	background: #e4e4e7;
 	border-radius: 999px;
 }
@@ -325,29 +337,21 @@
 .llm-mag-quiz__answer-text {
 	flex: 1 1 auto;
 	min-width: 0;
+	color: #18181b !important;
 }
 
 .llm-mag-quiz__answer.is-chosen {
 	border-color: #18181b;
 	background: #f4f4f5;
+	color: #18181b !important;
 }
 
-.llm-mag-quiz__answer.is-correct {
-	border-color: #18181b;
-	background: #ececec;
-}
-
-.llm-mag-quiz__answer.is-correct .llm-mag-quiz__answer-letter {
-	color: #fafafa;
+.llm-mag-quiz__answer.is-chosen .llm-mag-quiz__answer-letter {
+	color: #fafafa !important;
 	background: #18181b;
 }
 
-.llm-mag-quiz__answer.is-wrong {
-	border-color: #a1a1aa;
-	opacity: 0.85;
-}
-
-.llm-mag-quiz__answer.is-disabled:not(.is-correct):not(.is-chosen) {
+.llm-mag-quiz__answer.is-disabled:not(.is-chosen) {
 	opacity: 0.55;
 }
 
@@ -358,22 +362,6 @@
 	border: 1px solid #e4e4e7;
 	background: #fafafa;
 	animation: llm-mag-quiz-in 0.22s ease;
-}
-
-.llm-mag-quiz__feedback.is-correct {
-	border-color: #27272a;
-	background: #f4f4f5;
-}
-
-.llm-mag-quiz__feedback.is-wrong {
-	border-color: #d4d4d8;
-}
-
-.llm-mag-quiz__verdict {
-	margin: 0 0 0.45rem;
-	font-size: 0.95rem;
-	font-weight: 800;
-	color: #18181b;
 }
 
 .llm-mag-quiz__explanation-label {
