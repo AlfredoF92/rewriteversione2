@@ -33,6 +33,21 @@
 		}
 	}
 
+	function shuffleOrder(length) {
+		var order = [];
+		var i;
+		for (i = 0; i < length; i++) {
+			order.push(i);
+		}
+		for (i = order.length - 1; i > 0; i--) {
+			var j = Math.floor(Math.random() * (i + 1));
+			var tmp = order[i];
+			order[i] = order[j];
+			order[j] = tmp;
+		}
+		return order;
+	}
+
 	function createQuiz(root) {
 		var cfg = readConfig(root);
 		if (!cfg || !cfg.questions || !cfg.questions.length) {
@@ -70,6 +85,8 @@
 			}
 
 			var cat = q.category ? String(q.category) : '';
+			var answers = q.answers || [];
+			var order = shuffleOrder(answers.length);
 			var html = '';
 			if (cat) {
 				html += '<p class="llm-mag-quiz__category">' + escapeHtml(cat) + '</p>';
@@ -80,12 +97,12 @@
 				escapeHtml(i18n.pickAnswer || '') +
 				'">';
 
-			var answers = q.answers || [];
-			for (var i = 0; i < answers.length; i++) {
-				var a = answers[i] || {};
+			for (var i = 0; i < order.length; i++) {
+				var orig = order[i];
+				var a = answers[orig] || {};
 				html +=
 					'<button type="button" class="llm-mag-quiz__answer" data-answer-index="' +
-					i +
+					orig +
 					'">' +
 					'<span class="llm-mag-quiz__answer-letter">' +
 					escapeHtml(LETTERS[i] || String(i + 1)) +
@@ -114,12 +131,13 @@
 			var explanation = chosen.explanation ? String(chosen.explanation) : '';
 
 			var buttons = stageEl.querySelectorAll('.llm-mag-quiz__answer');
-			buttons.forEach(function (btn, i) {
-				btn.classList.toggle('is-chosen', i === chosenIndex);
-				if (i === chosenIndex) {
+			buttons.forEach(function (btn) {
+				var btnIndex = parseInt(btn.getAttribute('data-answer-index'), 10);
+				btn.classList.toggle('is-chosen', btnIndex === chosenIndex);
+				if (btnIndex === chosenIndex) {
 					btn.classList.add('is-explored');
 				}
-				if (i === correctIndex && (isCorrect || foundCorrect)) {
+				if (btnIndex === correctIndex && (isCorrect || foundCorrect)) {
 					btn.classList.add('is-correct');
 				}
 			});

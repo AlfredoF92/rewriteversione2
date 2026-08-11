@@ -302,11 +302,16 @@
 
 .llm-mag-quiz__answer:hover:not(:disabled) .llm-mag-quiz__answer-text,
 .llm-mag-quiz__answer:focus:not(:disabled) .llm-mag-quiz__answer-text,
-.llm-mag-quiz__answer:focus-visible:not(:disabled) .llm-mag-quiz__answer-text,
+.llm-mag-quiz__answer:focus-visible:not(:disabled) .llm-mag-quiz__answer-text {
+	color: #18181b !important;
+}
+
+/* La lettera resta scura su badge chiaro (non nero-su-nero). */
 .llm-mag-quiz__answer:hover:not(:disabled) .llm-mag-quiz__answer-letter,
 .llm-mag-quiz__answer:focus:not(:disabled) .llm-mag-quiz__answer-letter,
 .llm-mag-quiz__answer:focus-visible:not(:disabled) .llm-mag-quiz__answer-letter {
-	color: #18181b !important;
+	color: #3f3f46 !important;
+	background: #e4e4e7 !important;
 }
 
 .llm-mag-quiz__answer:active:not(:disabled) {
@@ -346,9 +351,12 @@
 	color: #18181b !important;
 }
 
-.llm-mag-quiz__answer.is-chosen .llm-mag-quiz__answer-letter {
+.llm-mag-quiz__answer.is-chosen .llm-mag-quiz__answer-letter,
+.llm-mag-quiz__answer.is-chosen:hover .llm-mag-quiz__answer-letter,
+.llm-mag-quiz__answer.is-chosen:focus .llm-mag-quiz__answer-letter,
+.llm-mag-quiz__answer.is-chosen:focus-visible .llm-mag-quiz__answer-letter {
 	color: #fafafa !important;
-	background: #18181b;
+	background: #18181b !important;
 }
 
 .llm-mag-quiz__answer.is-explored:not(.is-chosen):not(.is-correct) {
@@ -361,9 +369,12 @@
 	color: #18181b !important;
 }
 
-.llm-mag-quiz__answer.is-correct .llm-mag-quiz__answer-letter {
+.llm-mag-quiz__answer.is-correct .llm-mag-quiz__answer-letter,
+.llm-mag-quiz__answer.is-correct:hover .llm-mag-quiz__answer-letter,
+.llm-mag-quiz__answer.is-correct:focus .llm-mag-quiz__answer-letter,
+.llm-mag-quiz__answer.is-correct:focus-visible .llm-mag-quiz__answer-letter {
 	color: #fafafa !important;
-	background: #18181b;
+	background: #18181b !important;
 }
 
 .llm-mag-quiz__answer.is-disabled:not(.is-correct):not(.is-chosen) {
