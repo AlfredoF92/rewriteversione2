@@ -1,0 +1,92 @@
+/*
+ * llm-quiz-admin.css — editor domande + import CSV.
+ */
+
+.llm-quiz-admin__csv-help {
+	margin: 0 0 10px;
+	padding: 8px 10px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	font-size: 12px;
+	overflow-x: auto;
+}
+
+.llm-quiz-admin__import-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.llm-quiz-admin__import-status {
+	font-size: 13px;
+	color: #50575e;
+}
+
+.llm-quiz-admin__import-status.is-error {
+	color: #b32d2e;
+}
+
+.llm-quiz-admin__import-status.is-ok {
+	color: #1d6b3b;
+}
+
+.llm-quiz-admin__questions {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.llm-quiz-admin__question {
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	background: #fff;
+	padding: 12px 14px 6px;
+}
+
+.llm-quiz-admin__question-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.llm-quiz-admin__question-tools {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	align-items: center;
+}
+
+.llm-quiz-admin__question-tools .button-link-delete {
+	color: #b32d2e;
+}
+
+.llm-quiz-admin__answers {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 10px;
+	margin-top: 4px;
+}
+
+.llm-quiz-admin__answer {
+	border: 1px solid #e2e4e7;
+	border-radius: 4px;
+	padding: 8px 10px 2px;
+	background: #fafafa;
+}
+
+.llm-quiz-admin__answer label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+
+@media (max-width: 1100px) {
+	.llm-quiz-admin__answers {
+		grid-template-columns: 1fr;
+	}
+}
