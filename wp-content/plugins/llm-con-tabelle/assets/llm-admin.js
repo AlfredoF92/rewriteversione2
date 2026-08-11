@@ -1032,12 +1032,18 @@
 	}
 
 	if ( $( '#llm-full-export-modal' ).length ) {
-		$( document ).on( 'click', '#llm-full-export-btn', function ( e ) {
-			e.preventDefault();
-			e.stopPropagation();
+		function llmFullExportRun( withoutNotes ) {
 			if ( ! llmFullExportEnsurePostId() ) {
 				return;
 			}
+			var title = withoutNotes
+				? ( ( llmAdmin && llmAdmin.fullExportTitleNoNotes ) ? llmAdmin.fullExportTitleNoNotes : 'Esporta storia senza appunti frasi' )
+				: ( ( llmAdmin && llmAdmin.fullExportTitle ) ? llmAdmin.fullExportTitle : 'Esporta storia' );
+			var hint = withoutNotes
+				? ( ( llmAdmin && llmAdmin.fullExportHintNoNotes ) ? llmAdmin.fullExportHintNoNotes : '' )
+				: ( ( llmAdmin && llmAdmin.fullExportHint ) ? llmAdmin.fullExportHint : '' );
+			$( '#llm-full-export-modal-title' ).text( title );
+			$( '#llm-full-export-hint' ).text( hint );
 			$( '#llm-full-export-text' ).val( ( llmAdmin && llmAdmin.fullExportLoading ) ? llmAdmin.fullExportLoading : 'Generazione…' );
 			llmFullExportShowModal( true );
 
@@ -1046,10 +1052,11 @@
 				type:     'POST',
 				dataType: 'json',
 				data: {
-					action:     llmAdmin.fullExportAction || 'llm_story_full_export',
-					nonce:      llmAdmin.fullImportNonce || '',
-					nonce_post: llmAdmin.fullImportNoncePost || '',
-					post_id:    llmAdmin.postId,
+					action:         llmAdmin.fullExportAction || 'llm_story_full_export',
+					nonce:          llmAdmin.fullImportNonce || '',
+					nonce_post:     llmAdmin.fullImportNoncePost || '',
+					post_id:        llmAdmin.postId,
+					without_notes:  withoutNotes ? '1' : '',
 				},
 			} )
 				.done( function ( res ) {
@@ -1072,6 +1079,18 @@
 					alert( msg );
 					llmFullExportShowModal( false );
 				} );
+		}
+
+		$( document ).on( 'click', '#llm-full-export-btn', function ( e ) {
+			e.preventDefault();
+			e.stopPropagation();
+			llmFullExportRun( false );
+		} );
+
+		$( document ).on( 'click', '#llm-full-export-btn-no-notes', function ( e ) {
+			e.preventDefault();
+			e.stopPropagation();
+			llmFullExportRun( true );
 		} );
 
 		$( '#llm-full-export-copy' ).on( 'click', function ( e ) {

@@ -112,12 +112,14 @@ class LLM_Story_Full_Import {
 	/**
 	 * Genera il testo Story Importer (meta + ---FRASI--- + CSV) per una storia salvata.
 	 *
-	 * @param int $post_id ID storia.
+	 * @param int  $post_id         ID storia.
+	 * @param bool $include_grammar Se false, lascia vuota l’analisi grammaticale (appunti frase).
 	 * @return string|\WP_Error
 	 */
-	public static function build_export_string( $post_id ) {
-		$post_id = absint( $post_id );
-		$post    = get_post( $post_id );
+	public static function build_export_string( $post_id, $include_grammar = true ) {
+		$post_id         = absint( $post_id );
+		$include_grammar = (bool) $include_grammar;
+		$post            = get_post( $post_id );
 		if ( ! $post || LLM_STORY_CPT !== $post->post_type ) {
 			return new \WP_Error( 'llm_fi_export', __( 'Storia non valida.', 'llm-con-tabelle' ) );
 		}
@@ -174,7 +176,7 @@ class LLM_Story_Full_Import {
 					(string) $i,
 					isset( $row['interface'] ) ? (string) $row['interface'] : '',
 					isset( $row['target'] ) ? (string) $row['target'] : '',
-					isset( $row['grammar'] ) ? (string) $row['grammar'] : '',
+					$include_grammar && isset( $row['grammar'] ) ? (string) $row['grammar'] : '',
 					isset( $row['alt'] ) ? (string) $row['alt'] : '',
 				),
 				LLM_Story_Phrases_Csv::CSV_DELIMITER
@@ -213,7 +215,8 @@ class LLM_Story_Full_Import {
 			wp_send_json_error( array( 'message' => __( 'Permessi insufficienti.', 'llm-con-tabelle' ) ), 403 );
 		}
 
-		$content = self::build_export_string( $post_id );
+		$include_grammar = empty( $_POST['without_notes'] );
+		$content         = self::build_export_string( $post_id, $include_grammar );
 		if ( is_wp_error( $content ) ) {
 			wp_send_json_error( array( 'message' => $content->get_error_message() ), 400 );
 		}

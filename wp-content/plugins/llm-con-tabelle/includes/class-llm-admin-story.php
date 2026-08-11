@@ -130,6 +130,7 @@ class LLM_Admin_Story {
 			'fullImportDemoContent'   => LLM_Story_Full_Import::get_demo_import_content(),
 			'fullExportAction'        => 'llm_story_full_export',
 			'fullExportTitle'         => __( 'Esporta storia', 'llm-con-tabelle' ),
+			'fullExportTitleNoNotes'  => __( 'Esporta storia senza appunti frasi', 'llm-con-tabelle' ),
 			'fullExportLoading'       => __( 'Generazione…', 'llm-con-tabelle' ),
 			'fullExportCopy'          => __( 'Copia negli appunti', 'llm-con-tabelle' ),
 			'fullExportCopied'        => __( 'Copiato!', 'llm-con-tabelle' ),
@@ -137,6 +138,7 @@ class LLM_Admin_Story {
 			'fullExportErrGeneric'    => __( 'Esportazione non riuscita.', 'llm-con-tabelle' ),
 			'fullExportNeedSave'      => __( 'Salva prima la bozza per esportare la storia.', 'llm-con-tabelle' ),
 			'fullExportHint'          => __( 'Testo nello stesso formato di Story Importer: copialo e usalo in «Importa dati della storia».', 'llm-con-tabelle' ),
+			'fullExportHintNoNotes'   => __( 'Stesso formato di Story Importer, ma senza analisi grammaticale (appunti) sulle frasi.', 'llm-con-tabelle' ),
 		)
 		);
 	}
@@ -154,6 +156,9 @@ class LLM_Admin_Story {
 		<div class="llm-story-export-bar">
 			<button type="button" id="llm-full-export-btn" class="button button-primary">
 				<?php esc_html_e( 'Esporta storia', 'llm-con-tabelle' ); ?>
+			</button>
+			<button type="button" id="llm-full-export-btn-no-notes" class="button button-secondary">
+				<?php esc_html_e( 'Esporta storia senza appunti frasi', 'llm-con-tabelle' ); ?>
 			</button>
 		</div>
 
