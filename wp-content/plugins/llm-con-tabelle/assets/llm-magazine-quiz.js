@@ -1,6 +1,6 @@
 /*
  * llm-magazine-quiz.js — quiz rivista: esplora le risposte, ognuna con
- * approfondimento; avanti solo quando trovi quella esatta.
+ * approfondimento sotto la risposta; avanti solo quando trovi quella esatta.
  */
 (function (document) {
 	'use strict';
@@ -100,20 +100,27 @@
 			for (var i = 0; i < order.length; i++) {
 				var orig = order[i];
 				var a = answers[orig] || {};
+				var letter = LETTERS[i] || String(i + 1);
 				html +=
+					'<div class="llm-mag-quiz__option" data-answer-index="' +
+					orig +
+					'" data-letter="' +
+					escapeHtml(letter) +
+					'">' +
 					'<button type="button" class="llm-mag-quiz__answer" data-answer-index="' +
 					orig +
 					'">' +
 					'<span class="llm-mag-quiz__answer-letter">' +
-					escapeHtml(LETTERS[i] || String(i + 1)) +
+					escapeHtml(letter) +
 					'</span>' +
 					'<span class="llm-mag-quiz__answer-text">' +
 					escapeHtml(a.text || '') +
 					'</span>' +
-					'</button>';
+					'</button>' +
+					'<div class="llm-mag-quiz__feedback" data-quiz-feedback hidden></div>' +
+					'</div>';
 			}
 			html += '</div>';
-			html += '<div class="llm-mag-quiz__feedback" data-quiz-feedback hidden></div>';
 			html +=
 				'<div class="llm-mag-quiz__actions" data-quiz-actions hidden>' +
 				'<button type="button" class="llm-ui-btn llm-ui-btn--primary llm-mag-quiz__next" data-quiz-next></button>' +
@@ -130,24 +137,50 @@
 			var chosen = answers[chosenIndex] || {};
 			var explanation = chosen.explanation ? String(chosen.explanation) : '';
 
-			var buttons = stageEl.querySelectorAll('.llm-mag-quiz__answer');
-			buttons.forEach(function (btn) {
-				var btnIndex = parseInt(btn.getAttribute('data-answer-index'), 10);
-				btn.classList.toggle('is-chosen', btnIndex === chosenIndex);
-				if (btnIndex === chosenIndex) {
-					btn.classList.add('is-explored');
-				}
-				if (btnIndex === correctIndex && (isCorrect || foundCorrect)) {
-					btn.classList.add('is-correct');
-				}
-			});
+			var options = stageEl.querySelectorAll('.llm-mag-quiz__option');
+			options.forEach(function (opt) {
+				var optIndex = parseInt(opt.getAttribute('data-answer-index'), 10);
+				var btn = opt.querySelector('.llm-mag-quiz__answer');
+				var feedbackEl = opt.querySelector('[data-quiz-feedback]');
+				var letter = opt.getAttribute('data-letter') || '';
+				var isThis = optIndex === chosenIndex;
+				var isThisCorrect = optIndex === correctIndex && (isCorrect || foundCorrect);
 
-			var feedbackEl = stageEl.querySelector('[data-quiz-feedback]');
-			if (feedbackEl) {
+				opt.classList.toggle('is-open', isThis);
+				opt.classList.toggle('is-chosen', isThis);
+				if (btn) {
+					btn.classList.toggle('is-chosen', isThis);
+					if (isThis) {
+						btn.classList.add('is-explored');
+						opt.classList.add('is-explored');
+					}
+					if (isThisCorrect) {
+						btn.classList.add('is-correct');
+						opt.classList.add('is-correct');
+					}
+				}
+
+				if (!feedbackEl) {
+					return;
+				}
+
+				if (!isThis) {
+					feedbackEl.hidden = true;
+					feedbackEl.innerHTML = '';
+					feedbackEl.className = 'llm-mag-quiz__feedback';
+					return;
+				}
+
 				feedbackEl.hidden = false;
 				feedbackEl.className =
-					'llm-mag-quiz__feedback' + (isCorrect ? ' is-correct' : '');
+					'llm-mag-quiz__feedback' + (isCorrect ? ' is-correct' : ' is-wrong');
 				var body = '';
+				body +=
+					'<p class="llm-mag-quiz__feedback-ref">' +
+					escapeHtml(
+						format(i18n.aboutAnswer || 'Approfondimento — risposta %s', [letter])
+					) +
+					'</p>';
 				if (isCorrect) {
 					body +=
 						'<p class="llm-mag-quiz__verdict">' +
@@ -155,16 +188,12 @@
 						'</p>';
 				}
 				body += explanation
-					? '<p class="llm-mag-quiz__explanation-label">' +
-					  escapeHtml(i18n.explanation || 'Approfondimento') +
-					  '</p><p class="llm-mag-quiz__explanation">' +
-					  escapeHtml(explanation) +
-					  '</p>'
+					? '<p class="llm-mag-quiz__explanation">' + escapeHtml(explanation) + '</p>'
 					: '<p class="llm-mag-quiz__explanation">' +
 					  escapeHtml(i18n.noExplanation || '') +
 					  '</p>';
 				feedbackEl.innerHTML = body;
-			}
+			});
 
 			if (isCorrect && !foundCorrect) {
 				foundCorrect = true;

@@ -199,6 +199,7 @@ class LLM_Magazine_Shortcode {
 				'progress'      => __( 'Domanda %1$d di %2$d', 'llm-con-tabelle' ),
 				'correct'       => __( 'Corretto!', 'llm-con-tabelle' ),
 				'explanation'   => __( 'Approfondimento', 'llm-con-tabelle' ),
+				'aboutAnswer'   => __( 'Approfondimento — risposta %s', 'llm-con-tabelle' ),
 				'noExplanation' => __( 'Nessun approfondimento per questa risposta.', 'llm-con-tabelle' ),
 				'next'          => __( 'Prossima domanda', 'llm-con-tabelle' ),
 				'finish'        => __( 'Fine', 'llm-con-tabelle' ),
