@@ -346,8 +346,8 @@
 }
 
 .llm-mag-quiz__answer.is-chosen {
-	border-color: #18181b;
-	background: #f4f4f5;
+	border-color: #dc2626;
+	background: #fef2f2;
 	color: #18181b !important;
 }
 
@@ -355,30 +355,40 @@
 .llm-mag-quiz__answer.is-chosen:hover .llm-mag-quiz__answer-letter,
 .llm-mag-quiz__answer.is-chosen:focus .llm-mag-quiz__answer-letter,
 .llm-mag-quiz__answer.is-chosen:focus-visible .llm-mag-quiz__answer-letter {
-	color: #fafafa !important;
-	background: #18181b !important;
+	color: #fff !important;
+	background: #dc2626 !important;
 }
 
-.llm-mag-quiz__answer.is-explored:not(.is-chosen):not(.is-correct) {
-	border-style: dashed;
+.llm-mag-quiz__answer.is-explored:not(.is-correct) {
+	border-color: #dc2626;
+	background: #fef2f2;
+	border-style: solid;
 }
 
-.llm-mag-quiz__answer.is-correct {
-	border-color: #18181b;
-	background: #ececec;
+.llm-mag-quiz__answer.is-explored:not(.is-correct) .llm-mag-quiz__answer-letter,
+.llm-mag-quiz__answer.is-explored:not(.is-correct):hover .llm-mag-quiz__answer-letter,
+.llm-mag-quiz__answer.is-explored:not(.is-correct):focus .llm-mag-quiz__answer-letter,
+.llm-mag-quiz__answer.is-explored:not(.is-correct):focus-visible .llm-mag-quiz__answer-letter {
+	color: #fff !important;
+	background: #dc2626 !important;
+}
+
+.llm-mag-quiz__answer.is-correct,
+.llm-mag-quiz__answer.is-correct.is-chosen,
+.llm-mag-quiz__answer.is-correct.is-explored {
+	border-color: #16a34a;
+	background: #f0fdf4;
 	color: #18181b !important;
 }
 
 .llm-mag-quiz__answer.is-correct .llm-mag-quiz__answer-letter,
 .llm-mag-quiz__answer.is-correct:hover .llm-mag-quiz__answer-letter,
 .llm-mag-quiz__answer.is-correct:focus .llm-mag-quiz__answer-letter,
-.llm-mag-quiz__answer.is-correct:focus-visible .llm-mag-quiz__answer-letter {
-	color: #fafafa !important;
-	background: #18181b !important;
-}
-
-.llm-mag-quiz__answer.is-disabled:not(.is-correct):not(.is-chosen) {
-	opacity: 0.55;
+.llm-mag-quiz__answer.is-correct:focus-visible .llm-mag-quiz__answer-letter,
+.llm-mag-quiz__answer.is-correct.is-chosen .llm-mag-quiz__answer-letter,
+.llm-mag-quiz__answer.is-correct.is-explored .llm-mag-quiz__answer-letter {
+	color: #fff !important;
+	background: #16a34a !important;
 }
 
 .llm-mag-quiz__feedback {
@@ -391,8 +401,8 @@
 }
 
 .llm-mag-quiz__feedback.is-correct {
-	border-color: #27272a;
-	background: #f4f4f5;
+	border-color: #16a34a;
+	background: #f0fdf4;
 }
 
 .llm-mag-quiz__verdict {
@@ -400,6 +410,10 @@
 	font-size: 0.95rem;
 	font-weight: 800;
 	color: #18181b;
+}
+
+.llm-mag-quiz__feedback.is-correct .llm-mag-quiz__verdict {
+	color: #15803d;
 }
 
 .llm-mag-quiz__explanation-label {
