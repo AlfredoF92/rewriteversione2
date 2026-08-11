@@ -131,6 +131,7 @@ class LLM_Magazine_Shortcode {
 		$music_ids    = LLM_Magazine::get_music_ids( $mag_id );
 		$quiz_qs      = LLM_Magazine::get_quiz_questions_for_magazine( $mag_id );
 		$videos       = LLM_Magazine::get_videos( $mag_id );
+		$idiom        = LLM_Magazine::get_idiom( $mag_id );
 		$date_label   = mysql2date( get_option( 'date_format' ), $date . ' 00:00:00' );
 
 		ob_start();
@@ -174,6 +175,13 @@ class LLM_Magazine_Shortcode {
 				</section>
 			<?php endif; ?>
 
+			<?php if ( $idiom && ( $idiom['phrase'] || $idiom['meaning'] || $idiom['example'] ) ) : ?>
+				<section class="llm-magazine__section llm-magazine__section--idiom">
+					<h3 class="llm-magazine__section-title"><?php esc_html_e( 'Espressione del giorno', 'llm-con-tabelle' ); ?></h3>
+					<?php echo self::render_idiom( $idiom ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+				</section>
+			<?php endif; ?>
+
 			<?php if ( ! empty( $quiz_qs ) ) : ?>
 				<section class="llm-magazine__section llm-magazine__section--quiz">
 					<h3 class="llm-magazine__section-title"><?php esc_html_e( 'Quiz del giorno', 'llm-con-tabelle' ); ?></h3>
@@ -192,6 +200,36 @@ class LLM_Magazine_Shortcode {
 				</section>
 			<?php endif; ?>
 		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Espressione / modo di dire.
+	 *
+	 * @param array{phrase:string,meaning:string,example:string} $idiom Dati.
+	 * @return string
+	 */
+	private static function render_idiom( array $idiom ) {
+		ob_start();
+		?>
+		<article class="llm-magazine__idiom">
+			<?php if ( ! empty( $idiom['phrase'] ) ) : ?>
+				<p class="llm-magazine__idiom-phrase"><?php echo esc_html( $idiom['phrase'] ); ?></p>
+			<?php endif; ?>
+			<?php if ( ! empty( $idiom['meaning'] ) ) : ?>
+				<div class="llm-magazine__idiom-block">
+					<span class="llm-magazine__idiom-label"><?php esc_html_e( 'Significato', 'llm-con-tabelle' ); ?></span>
+					<p class="llm-magazine__idiom-text"><?php echo esc_html( $idiom['meaning'] ); ?></p>
+				</div>
+			<?php endif; ?>
+			<?php if ( ! empty( $idiom['example'] ) ) : ?>
+				<div class="llm-magazine__idiom-block">
+					<span class="llm-magazine__idiom-label"><?php esc_html_e( 'Esempio', 'llm-con-tabelle' ); ?></span>
+					<p class="llm-magazine__idiom-text llm-magazine__idiom-text--example"><?php echo esc_html( $idiom['example'] ); ?></p>
+				</div>
+			<?php endif; ?>
+		</article>
 		<?php
 		return (string) ob_get_clean();
 	}

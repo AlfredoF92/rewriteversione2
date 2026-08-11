@@ -337,6 +337,37 @@ class LLM_Magazine_Admin {
 			</div>
 
 			<?php
+			$idiom = LLM_Magazine::get_idiom( $post->ID );
+			if ( ! $idiom ) {
+				$idiom = array(
+					'phrase'  => '',
+					'meaning' => '',
+					'example' => '',
+				);
+			}
+			?>
+			<div class="llm-mag-admin__section">
+				<h3><?php esc_html_e( 'Espressione del giorno', 'llm-con-tabelle' ); ?></h3>
+				<p class="description">
+					<?php esc_html_e( 'Un modo di dire nella lingua da imparare, con significato (nella lingua nota) e un esempio d’uso.', 'llm-con-tabelle' ); ?>
+				</p>
+				<div class="llm-mag-admin__idiom">
+					<p>
+						<label for="llm_mag_idiom_phrase"><strong><?php esc_html_e( 'Espressione / modo di dire', 'llm-con-tabelle' ); ?></strong></label>
+						<input type="text" class="widefat" id="llm_mag_idiom_phrase" name="llm_mag_idiom[phrase]" value="<?php echo esc_attr( $idiom['phrase'] ); ?>" placeholder="<?php echo esc_attr__( 'Es. Break a leg!', 'llm-con-tabelle' ); ?>">
+					</p>
+					<p>
+						<label for="llm_mag_idiom_meaning"><strong><?php esc_html_e( 'Significato', 'llm-con-tabelle' ); ?></strong></label>
+						<textarea class="widefat" rows="2" id="llm_mag_idiom_meaning" name="llm_mag_idiom[meaning]" placeholder="<?php echo esc_attr__( 'Cosa significa, in parole semplici', 'llm-con-tabelle' ); ?>"><?php echo esc_textarea( $idiom['meaning'] ); ?></textarea>
+					</p>
+					<p>
+						<label for="llm_mag_idiom_example"><strong><?php esc_html_e( 'Esempio d’uso', 'llm-con-tabelle' ); ?></strong></label>
+						<textarea class="widefat" rows="2" id="llm_mag_idiom_example" name="llm_mag_idiom[example]" placeholder="<?php echo esc_attr__( 'Una frase di esempio in contesto', 'llm-con-tabelle' ); ?>"><?php echo esc_textarea( $idiom['example'] ); ?></textarea>
+					</p>
+				</div>
+			</div>
+
+			<?php
 			$videos = LLM_Magazine::get_videos( $post->ID );
 			while ( count( $videos ) < LLM_Magazine::VIDEOS_PER_ISSUE ) {
 				$videos[] = array(
@@ -583,6 +614,16 @@ class LLM_Magazine_Admin {
 		return LLM_Magazine::normalize_videos( wp_unslash( $_POST['llm_mag_videos'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 	}
 
+	/**
+	 * @return array{phrase:string,meaning:string,example:string}|null
+	 */
+	private static function sanitize_idiom_from_post() {
+		if ( empty( $_POST['llm_mag_idiom'] ) || ! is_array( $_POST['llm_mag_idiom'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			return null;
+		}
+		return LLM_Magazine::normalize_idiom( wp_unslash( $_POST['llm_mag_idiom'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+	}
+
 	public static function ajax_suggest_quiz() {
 		if ( ! check_ajax_referer( self::AJAX_SUGGEST, 'nonce', false ) ) {
 			wp_send_json_error( array( 'message' => __( 'Sessione scaduta. Ricarica la pagina.', 'llm-con-tabelle' ) ), 403 );
@@ -685,6 +726,7 @@ class LLM_Magazine_Admin {
 		$music_ids   = self::sanitize_id_list_from_post( 'llm_mag_music' );
 		$quiz_qids   = self::sanitize_quiz_qid_list_from_post();
 		$videos      = self::sanitize_videos_from_post();
+		$idiom       = self::sanitize_idiom_from_post();
 
 		/* Se nessuna domanda scelta: auto-pick evitando ripetizioni. */
 		if ( empty( $quiz_qids ) && $known && $target ) {
@@ -700,6 +742,11 @@ class LLM_Magazine_Admin {
 		update_post_meta( $post_id, LLM_Magazine::META_MUSIC_IDS, $music_ids );
 		update_post_meta( $post_id, LLM_Magazine::META_QUIZ_QIDS, $quiz_qids );
 		update_post_meta( $post_id, LLM_Magazine::META_VIDEOS, $videos );
+		if ( $idiom ) {
+			update_post_meta( $post_id, LLM_Magazine::META_IDIOM, $idiom );
+		} else {
+			delete_post_meta( $post_id, LLM_Magazine::META_IDIOM );
+		}
 
 		if ( '1' === $homepage && $known && $target ) {
 			update_post_meta( $post_id, LLM_Magazine::META_HOMEPAGE, '1' );

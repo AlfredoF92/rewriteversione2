@@ -22,6 +22,7 @@ class LLM_Magazine {
 	const META_MUSIC_IDS  = '_llm_magazine_music_ids';
 	const META_QUIZ_QIDS  = '_llm_magazine_quiz_qids';
 	const META_VIDEOS     = '_llm_magazine_videos';
+	const META_IDIOM      = '_llm_magazine_idiom';
 
 	/** Quante domande quiz in una rivista (default automatico). */
 	const QUIZ_PER_ISSUE = 3;
@@ -449,6 +450,43 @@ class LLM_Magazine {
 	 */
 	public static function get_videos( $post_id ) {
 		return self::normalize_videos( get_post_meta( absint( $post_id ), self::META_VIDEOS, true ) );
+	}
+
+	/**
+	 * @param mixed $raw Meta grezzo.
+	 * @return array{phrase:string,meaning:string,example:string}|null
+	 */
+	public static function normalize_idiom( $raw ) {
+		if ( is_string( $raw ) && '' !== $raw ) {
+			$decoded = json_decode( $raw, true );
+			if ( is_array( $decoded ) ) {
+				$raw = $decoded;
+			}
+		}
+		if ( ! is_array( $raw ) ) {
+			return null;
+		}
+		$phrase  = isset( $raw['phrase'] ) ? sanitize_text_field( (string) $raw['phrase'] ) : '';
+		$meaning = isset( $raw['meaning'] ) ? sanitize_textarea_field( (string) $raw['meaning'] ) : '';
+		$example = isset( $raw['example'] ) ? sanitize_textarea_field( (string) $raw['example'] ) : '';
+		if ( '' === $phrase && '' === $meaning && '' === $example ) {
+			return null;
+		}
+		return array(
+			'phrase'  => $phrase,
+			'meaning' => $meaning,
+			'example' => $example,
+		);
+	}
+
+	/**
+	 * Espressione / modo di dire della rivista.
+	 *
+	 * @param int $post_id ID rivista.
+	 * @return array{phrase:string,meaning:string,example:string}|null
+	 */
+	public static function get_idiom( $post_id ) {
+		return self::normalize_idiom( get_post_meta( absint( $post_id ), self::META_IDIOM, true ) );
 	}
 
 	/**

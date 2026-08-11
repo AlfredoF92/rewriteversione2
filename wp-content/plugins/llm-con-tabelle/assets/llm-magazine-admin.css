@@ -164,6 +164,27 @@
 	margin-bottom: 0.25rem;
 }
 
+.llm-mag-admin__idiom {
+	max-width: 42rem;
+	padding: 0.85rem 1rem;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	background: #fff;
+}
+
+.llm-mag-admin__idiom p {
+	margin: 0 0 0.65rem;
+}
+
+.llm-mag-admin__idiom p:last-child {
+	margin-bottom: 0;
+}
+
+.llm-mag-admin__idiom label {
+	display: block;
+	margin-bottom: 0.25rem;
+}
+
 @media (max-width: 900px) {
 	.llm-mag-admin__videos {
 		grid-template-columns: 1fr;
