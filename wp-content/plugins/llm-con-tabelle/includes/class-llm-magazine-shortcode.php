@@ -211,6 +211,7 @@ class LLM_Magazine_Shortcode {
 	 * @return string
 	 */
 	private static function render_idiom( array $idiom ) {
+		$has_explain = ( ! empty( $idiom['meaning'] ) || ! empty( $idiom['equivalent'] ) );
 		ob_start();
 		?>
 		<article class="llm-magazine__idiom">
@@ -220,17 +221,21 @@ class LLM_Magazine_Shortcode {
 			<?php if ( ! empty( $idiom['phrase'] ) ) : ?>
 				<p class="llm-magazine__idiom-phrase"><?php echo esc_html( $idiom['phrase'] ); ?></p>
 			<?php endif; ?>
-			<?php if ( ! empty( $idiom['meaning'] ) ) : ?>
-				<div class="llm-magazine__idiom-block">
-					<span class="llm-magazine__idiom-label"><?php esc_html_e( 'Significato', 'llm-con-tabelle' ); ?></span>
-					<p class="llm-magazine__idiom-text"><?php echo esc_html( $idiom['meaning'] ); ?></p>
-				</div>
-			<?php endif; ?>
-			<?php if ( ! empty( $idiom['equivalent'] ) ) : ?>
-				<div class="llm-magazine__idiom-block llm-magazine__idiom-block--equivalent">
-					<span class="llm-magazine__idiom-label"><?php esc_html_e( 'Equivalente', 'llm-con-tabelle' ); ?></span>
-					<p class="llm-magazine__idiom-text llm-magazine__idiom-text--equivalent"><?php echo esc_html( $idiom['equivalent'] ); ?></p>
-				</div>
+			<?php if ( $has_explain ) : ?>
+				<details class="llm-magazine__idiom-details">
+					<summary class="llm-magazine__idiom-summary llm-ui-btn llm-ui-btn--secondary">
+						<?php esc_html_e( 'Che cosa significa?', 'llm-con-tabelle' ); ?>
+					</summary>
+					<div class="llm-magazine__idiom-explain">
+						<span class="llm-magazine__idiom-label"><?php esc_html_e( 'Significato', 'llm-con-tabelle' ); ?></span>
+						<?php if ( ! empty( $idiom['meaning'] ) ) : ?>
+							<p class="llm-magazine__idiom-text"><?php echo esc_html( $idiom['meaning'] ); ?></p>
+						<?php endif; ?>
+						<?php if ( ! empty( $idiom['equivalent'] ) ) : ?>
+							<p class="llm-magazine__idiom-text llm-magazine__idiom-text--equivalent"><?php echo esc_html( $idiom['equivalent'] ); ?></p>
+						<?php endif; ?>
+					</div>
+				</details>
 			<?php endif; ?>
 		</article>
 		<?php
