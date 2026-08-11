@@ -20,6 +20,10 @@ class LLM_Magazine {
 	const META_CROSSWORD  = '_llm_magazine_crossword_id';
 	const META_STORY_IDS  = '_llm_magazine_story_ids';
 	const META_MUSIC_IDS  = '_llm_magazine_music_ids';
+	const META_QUIZ_QIDS  = '_llm_magazine_quiz_qids';
+
+	/** Quante domande quiz in una rivista (default automatico). */
+	const QUIZ_PER_ISSUE = 3;
 
 	/** Slug categoria WordPress per i brani (oltre alla categoria di coppia). */
 	const MUSIC_CATEGORY_SLUG = 'brani-musicali';
@@ -204,6 +208,167 @@ class LLM_Magazine {
 	 */
 	public static function get_music_ids( $post_id ) {
 		return self::normalize_id_list( get_post_meta( absint( $post_id ), self::META_MUSIC_IDS, true ) );
+	}
+
+	/**
+	 * ID stringa delle domande quiz selezionate per questa rivista.
+	 *
+	 * @param int $post_id ID rivista.
+	 * @return string[]
+	 */
+	public static function get_quiz_question_ids( $post_id ) {
+		$raw = get_post_meta( absint( $post_id ), self::META_QUIZ_QIDS, true );
+		if ( ! is_array( $raw ) ) {
+			return array();
+		}
+		$ids = array();
+		foreach ( $raw as $id ) {
+			$id = sanitize_key( (string) $id );
+			if ( '' !== $id ) {
+				$ids[] = $id;
+			}
+		}
+		return array_values( array_unique( $ids ) );
+	}
+
+	/**
+	 * Domande quiz usate nelle altre riviste della stessa coppia (dalla più recente).
+	 *
+	 * @param string $known       Lingua nota.
+	 * @param string $target      Lingua obiettivo.
+	 * @param int    $exclude_id  ID rivista da escludere.
+	 * @return string[]
+	 */
+	public static function used_quiz_question_ids( $known, $target, $exclude_id = 0 ) {
+		$known      = sanitize_key( (string) $known );
+		$target     = sanitize_key( (string) $target );
+		$exclude_id = absint( $exclude_id );
+		if ( ! LLM_Languages::is_valid( $known ) || ! LLM_Languages::is_valid( $target ) ) {
+			return array();
+		}
+
+		$q = new WP_Query(
+			array(
+				'post_type'              => self::CPT,
+				'post_status'            => array( 'publish', 'draft', 'private', 'pending', 'future' ),
+				'posts_per_page'         => 50,
+				'fields'                 => 'ids',
+				'no_found_rows'          => true,
+				'update_post_term_cache' => false,
+				'orderby'                => 'date',
+				'order'                  => 'DESC',
+				'meta_query'             => array(
+					'relation' => 'AND',
+					array(
+						'key'   => self::META_KNOWN,
+						'value' => $known,
+					),
+					array(
+						'key'   => self::META_TARGET,
+						'value' => $target,
+					),
+				),
+			)
+		);
+
+		$used = array();
+		foreach ( $q->posts as $mag_id ) {
+			$mag_id = (int) $mag_id;
+			if ( $exclude_id && $mag_id === $exclude_id ) {
+				continue;
+			}
+			foreach ( self::get_quiz_question_ids( $mag_id ) as $qid ) {
+				$used[] = $qid;
+			}
+		}
+		return array_values( array_unique( $used ) );
+	}
+
+	/**
+	 * Propone N domande dalla banca della coppia, privilegiando quelle non usate di recente.
+	 *
+	 * @param string $known      Lingua nota.
+	 * @param string $target     Lingua obiettivo.
+	 * @param int    $count      Quante (default 3).
+	 * @param int    $exclude_id Rivista corrente da escludere dal “già usato”.
+	 * @return array{quiz_id:int,question_ids:string[]}
+	 */
+	public static function suggest_quiz_questions( $known, $target, $count = self::QUIZ_PER_ISSUE, $exclude_id = 0 ) {
+		$count   = max( 1, absint( $count ) );
+		$quiz_id = class_exists( 'LLM_Quiz' ) ? LLM_Quiz::find_for_pair( $known, $target ) : 0;
+		if ( ! $quiz_id ) {
+			return array(
+				'quiz_id'       => 0,
+				'question_ids'  => array(),
+			);
+		}
+
+		$questions = LLM_Quiz::get_questions( $quiz_id );
+		if ( empty( $questions ) ) {
+			return array(
+				'quiz_id'      => $quiz_id,
+				'question_ids' => array(),
+			);
+		}
+
+		$used   = self::used_quiz_question_ids( $known, $target, $exclude_id );
+		$fresh  = array();
+		$stale  = array();
+		foreach ( $questions as $q ) {
+			$id = isset( $q['id'] ) ? sanitize_key( (string) $q['id'] ) : '';
+			if ( '' === $id ) {
+				continue;
+			}
+			if ( in_array( $id, $used, true ) ) {
+				$stale[] = $id;
+			} else {
+				$fresh[] = $id;
+			}
+		}
+
+		shuffle( $fresh );
+		shuffle( $stale );
+		$picked = array_slice( $fresh, 0, $count );
+		if ( count( $picked ) < $count ) {
+			$need   = $count - count( $picked );
+			$picked = array_merge( $picked, array_slice( $stale, 0, $need ) );
+		}
+
+		return array(
+			'quiz_id'      => $quiz_id,
+			'question_ids' => array_values( array_unique( $picked ) ),
+		);
+	}
+
+	/**
+	 * Domande complete (con risposte) selezionate in una rivista.
+	 *
+	 * @param int $post_id ID rivista.
+	 * @return array<int,array>
+	 */
+	public static function get_quiz_questions_for_magazine( $post_id ) {
+		$post_id = absint( $post_id );
+		$qids    = self::get_quiz_question_ids( $post_id );
+		if ( empty( $qids ) || ! class_exists( 'LLM_Quiz' ) ) {
+			return array();
+		}
+		$known  = self::get_known( $post_id );
+		$target = self::get_target( $post_id );
+		$bank   = LLM_Quiz::find_for_pair( $known, $target );
+		if ( ! $bank ) {
+			return array();
+		}
+		$by_id = array();
+		foreach ( LLM_Quiz::get_questions( $bank ) as $q ) {
+			$by_id[ $q['id'] ] = $q;
+		}
+		$out = array();
+		foreach ( $qids as $qid ) {
+			if ( isset( $by_id[ $qid ] ) ) {
+				$out[] = $by_id[ $qid ];
+			}
+		}
+		return $out;
 	}
 
 	/**

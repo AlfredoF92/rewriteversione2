@@ -13,11 +13,13 @@ class LLM_Magazine_Admin {
 
 	const NONCE_ACTION = 'llm_magazine_save';
 	const NONCE_NAME   = 'llm_magazine_nonce';
+	const AJAX_SUGGEST = 'llm_magazine_suggest_quiz';
 
 	public static function init() {
 		add_action( 'add_meta_boxes', array( __CLASS__, 'meta_boxes' ) );
 		add_action( 'save_post_' . LLM_Magazine::CPT, array( __CLASS__, 'save_post' ), 10, 2 );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue' ) );
+		add_action( 'wp_ajax_' . self::AJAX_SUGGEST, array( __CLASS__, 'ajax_suggest_quiz' ) );
 		add_filter( 'manage_' . LLM_Magazine::CPT . '_posts_columns', array( __CLASS__, 'columns' ) );
 		add_action( 'manage_' . LLM_Magazine::CPT . '_posts_custom_column', array( __CLASS__, 'column_content' ), 10, 2 );
 		add_action( 'restrict_manage_posts', array( __CLASS__, 'list_filters' ), 10, 2 );
@@ -58,7 +60,12 @@ class LLM_Magazine_Admin {
 				'pickPairFirst'     => __( 'Seleziona prima la coppia di lingue nelle impostazioni.', 'llm-con-tabelle' ),
 				'noStories'         => __( 'Nessuna storia nella categoria dedicata a questa coppia (escluse le storie “Brani musicali”).', 'llm-con-tabelle' ),
 				'noMusic'           => __( 'Nessun brano: servono storie con la categoria di coppia e anche “Brani musicali”.', 'llm-con-tabelle' ),
+				'noQuiz'            => __( 'Nessuna banca quiz per questa coppia. Creane una in Storie LLM → Quiz.', 'llm-con-tabelle' ),
 				'shortcodeCopied'   => __( 'Shortcode copiato.', 'llm-con-tabelle' ),
+				'ajaxUrl'           => admin_url( 'admin-ajax.php' ),
+				'suggestAction'     => self::AJAX_SUGGEST,
+				'suggestNonce'      => wp_create_nonce( self::AJAX_SUGGEST ),
+				'quizPerIssue'      => LLM_Magazine::QUIZ_PER_ISSUE,
 			)
 		);
 	}
@@ -153,17 +160,25 @@ class LLM_Magazine_Admin {
 	 * @param WP_Post $post Rivista.
 	 */
 	public static function render_rubriche( $post ) {
-		$known         = LLM_Magazine::get_known( $post->ID );
-		$target        = LLM_Magazine::get_target( $post->ID );
-		$crossword_id  = LLM_Magazine::get_crossword_id( $post->ID );
-		$selected      = LLM_Magazine::get_story_ids( $post->ID );
+		$known          = LLM_Magazine::get_known( $post->ID );
+		$target         = LLM_Magazine::get_target( $post->ID );
+		$crossword_id   = LLM_Magazine::get_crossword_id( $post->ID );
+		$selected       = LLM_Magazine::get_story_ids( $post->ID );
 		$selected_music = LLM_Magazine::get_music_ids( $post->ID );
-		$crosswords    = LLM_Magazine::crossword_choices();
-		$all_stories   = self::all_stories_for_admin();
-		$pair_term_map = self::pair_term_to_keys_map();
-		$pair_cat      = ( $known && $target ) ? LLM_Magazine::pair_root_category( $known, $target ) : null;
-		$music_cat     = LLM_Magazine::music_category();
-		$current_key   = ( $known && $target ) ? LLM_Magazine::pair_key( $known, $target ) : '';
+		$selected_quiz  = LLM_Magazine::get_quiz_question_ids( $post->ID );
+		$crosswords     = LLM_Magazine::crossword_choices();
+		$all_stories    = self::all_stories_for_admin();
+		$pair_term_map  = self::pair_term_to_keys_map();
+		$pair_cat       = ( $known && $target ) ? LLM_Magazine::pair_root_category( $known, $target ) : null;
+		$music_cat      = LLM_Magazine::music_category();
+		$current_key    = ( $known && $target ) ? LLM_Magazine::pair_key( $known, $target ) : '';
+		$quiz_rows      = self::all_quiz_questions_for_admin( (int) $post->ID );
+
+		/* Se non c’è ancora una selezione quiz e la coppia è nota, propone 3 automatiche. */
+		if ( empty( $selected_quiz ) && $known && $target ) {
+			$suggest       = LLM_Magazine::suggest_quiz_questions( $known, $target, LLM_Magazine::QUIZ_PER_ISSUE, (int) $post->ID );
+			$selected_quiz = $suggest['question_ids'];
+		}
 		?>
 		<div class="llm-mag-admin llm-mag-admin--rubriche">
 			<div class="llm-mag-admin__section">
@@ -277,8 +292,104 @@ class LLM_Magazine_Admin {
 					<?php endforeach; ?>
 				</div>
 			</div>
+
+			<div class="llm-mag-admin__section">
+				<h3><?php esc_html_e( 'Quiz del giorno', 'llm-con-tabelle' ); ?></h3>
+				<p class="description">
+					<?php
+					printf(
+						/* translators: %d: number of questions */
+						esc_html__( 'Scegli le domande da mostrare (consigliate: %d). Se non selezioni nulla, al salvataggio ne vengono proposte %d automaticamente, evitando quelle già usate nelle ultime riviste della stessa coppia.', 'llm-con-tabelle' ),
+						LLM_Magazine::QUIZ_PER_ISSUE,
+						LLM_Magazine::QUIZ_PER_ISSUE
+					);
+					?>
+				</p>
+				<p class="llm-mag-admin__quiz-toolbar">
+					<button type="button" class="button" id="llm-mag-quiz-auto"><?php echo esc_html( sprintf( __( 'Scegli %d automatiche (senza ripetizioni)', 'llm-con-tabelle' ), LLM_Magazine::QUIZ_PER_ISSUE ) ); ?></button>
+					<span class="llm-mag-admin__quiz-status" id="llm-mag-quiz-status" aria-live="polite"></span>
+				</p>
+				<p class="llm-mag-admin__stories-empty" id="llm-mag-quiz-empty" <?php echo ( $known && $target ) ? 'hidden' : ''; ?>>
+					<?php esc_html_e( 'Seleziona prima la coppia di lingue nelle impostazioni.', 'llm-con-tabelle' ); ?>
+				</p>
+				<div class="llm-mag-admin__stories llm-mag-admin__quiz" id="llm-mag-quiz">
+					<?php foreach ( $quiz_rows as $row ) : ?>
+						<?php
+						$match   = $current_key && $row['pair_key'] === $current_key;
+						$checked = in_array( $row['qid'], $selected_quiz, true );
+						?>
+						<label class="llm-mag-admin__story llm-mag-admin__quiz-row"
+							data-pairs="<?php echo esc_attr( $row['pair_key'] ); ?>"
+							data-qid="<?php echo esc_attr( $row['qid'] ); ?>"
+							<?php echo $match ? '' : 'hidden'; ?>>
+							<input type="checkbox" name="llm_mag_quiz_q[]" value="<?php echo esc_attr( $row['qid'] ); ?>" <?php checked( $checked ); ?>>
+							<span class="llm-mag-admin__story-title"><?php echo esc_html( $row['question'] ); ?></span>
+							<span class="llm-mag-admin__story-meta">
+								<?php echo esc_html( $row['category'] ? $row['category'] : '—' ); ?>
+								· <?php echo esc_html( sprintf( __( 'Corretta %s', 'llm-con-tabelle' ), $row['correct_letter'] ) ); ?>
+								<?php if ( ! empty( $row['used'] ) && $match ) : ?>
+									· <em><?php esc_html_e( 'già usata', 'llm-con-tabelle' ); ?></em>
+								<?php endif; ?>
+							</span>
+						</label>
+					<?php endforeach; ?>
+				</div>
+			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Domande di tutte le banche quiz, per filtri admin.
+	 *
+	 * @param int $exclude_mag_id Rivista corrente (per marcare “già usata” sulle altre).
+	 * @return array<int,array{qid:string,pair_key:string,category:string,question:string,correct_letter:string,used:bool}>
+	 */
+	private static function all_quiz_questions_for_admin( $exclude_mag_id = 0 ) {
+		if ( ! class_exists( 'LLM_Quiz' ) ) {
+			return array();
+		}
+		$q = new WP_Query(
+			array(
+				'post_type'              => LLM_Quiz::CPT,
+				'post_status'            => array( 'publish', 'draft', 'private' ),
+				'posts_per_page'         => 100,
+				'orderby'                => 'date',
+				'order'                  => 'DESC',
+				'no_found_rows'          => true,
+				'update_post_term_cache' => false,
+			)
+		);
+
+		$used_cache = array();
+		$out        = array();
+		foreach ( $q->posts as $quiz ) {
+			$known  = LLM_Quiz::get_known( $quiz->ID );
+			$target = LLM_Quiz::get_target( $quiz->ID );
+			if ( ! $known || ! $target ) {
+				continue;
+			}
+			$pair_key = LLM_Magazine::pair_key( $known, $target );
+			if ( ! isset( $used_cache[ $pair_key ] ) ) {
+				$used_cache[ $pair_key ] = LLM_Magazine::used_quiz_question_ids( $known, $target, absint( $exclude_mag_id ) );
+			}
+			foreach ( LLM_Quiz::get_questions( $quiz->ID ) as $question ) {
+				$qid = isset( $question['id'] ) ? (string) $question['id'] : '';
+				if ( '' === $qid ) {
+					continue;
+				}
+				$correct = isset( $question['correct'] ) ? (int) $question['correct'] : 0;
+				$out[]   = array(
+					'qid'            => $qid,
+					'pair_key'       => $pair_key,
+					'category'       => isset( $question['category'] ) ? (string) $question['category'] : '',
+					'question'       => isset( $question['question'] ) ? (string) $question['question'] : '',
+					'correct_letter' => chr( 65 + max( 0, min( 2, $correct ) ) ),
+					'used'           => in_array( $qid, $used_cache[ $pair_key ], true ),
+				);
+			}
+		}
+		return $out;
 	}
 
 	/**
@@ -401,6 +512,66 @@ class LLM_Magazine_Admin {
 	}
 
 	/**
+	 * @return string[]
+	 */
+	private static function sanitize_quiz_qid_list_from_post() {
+		$ids = array();
+		if ( empty( $_POST['llm_mag_quiz_q'] ) || ! is_array( $_POST['llm_mag_quiz_q'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			return $ids;
+		}
+		foreach ( wp_unslash( $_POST['llm_mag_quiz_q'] ) as $qid ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			$qid = sanitize_key( (string) $qid );
+			if ( '' !== $qid ) {
+				$ids[] = $qid;
+			}
+		}
+		return array_values( array_unique( $ids ) );
+	}
+
+	public static function ajax_suggest_quiz() {
+		if ( ! check_ajax_referer( self::AJAX_SUGGEST, 'nonce', false ) ) {
+			wp_send_json_error( array( 'message' => __( 'Sessione scaduta. Ricarica la pagina.', 'llm-con-tabelle' ) ), 403 );
+		}
+		if ( ! current_user_can( 'edit_posts' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permessi insufficienti.', 'llm-con-tabelle' ) ), 403 );
+		}
+
+		$known      = isset( $_POST['known'] ) ? sanitize_key( wp_unslash( $_POST['known'] ) ) : '';
+		$target     = isset( $_POST['target'] ) ? sanitize_key( wp_unslash( $_POST['target'] ) ) : '';
+		$exclude_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
+		$count      = isset( $_POST['count'] ) ? absint( $_POST['count'] ) : LLM_Magazine::QUIZ_PER_ISSUE;
+		if ( ! $count ) {
+			$count = LLM_Magazine::QUIZ_PER_ISSUE;
+		}
+
+		if ( ! LLM_Languages::is_valid( $known ) || ! LLM_Languages::is_valid( $target ) || $known === $target ) {
+			wp_send_json_error( array( 'message' => __( 'Coppia non valida.', 'llm-con-tabelle' ) ), 400 );
+		}
+
+		$suggest = LLM_Magazine::suggest_quiz_questions( $known, $target, $count, $exclude_id );
+		if ( empty( $suggest['question_ids'] ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'Nessuna domanda disponibile per questa coppia. Crea prima una banca quiz.', 'llm-con-tabelle' ),
+				),
+				404
+			);
+		}
+
+		wp_send_json_success(
+			array(
+				'question_ids' => $suggest['question_ids'],
+				'quiz_id'      => $suggest['quiz_id'],
+				'message'      => sprintf(
+					/* translators: %d: number of questions */
+					__( 'Selezionate %d domande (preferenza a quelle non usate di recente).', 'llm-con-tabelle' ),
+					count( $suggest['question_ids'] )
+				),
+			)
+		);
+	}
+
+	/**
 	 * @return WP_Post[]
 	 */
 	private static function all_stories_for_admin() {
@@ -457,6 +628,13 @@ class LLM_Magazine_Admin {
 		$crossword   = isset( $_POST['llm_mag_crossword'] ) ? absint( $_POST['llm_mag_crossword'] ) : 0;
 		$story_ids   = self::sanitize_id_list_from_post( 'llm_mag_stories' );
 		$music_ids   = self::sanitize_id_list_from_post( 'llm_mag_music' );
+		$quiz_qids   = self::sanitize_quiz_qid_list_from_post();
+
+		/* Se nessuna domanda scelta: auto-pick evitando ripetizioni. */
+		if ( empty( $quiz_qids ) && $known && $target ) {
+			$suggest   = LLM_Magazine::suggest_quiz_questions( $known, $target, LLM_Magazine::QUIZ_PER_ISSUE, $post_id );
+			$quiz_qids = $suggest['question_ids'];
+		}
 
 		update_post_meta( $post_id, LLM_Magazine::META_KNOWN, $known );
 		update_post_meta( $post_id, LLM_Magazine::META_TARGET, $target );
@@ -464,6 +642,7 @@ class LLM_Magazine_Admin {
 		update_post_meta( $post_id, LLM_Magazine::META_CROSSWORD, $crossword );
 		update_post_meta( $post_id, LLM_Magazine::META_STORY_IDS, $story_ids );
 		update_post_meta( $post_id, LLM_Magazine::META_MUSIC_IDS, $music_ids );
+		update_post_meta( $post_id, LLM_Magazine::META_QUIZ_QIDS, $quiz_qids );
 
 		if ( '1' === $homepage && $known && $target ) {
 			update_post_meta( $post_id, LLM_Magazine::META_HOMEPAGE, '1' );

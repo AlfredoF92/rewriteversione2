@@ -111,6 +111,27 @@
 	font-weight: 600;
 }
 
+.llm-mag-admin__quiz-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 0 0 8px;
+}
+
+.llm-mag-admin__quiz-status {
+	font-size: 12px;
+	color: #50575e;
+}
+
+.llm-mag-admin__quiz-status.is-error {
+	color: #b32d2e;
+}
+
+.llm-mag-admin__quiz-row .llm-mag-admin__story-title {
+	font-weight: 500;
+}
+
 .llm-mag-col-yes {
 	display: inline-block;
 	padding: 1px 8px;
