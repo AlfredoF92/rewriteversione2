@@ -167,12 +167,50 @@
 .llm-magazine__card--horizontal .llm-magazine__card-body {
 	justify-content: center;
 	padding: 0.7rem 0.9rem;
-	gap: 0.25rem;
+	gap: 0.3rem;
 	min-width: 0;
 }
 
-.llm-magazine__card--horizontal .llm-magazine__card-title {
-	font-size: 0.95rem;
+.llm-magazine__music-title-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.45rem;
+	min-width: 0;
+}
+
+.llm-magazine__music-note {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin-top: 0.05rem;
+	color: #18181b;
+	line-height: 1;
+}
+
+.llm-magazine__music-note svg {
+	display: block;
+	width: 1.55rem;
+	height: 1.55rem;
+}
+
+.llm-magazine__card-title--music {
+	margin: 0;
+	font-size: 1.2rem;
+	font-weight: 800;
+	line-height: 1.25;
+	letter-spacing: -0.01em;
+	color: #111;
+	text-decoration: none !important;
+}
+
+.llm-magazine__card-title-known {
+	margin: 0;
+	font-size: 0.78rem;
+	font-weight: 500;
+	line-height: 1.3;
+	color: #6b6b66;
+	text-decoration: none !important;
 }
 
 .llm-magazine__card--horizontal .llm-magazine__card-text {

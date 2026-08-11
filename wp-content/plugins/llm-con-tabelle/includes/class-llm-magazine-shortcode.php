@@ -188,17 +188,25 @@ class LLM_Magazine_Shortcode {
 			return '';
 		}
 
-		$layout    = 'horizontal' === $layout ? 'horizontal' : 'vertical';
-		$url       = get_permalink( $story_id );
-		$title     = get_the_title( $story_id );
-		$card_text = (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_CARD_TEXT, true );
-		$cefr      = (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_CEFR_LEVEL, true );
-		$target    = (string) get_post_meta( $story_id, LLM_Story_Meta::TARGET_LANG, true );
-		$img_class = 'horizontal' === $layout ? 'llm-magazine__card-img llm-magazine__card-img--h' : 'llm-magazine__card-img';
-		$thumb     = get_the_post_thumbnail( $story_id, 'medium_large', array( 'class' => $img_class ) );
+		$layout        = 'horizontal' === $layout ? 'horizontal' : 'vertical';
+		$url           = get_permalink( $story_id );
+		$title_known   = get_the_title( $story_id );
+		$title_target  = trim( (string) get_post_meta( $story_id, LLM_Story_Meta::TITLE_TARGET, true ) );
+		$card_text     = (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_CARD_TEXT, true );
+		$cefr          = (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_CEFR_LEVEL, true );
+		$target        = (string) get_post_meta( $story_id, LLM_Story_Meta::TARGET_LANG, true );
+		$img_class     = 'horizontal' === $layout ? 'llm-magazine__card-img llm-magazine__card-img--h' : 'llm-magazine__card-img';
+		$thumb         = get_the_post_thumbnail( $story_id, 'medium_large', array( 'class' => $img_class ) );
 
 		if ( '' === trim( $card_text ) ) {
 			$card_text = has_excerpt( $story_id ) ? get_the_excerpt( $story_id ) : '';
+		}
+
+		/* Brani: titolo in evidenza = lingua obiettivo; fallback al titolo post. */
+		$featured_title = $title_target !== '' ? $title_target : $title_known;
+		$secondary_title = '';
+		if ( 'horizontal' === $layout && $title_target !== '' && $title_known !== '' && strcasecmp( $title_target, $title_known ) !== 0 ) {
+			$secondary_title = $title_known;
 		}
 
 		$article_class = 'llm-magazine__card';
@@ -221,7 +229,23 @@ class LLM_Magazine_Shortcode {
 					<?php elseif ( $target ) : ?>
 						<span class="llm-magazine__card-level"><?php echo esc_html( LLM_Languages::label( $target ) ); ?></span>
 					<?php endif; ?>
-					<h4 class="llm-magazine__card-title"><?php echo esc_html( $title ); ?></h4>
+
+					<?php if ( 'horizontal' === $layout ) : ?>
+						<div class="llm-magazine__music-title-row">
+							<span class="llm-magazine__music-note" aria-hidden="true">
+								<svg width="28" height="28" viewBox="0 0 24 24" focusable="false">
+									<path fill="currentColor" d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/>
+								</svg>
+							</span>
+							<h4 class="llm-magazine__card-title llm-magazine__card-title--music"><?php echo esc_html( $featured_title ); ?></h4>
+						</div>
+						<?php if ( $secondary_title ) : ?>
+							<p class="llm-magazine__card-title-known"><?php echo esc_html( $secondary_title ); ?></p>
+						<?php endif; ?>
+					<?php else : ?>
+						<h4 class="llm-magazine__card-title"><?php echo esc_html( $title_known ); ?></h4>
+					<?php endif; ?>
+
 					<?php if ( $card_text ) : ?>
 						<p class="llm-magazine__card-text"><?php echo esc_html( wp_strip_all_tags( $card_text ) ); ?></p>
 					<?php endif; ?>
