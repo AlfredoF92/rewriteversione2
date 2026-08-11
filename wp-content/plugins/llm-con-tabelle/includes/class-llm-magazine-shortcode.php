@@ -175,13 +175,6 @@ class LLM_Magazine_Shortcode {
 				</section>
 			<?php endif; ?>
 
-			<?php if ( $idiom && ( $idiom['phrase'] || $idiom['meaning'] || $idiom['equivalent'] || $idiom['category'] ) ) : ?>
-				<section class="llm-magazine__section llm-magazine__section--idiom">
-					<h3 class="llm-magazine__section-title"><?php esc_html_e( 'Espressione del giorno', 'llm-con-tabelle' ); ?></h3>
-					<?php echo self::render_idiom( $idiom ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-				</section>
-			<?php endif; ?>
-
 			<?php if ( ! empty( $quiz_qs ) ) : ?>
 				<section class="llm-magazine__section llm-magazine__section--quiz">
 					<h3 class="llm-magazine__section-title"><?php esc_html_e( 'Quiz del giorno', 'llm-con-tabelle' ); ?></h3>
@@ -197,6 +190,13 @@ class LLM_Magazine_Shortcode {
 							<?php echo self::render_video_card( $video ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 						<?php endforeach; ?>
 					</div>
+				</section>
+			<?php endif; ?>
+
+			<?php if ( $idiom && ( $idiom['phrase'] || $idiom['meaning'] || $idiom['equivalent'] || $idiom['category'] ) ) : ?>
+				<section class="llm-magazine__section llm-magazine__section--idiom">
+					<h3 class="llm-magazine__section-title"><?php esc_html_e( 'Espressione del giorno', 'llm-con-tabelle' ); ?></h3>
+					<?php echo self::render_idiom( $idiom ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 				</section>
 			<?php endif; ?>
 		</div>

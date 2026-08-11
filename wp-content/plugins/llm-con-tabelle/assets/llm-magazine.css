@@ -533,22 +533,27 @@
 }
 
 /* —— Espressione del giorno —— */
+.llm-magazine__section--idiom {
+	margin-bottom: 0.5rem;
+}
+
 .llm-magazine__idiom {
 	margin: 0;
-	padding: 1.15rem 1.2rem 1.25rem;
-	background: #fff;
+	padding: 1.25rem 1.3rem 1.35rem;
+	background: linear-gradient(180deg, #fafafa 0%, #fff 55%);
 	border: 1px solid #e5e5e2;
 	border-radius: 10px;
 	border-left: 4px solid #18181b;
-	max-width: 40rem;
+	max-width: 42rem;
+	box-shadow: 0 1px 2px rgba(9, 9, 11, 0.04);
 }
 
 .llm-magazine__idiom-phrase {
-	margin: 0 0 0.95rem;
-	font-size: 1.35rem;
+	margin: 0 0 1rem;
+	font-size: 1.4rem;
 	font-weight: 800;
 	line-height: 1.3;
-	letter-spacing: -0.01em;
+	letter-spacing: -0.015em;
 	color: #18181b;
 }
 
@@ -561,7 +566,7 @@
 }
 
 .llm-magazine__idiom-block {
-	margin: 0 0 0.75rem;
+	margin: 0 0 0.85rem;
 }
 
 .llm-magazine__idiom-block:last-child {
@@ -570,7 +575,7 @@
 
 .llm-magazine__idiom-label {
 	display: block;
-	margin: 0 0 0.2rem;
+	margin: 0 0 0.25rem;
 	font-size: 0.7rem;
 	font-weight: 800;
 	letter-spacing: 0.04em;
@@ -580,8 +585,8 @@
 
 .llm-magazine__idiom-text {
 	margin: 0;
-	font-size: 0.95rem;
-	line-height: 1.5;
+	font-size: 0.98rem;
+	line-height: 1.55;
 	color: #3f3f46;
 }
 
@@ -591,8 +596,8 @@
 }
 
 .llm-magazine__idiom-block--equivalent {
-	padding-top: 0.55rem;
-	border-top: 1px dashed #e4e4e7;
+	padding-top: 0.7rem;
+	border-top: 1px dashed #d4d4d8;
 }
 
 /* —— Video da ascoltare —— */
