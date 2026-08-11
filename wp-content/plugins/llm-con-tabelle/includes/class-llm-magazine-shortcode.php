@@ -129,6 +129,7 @@ class LLM_Magazine_Shortcode {
 		$crossword_id = LLM_Magazine::get_crossword_id( $mag_id );
 		$story_ids    = LLM_Magazine::get_story_ids( $mag_id );
 		$music_ids    = LLM_Magazine::get_music_ids( $mag_id );
+		$quiz_qs      = LLM_Magazine::get_quiz_questions_for_magazine( $mag_id );
 		$date_label   = mysql2date( get_option( 'date_format' ), $date . ' 00:00:00' );
 
 		ob_start();
@@ -171,6 +172,49 @@ class LLM_Magazine_Shortcode {
 					</div>
 				</section>
 			<?php endif; ?>
+
+			<?php if ( ! empty( $quiz_qs ) ) : ?>
+				<section class="llm-magazine__section llm-magazine__section--quiz">
+					<h3 class="llm-magazine__section-title"><?php esc_html_e( 'Quiz del giorno', 'llm-con-tabelle' ); ?></h3>
+					<?php echo self::render_quiz( $mag_id, $quiz_qs ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+				</section>
+			<?php endif; ?>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Quiz interattivo: una domanda alla volta, click → spiegazione → avanti.
+	 *
+	 * @param int   $mag_id    ID rivista.
+	 * @param array $questions Domande complete.
+	 * @return string
+	 */
+	private static function render_quiz( $mag_id, array $questions ) {
+		$payload = array(
+			'magazineId' => absint( $mag_id ),
+			'questions'  => array_values( $questions ),
+			'i18n'       => array(
+				'progress'     => __( 'Domanda %1$d di %2$d', 'llm-con-tabelle' ),
+				'correct'      => __( 'Corretto!', 'llm-con-tabelle' ),
+				'incorrect'    => __( 'Non esatto', 'llm-con-tabelle' ),
+				'explanation'  => __( 'Approfondimento', 'llm-con-tabelle' ),
+				'next'         => __( 'Prossima domanda', 'llm-con-tabelle' ),
+				'finish'       => __( 'Vedi risultato', 'llm-con-tabelle' ),
+				'restart'      => __( 'Rigioca', 'llm-con-tabelle' ),
+				'resultTitle'  => __( 'Quiz completato', 'llm-con-tabelle' ),
+				'resultScore'  => __( 'Hai risposto bene a %1$d su %2$d', 'llm-con-tabelle' ),
+				'pickAnswer'   => __( 'Scegli una risposta', 'llm-con-tabelle' ),
+			),
+		);
+
+		ob_start();
+		?>
+		<div class="llm-mag-quiz" data-llm-mag-quiz>
+			<script type="application/json" class="llm-mag-quiz__config"><?php echo wp_json_encode( $payload, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT ); ?></script>
+			<div class="llm-mag-quiz__progress" data-quiz-progress aria-live="polite"></div>
+			<div class="llm-mag-quiz__stage" data-quiz-stage></div>
 		</div>
 		<?php
 		return (string) ob_get_clean();
@@ -263,6 +307,13 @@ class LLM_Magazine_Shortcode {
 			LLM_TABELLE_URL . 'assets/llm-magazine.css',
 			array( 'llm-ui' ),
 			LLM_TABELLE_VERSION
+		);
+		wp_enqueue_script(
+			'llm-magazine-quiz',
+			LLM_TABELLE_URL . 'assets/llm-magazine-quiz.js',
+			array(),
+			LLM_TABELLE_VERSION,
+			true
 		);
 	}
 }
