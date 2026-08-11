@@ -106,10 +106,6 @@
 		}
 
 		function showAnswer(chosenIndex) {
-			if (foundCorrect) {
-				return;
-			}
-
 			var q = questions[index];
 			var correctIndex = typeof q.correct === 'number' ? q.correct : 0;
 			var isCorrect = chosenIndex === correctIndex;
@@ -122,6 +118,9 @@
 				btn.classList.toggle('is-chosen', i === chosenIndex);
 				if (i === chosenIndex) {
 					btn.classList.add('is-explored');
+				}
+				if (i === correctIndex && (isCorrect || foundCorrect)) {
+					btn.classList.add('is-correct');
 				}
 			});
 
@@ -149,27 +148,17 @@
 				feedbackEl.innerHTML = body;
 			}
 
-			if (!isCorrect) {
-				return;
-			}
-
-			foundCorrect = true;
-			buttons.forEach(function (btn, i) {
-				btn.disabled = true;
-				btn.classList.add('is-disabled');
-				if (i === correctIndex) {
-					btn.classList.add('is-correct');
+			if (isCorrect && !foundCorrect) {
+				foundCorrect = true;
+				var actionsEl = stageEl.querySelector('[data-quiz-actions]');
+				var nextBtn = stageEl.querySelector('[data-quiz-next]');
+				if (actionsEl && nextBtn) {
+					var isLast = index >= questions.length - 1;
+					nextBtn.textContent = isLast
+						? i18n.finish || 'Fine'
+						: i18n.next || 'Prossima domanda';
+					actionsEl.hidden = false;
 				}
-			});
-
-			var actionsEl = stageEl.querySelector('[data-quiz-actions]');
-			var nextBtn = stageEl.querySelector('[data-quiz-next]');
-			if (actionsEl && nextBtn) {
-				var isLast = index >= questions.length - 1;
-				nextBtn.textContent = isLast
-					? i18n.finish || 'Fine'
-					: i18n.next || 'Prossima domanda';
-				actionsEl.hidden = false;
 			}
 		}
 
