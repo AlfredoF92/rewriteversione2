@@ -1,7 +1,7 @@
 <?php
 /**
  * Modello quiz: CPT banca domande per coppia linguistica.
- * Ogni domanda ha 3 risposte; ogni risposta ha una spiegazione (nessuna “corretta”).
+ * Ogni domanda ha categoria, 3 risposte con spiegazione e una risposta corretta.
  *
  * @package LLM_Tabelle
  */
@@ -20,6 +20,20 @@ class LLM_Quiz {
 
 	/** Numero fisso di risposte per domanda. */
 	const ANSWERS_PER_QUESTION = 3;
+
+	/**
+	 * Categorie suggerite in admin.
+	 *
+	 * @return string[]
+	 */
+	public static function default_categories() {
+		return array(
+			__( 'Curiosità sul paese', 'llm-con-tabelle' ),
+			__( 'Curiosità sull’Italia', 'llm-con-tabelle' ),
+			__( 'Curiosità sulla Polonia', 'llm-con-tabelle' ),
+			__( 'Eventi storici', 'llm-con-tabelle' ),
+		);
+	}
 
 	public static function init() {
 		add_action( 'init', array( __CLASS__, 'register' ) );
@@ -78,11 +92,43 @@ class LLM_Quiz {
 
 	/**
 	 * @param int $post_id ID quiz.
-	 * @return array<int,array{id:string,question:string,answers:array<int,array{text:string,explanation:string}>}>
+	 * @return array<int,array{id:string,category:string,question:string,correct:int,answers:array<int,array{text:string,explanation:string}>}>
 	 */
 	public static function get_questions( $post_id ) {
 		$raw = get_post_meta( absint( $post_id ), self::META_QUESTIONS, true );
 		return self::normalize_questions( $raw );
+	}
+
+	/**
+	 * Domande raggruppate per categoria (ordine alfabetico; vuote in fondo).
+	 *
+	 * @param array $questions Domande normalizzate.
+	 * @return array<string,array<int,array>>
+	 */
+	public static function group_by_category( array $questions ) {
+		$groups = array();
+		foreach ( $questions as $i => $q ) {
+			$cat = isset( $q['category'] ) ? (string) $q['category'] : '';
+			if ( '' === $cat ) {
+				$cat = __( 'Senza categoria', 'llm-con-tabelle' );
+			}
+			if ( ! isset( $groups[ $cat ] ) ) {
+				$groups[ $cat ] = array();
+			}
+			$groups[ $cat ][ $i ] = $q;
+		}
+		uksort(
+			$groups,
+			static function ( $a, $b ) {
+				$empty_a = __( 'Senza categoria', 'llm-con-tabelle' ) === $a;
+				$empty_b = __( 'Senza categoria', 'llm-con-tabelle' ) === $b;
+				if ( $empty_a !== $empty_b ) {
+					return $empty_a ? 1 : -1;
+				}
+				return strcasecmp( (string) $a, (string) $b );
+			}
+		);
+		return $groups;
 	}
 
 	/**
@@ -94,8 +140,31 @@ class LLM_Quiz {
 	}
 
 	/**
+	 * Indice risposta corretta 0..2 da A/B/C, 1/2/3 o 0/1/2.
+	 *
+	 * @param mixed $raw Valore grezzo.
+	 * @return int
+	 */
+	public static function normalize_correct( $raw ) {
+		if ( is_int( $raw ) || ( is_string( $raw ) && is_numeric( $raw ) ) ) {
+			$n = (int) $raw;
+			if ( $n >= 1 && $n <= self::ANSWERS_PER_QUESTION ) {
+				return $n - 1;
+			}
+			if ( $n >= 0 && $n < self::ANSWERS_PER_QUESTION ) {
+				return $n;
+			}
+		}
+		$letter = strtoupper( trim( (string) $raw ) );
+		if ( 1 === strlen( $letter ) && $letter >= 'A' && $letter <= 'C' ) {
+			return ord( $letter ) - 65;
+		}
+		return 0;
+	}
+
+	/**
 	 * @param mixed $raw Meta o array grezzo.
-	 * @return array<int,array{id:string,question:string,answers:array<int,array{text:string,explanation:string}>}>
+	 * @return array<int,array{id:string,category:string,question:string,correct:int,answers:array<int,array{text:string,explanation:string}>}>
 	 */
 	public static function normalize_questions( $raw ) {
 		if ( is_string( $raw ) && '' !== $raw ) {
@@ -114,6 +183,8 @@ class LLM_Quiz {
 				continue;
 			}
 			$question = isset( $row['question'] ) ? self::sanitize_text( $row['question'] ) : '';
+			$category = isset( $row['category'] ) ? self::sanitize_text( $row['category'] ) : '';
+			$correct  = self::normalize_correct( isset( $row['correct'] ) ? $row['correct'] : 0 );
 			$answers  = array();
 			$raw_ans  = isset( $row['answers'] ) && is_array( $row['answers'] ) ? $row['answers'] : array();
 			for ( $i = 0; $i < self::ANSWERS_PER_QUESTION; $i++ ) {
@@ -145,7 +216,9 @@ class LLM_Quiz {
 
 			$out[] = array(
 				'id'       => $id,
+				'category' => $category,
 				'question' => $question,
+				'correct'  => $correct,
 				'answers'  => $answers,
 			);
 		}
@@ -178,8 +251,10 @@ class LLM_Quiz {
 
 	/**
 	 * Parse CSV domande.
-	 * Colonne: question, a1, exp1, a2, exp2, a3, exp3
-	 * Prima riga opzionale di header (se contiene "question" / "domanda").
+	 * Colonne consigliate:
+	 * category,question,answer1,explanation1,answer2,explanation2,answer3,explanation3,correct
+	 * (correct = A|B|C oppure 1|2|3)
+	 * Compatibile anche con il vecchio formato a 7 colonne senza category/correct.
 	 *
 	 * @param string $csv CSV grezzo.
 	 * @return array|WP_Error Domande normalizzate oppure errore.
@@ -216,10 +291,13 @@ class LLM_Quiz {
 		/* Salta header. */
 		$first = array_map( 'strtolower', array_map( 'trim', $rows[0] ) );
 		$header_hit = false;
+		$has_category_col = false;
 		foreach ( $first as $cell ) {
-			if ( in_array( $cell, array( 'question', 'domanda', 'q', 'answer1', 'risposta1', 'a1' ), true ) ) {
+			if ( in_array( $cell, array( 'question', 'domanda', 'q', 'answer1', 'risposta1', 'a1', 'category', 'categoria', 'correct', 'corretta' ), true ) ) {
 				$header_hit = true;
-				break;
+			}
+			if ( in_array( $cell, array( 'category', 'categoria' ), true ) ) {
+				$has_category_col = true;
 			}
 		}
 		if ( $header_hit ) {
@@ -228,22 +306,48 @@ class LLM_Quiz {
 
 		$questions = array();
 		foreach ( $rows as $cols ) {
-			$cols = array_pad( array_values( $cols ), 7, '' );
+			$cols = array_values( $cols );
+			if ( $has_category_col || count( $cols ) >= 9 ) {
+				$cols = array_pad( $cols, 9, '' );
+				$category = $cols[0];
+				$question = $cols[1];
+				$a1 = $cols[2];
+				$e1 = $cols[3];
+				$a2 = $cols[4];
+				$e2 = $cols[5];
+				$a3 = $cols[6];
+				$e3 = $cols[7];
+				$correct = $cols[8];
+			} else {
+				$cols = array_pad( $cols, 7, '' );
+				$category = '';
+				$question = $cols[0];
+				$a1 = $cols[1];
+				$e1 = $cols[2];
+				$a2 = $cols[3];
+				$e2 = $cols[4];
+				$a3 = $cols[5];
+				$e3 = $cols[6];
+				$correct = 'A';
+			}
+
 			$questions[] = array(
 				'id'       => self::new_question_id(),
-				'question' => $cols[0],
+				'category' => $category,
+				'question' => $question,
+				'correct'  => $correct,
 				'answers'  => array(
 					array(
-						'text'        => $cols[1],
-						'explanation' => $cols[2],
+						'text'        => $a1,
+						'explanation' => $e1,
 					),
 					array(
-						'text'        => $cols[3],
-						'explanation' => $cols[4],
+						'text'        => $a2,
+						'explanation' => $e2,
 					),
 					array(
-						'text'        => $cols[5],
-						'explanation' => $cols[6],
+						'text'        => $a3,
+						'explanation' => $e3,
 					),
 				),
 			);

@@ -67,12 +67,12 @@ class LLM_Quiz_Admin {
 					'networkError'   => __( 'Errore di rete. Riprova.', 'llm-con-tabelle' ),
 					'removeQ'        => __( 'Eliminare questa domanda?', 'llm-con-tabelle' ),
 					'questionLabel'  => __( 'Domanda', 'llm-con-tabelle' ),
-					'answerLabel'    => __( 'Risposta', 'llm-con-tabelle' ),
-					'expLabel'       => __( 'Spiegazione', 'llm-con-tabelle' ),
-					'removeBtn'      => __( 'Elimina domanda', 'llm-con-tabelle' ),
-					'moveUp'         => __( 'Su', 'llm-con-tabelle' ),
-					'moveDown'       => __( 'Giù', 'llm-con-tabelle' ),
+					'edit'           => __( 'Modifica', 'llm-con-tabelle' ),
+					'close'          => __( 'Chiudi', 'llm-con-tabelle' ),
+					'uncategorized'  => __( 'Senza categoria', 'llm-con-tabelle' ),
+					'correctLetter'  => __( 'Corretta', 'llm-con-tabelle' ),
 				),
+				'categories' => LLM_Quiz::default_categories(),
 			)
 		);
 	}
@@ -133,7 +133,7 @@ class LLM_Quiz_Admin {
 			</select>
 		</p>
 		<p class="description">
-			<?php esc_html_e( 'Una banca quiz per coppia. Le domande sono nella lingua nota; ogni risposta ha la sua spiegazione (nessuna risposta “corretta”).', 'llm-con-tabelle' ); ?>
+			<?php esc_html_e( 'Una banca quiz per coppia. Ogni domanda ha 3 risposte con spiegazione e una risposta corretta (A/B/C).', 'llm-con-tabelle' ); ?>
 		</p>
 		<?php
 	}
@@ -148,11 +148,11 @@ class LLM_Quiz_Admin {
 			<p class="description">
 				<?php esc_html_e( 'Colonne CSV (virgola; testo con virgole tra virgolette):', 'llm-con-tabelle' ); ?>
 			</p>
-			<pre class="llm-quiz-admin__csv-help">question,answer1,explanation1,answer2,explanation2,answer3,explanation3</pre>
+			<pre class="llm-quiz-admin__csv-help">category,question,answer1,explanation1,answer2,explanation2,answer3,explanation3,correct</pre>
 			<p class="description">
-				<?php esc_html_e( 'La prima riga può essere un’intestazione (question / domanda). Ogni riga = una domanda con 3 risposte e 3 spiegazioni.', 'llm-con-tabelle' ); ?>
+				<?php esc_html_e( 'correct = A, B o C (oppure 1/2/3). Categorie esempio: Curiosità sul paese, Curiosità sull’Italia, Curiosità sulla Polonia, Eventi storici.', 'llm-con-tabelle' ); ?>
 			</p>
-			<textarea id="llm_quiz_csv" class="widefat code" rows="8" placeholder="<?php echo esc_attr( "question,answer1,explanation1,answer2,explanation2,answer3,explanation3\nQual è…?,Opzione A,Perché A…,Opzione B,Perché B…,Opzione C,Perché C…" ); ?>"></textarea>
+			<textarea id="llm_quiz_csv" class="widefat code" rows="6" placeholder="<?php echo esc_attr( "category,question,answer1,explanation1,answer2,explanation2,answer3,explanation3,correct\nEventi storici,Nel 1066…?,Conquista normanna,Spiega A…,Il tè,Spiega B…,USA 1776,Spiega C…,A" ); ?>"></textarea>
 			<p class="llm-quiz-admin__import-actions">
 				<button type="button" class="button button-primary" id="llm-quiz-import-append"><?php esc_html_e( 'Importa e aggiungi', 'llm-con-tabelle' ); ?></button>
 				<button type="button" class="button" id="llm-quiz-import-replace"><?php esc_html_e( 'Importa e sostituisci tutto', 'llm-con-tabelle' ); ?></button>
@@ -167,95 +167,153 @@ class LLM_Quiz_Admin {
 	 */
 	public static function render_questions( $post ) {
 		$questions = LLM_Quiz::get_questions( $post->ID );
-		if ( empty( $questions ) ) {
-			$questions = array(
-				array(
-					'id'       => LLM_Quiz::new_question_id(),
-					'question' => '',
-					'answers'  => array(
-						array( 'text' => '', 'explanation' => '' ),
-						array( 'text' => '', 'explanation' => '' ),
-						array( 'text' => '', 'explanation' => '' ),
-					),
-				),
-			);
-		}
 		?>
 		<div class="llm-quiz-admin__questions-wrap">
 			<p class="description">
-				<?php esc_html_e( 'Modifica, aggiungi o elimina le domande. Salva il post per confermare. In gioco: l’utente clicca una risposta, vede la spiegazione e passa avanti.', 'llm-con-tabelle' ); ?>
+				<?php esc_html_e( 'Panoramica compatta per categoria. Clicca «Modifica» per aprire i dettagli. Poi Salva il post.', 'llm-con-tabelle' ); ?>
+			</p>
+			<p class="llm-quiz-admin__toolbar">
+				<button type="button" class="button button-secondary" id="llm-quiz-add-question"><?php esc_html_e( 'Aggiungi domanda', 'llm-con-tabelle' ); ?></button>
+				<button type="button" class="button" id="llm-quiz-collapse-all"><?php esc_html_e( 'Chiudi tutte', 'llm-con-tabelle' ); ?></button>
+				<span class="llm-quiz-admin__count" id="llm-quiz-count">
+					<?php
+					printf(
+						/* translators: %d: question count */
+						esc_html__( '%d domande', 'llm-con-tabelle' ),
+						count( $questions )
+					);
+					?>
+				</span>
 			</p>
 			<div id="llm-quiz-questions" class="llm-quiz-admin__questions" data-count="<?php echo esc_attr( (string) count( $questions ) ); ?>">
-				<?php foreach ( $questions as $index => $q ) : ?>
-					<?php self::render_question_block( (int) $index, $q ); ?>
-				<?php endforeach; ?>
+				<?php echo self::render_questions_list_html( $questions ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 			</div>
-			<p>
-				<button type="button" class="button button-secondary" id="llm-quiz-add-question"><?php esc_html_e( 'Aggiungi domanda', 'llm-con-tabelle' ); ?></button>
-			</p>
 			<template id="llm-quiz-question-template">
 				<?php
 				self::render_question_block(
 					'__INDEX__',
 					array(
 						'id'       => '',
+						'category' => '',
 						'question' => '',
+						'correct'  => 0,
 						'answers'  => array(
 							array( 'text' => '', 'explanation' => '' ),
 							array( 'text' => '', 'explanation' => '' ),
 							array( 'text' => '', 'explanation' => '' ),
 						),
-					)
+					),
+					true
 				);
 				?>
 			</template>
+			<datalist id="llm-quiz-category-list">
+				<?php foreach ( LLM_Quiz::default_categories() as $c ) : ?>
+					<option value="<?php echo esc_attr( $c ); ?>">
+				<?php endforeach; ?>
+			</datalist>
 		</div>
 		<?php
 	}
 
 	/**
-	 * @param int|string                                                                           $index Indice form.
-	 * @param array{id?:string,question?:string,answers?:array<int,array{text?:string,explanation?:string}>} $q Domanda.
+	 * HTML elenco raggruppato (usato anche dopo import AJAX).
+	 *
+	 * @param array $questions Domande.
+	 * @return string
 	 */
-	private static function render_question_block( $index, array $q ) {
+	public static function render_questions_list_html( array $questions ) {
+		if ( empty( $questions ) ) {
+			ob_start();
+			echo '<p class="llm-quiz-admin__empty">' . esc_html__( 'Nessuna domanda. Aggiungine una o importa un CSV.', 'llm-con-tabelle' ) . '</p>';
+			return (string) ob_get_clean();
+		}
+
+		$groups = LLM_Quiz::group_by_category( $questions );
+		ob_start();
+		foreach ( $groups as $cat_label => $items ) {
+			echo '<section class="llm-quiz-admin__cat" data-category="' . esc_attr( $cat_label ) . '">';
+			echo '<h4 class="llm-quiz-admin__cat-title">' . esc_html( $cat_label ) . ' <span class="llm-quiz-admin__cat-count">(' . count( $items ) . ')</span></h4>';
+			echo '<div class="llm-quiz-admin__cat-list">';
+			foreach ( $items as $index => $q ) {
+				self::render_question_block( (int) $index, $q, false );
+			}
+			echo '</div></section>';
+		}
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * @param int|string $index   Indice form.
+	 * @param array      $q       Domanda.
+	 * @param bool       $open    Se true, editor già aperto (nuove domande).
+	 */
+	private static function render_question_block( $index, array $q, $open = false ) {
 		$id       = isset( $q['id'] ) ? (string) $q['id'] : '';
+		$category = isset( $q['category'] ) ? (string) $q['category'] : '';
 		$question = isset( $q['question'] ) ? (string) $q['question'] : '';
+		$correct  = isset( $q['correct'] ) ? (int) $q['correct'] : 0;
 		$answers  = isset( $q['answers'] ) && is_array( $q['answers'] ) ? $q['answers'] : array();
 		$answers  = array_pad( $answers, LLM_Quiz::ANSWERS_PER_QUESTION, array( 'text' => '', 'explanation' => '' ) );
 		$label_n  = is_numeric( $index ) ? ( (int) $index + 1 ) : '#';
+		$letter   = chr( 65 + max( 0, min( 2, $correct ) ) );
+		$preview  = $question !== '' ? $question : __( '(vuota)', 'llm-con-tabelle' );
+		$open_cls = $open ? ' is-open' : '';
 		?>
-		<div class="llm-quiz-admin__question" data-index="<?php echo esc_attr( (string) $index ); ?>">
-			<div class="llm-quiz-admin__question-head">
-				<strong class="llm-quiz-admin__question-label"><?php echo esc_html( sprintf( __( 'Domanda %s', 'llm-con-tabelle' ), (string) $label_n ) ); ?></strong>
+		<div class="llm-quiz-admin__question<?php echo esc_attr( $open_cls ); ?>" data-index="<?php echo esc_attr( (string) $index ); ?>" data-category="<?php echo esc_attr( $category ); ?>">
+			<div class="llm-quiz-admin__row">
+				<span class="llm-quiz-admin__num llm-quiz-admin__question-label">#<?php echo esc_html( (string) $label_n ); ?></span>
+				<span class="llm-quiz-admin__preview" title="<?php echo esc_attr( $preview ); ?>"><?php echo esc_html( wp_html_excerpt( $preview, 110, '…' ) ); ?></span>
+				<span class="llm-quiz-admin__badge llm-quiz-admin__badge--correct"><?php echo esc_html( sprintf( __( 'Corretta %s', 'llm-con-tabelle' ), $letter ) ); ?></span>
 				<span class="llm-quiz-admin__question-tools">
+					<button type="button" class="button-link llm-quiz-toggle"><?php echo $open ? esc_html__( 'Chiudi', 'llm-con-tabelle' ) : esc_html__( 'Modifica', 'llm-con-tabelle' ); ?></button>
 					<button type="button" class="button-link llm-quiz-move-up"><?php esc_html_e( 'Su', 'llm-con-tabelle' ); ?></button>
 					<button type="button" class="button-link llm-quiz-move-down"><?php esc_html_e( 'Giù', 'llm-con-tabelle' ); ?></button>
-					<button type="button" class="button-link-delete llm-quiz-remove"><?php esc_html_e( 'Elimina domanda', 'llm-con-tabelle' ); ?></button>
+					<button type="button" class="button-link-delete llm-quiz-remove"><?php esc_html_e( 'Elimina', 'llm-con-tabelle' ); ?></button>
 				</span>
 			</div>
-			<input type="hidden" name="llm_quiz_q[<?php echo esc_attr( (string) $index ); ?>][id]" value="<?php echo esc_attr( $id ); ?>" class="llm-quiz-q-id">
-			<p>
-				<label><?php esc_html_e( 'Testo domanda', 'llm-con-tabelle' ); ?></label>
-				<textarea name="llm_quiz_q[<?php echo esc_attr( (string) $index ); ?>][question]" class="widefat llm-quiz-q-text" rows="2"><?php echo esc_textarea( $question ); ?></textarea>
-			</p>
-			<div class="llm-quiz-admin__answers">
-				<?php for ( $i = 0; $i < LLM_Quiz::ANSWERS_PER_QUESTION; $i++ ) : ?>
-					<?php
-					$a_text = isset( $answers[ $i ]['text'] ) ? (string) $answers[ $i ]['text'] : '';
-					$a_exp  = isset( $answers[ $i ]['explanation'] ) ? (string) $answers[ $i ]['explanation'] : '';
-					$letter = chr( 65 + $i );
-					?>
-					<div class="llm-quiz-admin__answer">
-						<p>
-							<label><?php echo esc_html( sprintf( __( 'Risposta %s', 'llm-con-tabelle' ), $letter ) ); ?></label>
-							<input type="text" class="widefat" name="llm_quiz_q[<?php echo esc_attr( (string) $index ); ?>][answers][<?php echo (int) $i; ?>][text]" value="<?php echo esc_attr( $a_text ); ?>">
-						</p>
-						<p>
-							<label><?php echo esc_html( sprintf( __( 'Spiegazione %s', 'llm-con-tabelle' ), $letter ) ); ?></label>
-							<textarea class="widefat" name="llm_quiz_q[<?php echo esc_attr( (string) $index ); ?>][answers][<?php echo (int) $i; ?>][explanation]" rows="3"><?php echo esc_textarea( $a_exp ); ?></textarea>
-						</p>
-					</div>
-				<?php endfor; ?>
+			<div class="llm-quiz-admin__editor">
+				<input type="hidden" name="llm_quiz_q[<?php echo esc_attr( (string) $index ); ?>][id]" value="<?php echo esc_attr( $id ); ?>" class="llm-quiz-q-id">
+				<div class="llm-quiz-admin__editor-grid">
+					<p>
+						<label><?php esc_html_e( 'Categoria', 'llm-con-tabelle' ); ?></label>
+						<input type="text" list="llm-quiz-category-list" name="llm_quiz_q[<?php echo esc_attr( (string) $index ); ?>][category]" class="widefat llm-quiz-q-category" value="<?php echo esc_attr( $category ); ?>">
+					</p>
+					<p>
+						<label><?php esc_html_e( 'Risposta corretta', 'llm-con-tabelle' ); ?></label>
+						<select name="llm_quiz_q[<?php echo esc_attr( (string) $index ); ?>][correct]" class="widefat llm-quiz-q-correct">
+							<?php for ( $i = 0; $i < LLM_Quiz::ANSWERS_PER_QUESTION; $i++ ) : ?>
+								<option value="<?php echo (int) $i; ?>" <?php selected( $correct, $i ); ?>><?php echo esc_html( chr( 65 + $i ) ); ?></option>
+							<?php endfor; ?>
+						</select>
+					</p>
+				</div>
+				<p>
+					<label><?php esc_html_e( 'Testo domanda', 'llm-con-tabelle' ); ?></label>
+					<textarea name="llm_quiz_q[<?php echo esc_attr( (string) $index ); ?>][question]" class="widefat llm-quiz-q-text" rows="2"><?php echo esc_textarea( $question ); ?></textarea>
+				</p>
+				<div class="llm-quiz-admin__answers">
+					<?php for ( $i = 0; $i < LLM_Quiz::ANSWERS_PER_QUESTION; $i++ ) : ?>
+						<?php
+						$a_text = isset( $answers[ $i ]['text'] ) ? (string) $answers[ $i ]['text'] : '';
+						$a_exp  = isset( $answers[ $i ]['explanation'] ) ? (string) $answers[ $i ]['explanation'] : '';
+						$let    = chr( 65 + $i );
+						?>
+						<div class="llm-quiz-admin__answer<?php echo $correct === $i ? ' is-correct' : ''; ?>">
+							<p>
+								<label>
+									<span class="llm-quiz-admin__ans-letter"><?php echo esc_html( $let ); ?></span>
+									<?php esc_html_e( 'Risposta', 'llm-con-tabelle' ); ?>
+								</label>
+								<input type="text" class="widefat" name="llm_quiz_q[<?php echo esc_attr( (string) $index ); ?>][answers][<?php echo (int) $i; ?>][text]" value="<?php echo esc_attr( $a_text ); ?>">
+							</p>
+							<p>
+								<label><?php esc_html_e( 'Spiegazione', 'llm-con-tabelle' ); ?></label>
+								<textarea class="widefat" name="llm_quiz_q[<?php echo esc_attr( (string) $index ); ?>][answers][<?php echo (int) $i; ?>][explanation]" rows="2"><?php echo esc_textarea( $a_exp ); ?></textarea>
+							</p>
+						</div>
+					<?php endfor; ?>
+				</div>
 			</div>
 		</div>
 		<?php
@@ -336,12 +394,7 @@ class LLM_Quiz_Admin {
 		}
 		LLM_Quiz::save_questions( $post_id, $merged );
 
-		$html = '';
-		foreach ( LLM_Quiz::get_questions( $post_id ) as $index => $q ) {
-			ob_start();
-			self::render_question_block( (int) $index, $q );
-			$html .= ob_get_clean();
-		}
+		$html = self::render_questions_list_html( LLM_Quiz::get_questions( $post_id ) );
 
 		wp_send_json_success(
 			array(

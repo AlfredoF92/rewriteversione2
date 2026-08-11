@@ -1,5 +1,5 @@
 /*
- * llm-quiz-admin.js — aggiungi/elimina/riordina domande + import CSV.
+ * llm-quiz-admin.js — elenco compatto, categorie, edit, import CSV.
  */
 (function (window, document) {
 	'use strict';
@@ -10,48 +10,172 @@
 		return document.getElementById(id);
 	}
 
-	function list() {
+	function root() {
 		return el('llm-quiz-questions');
 	}
 
-	function questionBlocks() {
-		var root = list();
-		return root ? Array.prototype.slice.call(root.querySelectorAll('.llm-quiz-admin__question')) : [];
+	function i18n(key, fallback) {
+		return (cfg.i18n && cfg.i18n[key]) || fallback;
 	}
 
-	function reindex() {
-		var blocks = questionBlocks();
-		blocks.forEach(function (block, index) {
+	function questionBlocks() {
+		var r = root();
+		return r ? Array.prototype.slice.call(r.querySelectorAll('.llm-quiz-admin__question')) : [];
+	}
+
+	function uncategorizedLabel() {
+		return i18n('uncategorized', 'Senza categoria');
+	}
+
+	function truncate(text, max) {
+		text = String(text || '').replace(/\s+/g, ' ').trim();
+		if (!text) {
+			return '(vuota)';
+		}
+		if (text.length <= max) {
+			return text;
+		}
+		return text.slice(0, max - 1) + '…';
+	}
+
+	function syncRowPreview(block) {
+		var textEl = block.querySelector('.llm-quiz-q-text');
+		var correctEl = block.querySelector('.llm-quiz-q-correct');
+		var preview = block.querySelector('.llm-quiz-admin__preview');
+		var badge = block.querySelector('.llm-quiz-admin__badge--correct');
+		var catEl = block.querySelector('.llm-quiz-q-category');
+		if (preview && textEl) {
+			var t = truncate(textEl.value, 110);
+			preview.textContent = t;
+			preview.setAttribute('title', textEl.value || '');
+		}
+		if (badge && correctEl) {
+			var letter = String.fromCharCode(65 + (parseInt(correctEl.value, 10) || 0));
+			badge.textContent = i18n('correctLetter', 'Corretta') + ' ' + letter;
+		}
+		if (catEl) {
+			block.setAttribute('data-category', catEl.value || '');
+		}
+		block.querySelectorAll('.llm-quiz-admin__answer').forEach(function (ans, i) {
+			if ((parseInt(correctEl && correctEl.value, 10) || 0) === i) {
+				ans.classList.add('is-correct');
+			} else {
+				ans.classList.remove('is-correct');
+			}
+		});
+	}
+
+	function reindexNames() {
+		questionBlocks().forEach(function (block, index) {
 			block.setAttribute('data-index', String(index));
 			var label = block.querySelector('.llm-quiz-admin__question-label');
 			if (label) {
-				label.textContent = (cfg.i18n && cfg.i18n.questionLabel ? cfg.i18n.questionLabel : 'Domanda') + ' ' + (index + 1);
+				label.textContent = '#' + (index + 1);
 			}
 			block.querySelectorAll('[name]').forEach(function (field) {
 				var name = field.getAttribute('name') || '';
 				field.setAttribute('name', name.replace(/llm_quiz_q\[[^\]]+\]/, 'llm_quiz_q[' + index + ']'));
 			});
+			syncRowPreview(block);
 		});
-		var root = list();
-		if (root) {
-			root.setAttribute('data-count', String(blocks.length));
+		var r = root();
+		if (r) {
+			r.setAttribute('data-count', String(questionBlocks().length));
 		}
+		var countEl = el('llm-quiz-count');
+		if (countEl) {
+			countEl.textContent = questionBlocks().length + ' domande';
+		}
+	}
+
+	function regroupByCategory() {
+		var r = root();
+		if (!r) {
+			return;
+		}
+		var blocks = questionBlocks();
+		var groups = {};
+		var order = [];
+
+		blocks.forEach(function (block) {
+			var catInput = block.querySelector('.llm-quiz-q-category');
+			var cat = catInput && catInput.value.trim() ? catInput.value.trim() : uncategorizedLabel();
+			if (!groups[cat]) {
+				groups[cat] = [];
+				order.push(cat);
+			}
+			groups[cat].push(block);
+		});
+
+		order.sort(function (a, b) {
+			var ua = a === uncategorizedLabel();
+			var ub = b === uncategorizedLabel();
+			if (ua !== ub) {
+				return ua ? 1 : -1;
+			}
+			return a.localeCompare(b, 'it');
+		});
+
+		r.innerHTML = '';
+		if (!blocks.length) {
+			r.innerHTML = '<p class="llm-quiz-admin__empty">Nessuna domanda. Aggiungine una o importa un CSV.</p>';
+			reindexNames();
+			return;
+		}
+
+		order.forEach(function (cat) {
+			var section = document.createElement('section');
+			section.className = 'llm-quiz-admin__cat';
+			section.setAttribute('data-category', cat);
+			var title = document.createElement('h4');
+			title.className = 'llm-quiz-admin__cat-title';
+			title.innerHTML =
+				cat +
+				' <span class="llm-quiz-admin__cat-count">(' +
+				groups[cat].length +
+				')</span>';
+			var list = document.createElement('div');
+			list.className = 'llm-quiz-admin__cat-list';
+			groups[cat].forEach(function (block) {
+				list.appendChild(block);
+			});
+			section.appendChild(title);
+			section.appendChild(list);
+			r.appendChild(section);
+		});
+
+		reindexNames();
 	}
 
 	function newId() {
 		return 'q_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 	}
 
+	function setOpen(block, open) {
+		var btn = block.querySelector('.llm-quiz-toggle');
+		if (open) {
+			block.classList.add('is-open');
+			if (btn) {
+				btn.textContent = i18n('close', 'Chiudi');
+			}
+		} else {
+			block.classList.remove('is-open');
+			if (btn) {
+				btn.textContent = i18n('edit', 'Modifica');
+			}
+		}
+	}
+
 	function addQuestion() {
 		var tpl = el('llm-quiz-question-template');
-		var root = list();
-		if (!tpl || !root) {
+		var r = root();
+		if (!tpl || !r) {
 			return;
 		}
 		var html = tpl.innerHTML.replace(/__INDEX__/g, String(questionBlocks().length));
 		var wrap = document.createElement('div');
 		wrap.innerHTML = html.trim();
-		var block = wrap.firstElementChild;
+		var block = wrap.querySelector('.llm-quiz-admin__question');
 		if (!block) {
 			return;
 		}
@@ -59,12 +183,19 @@
 		if (idField) {
 			idField.value = newId();
 		}
-		root.appendChild(block);
-		reindex();
+		setOpen(block, true);
+		/* append into last category list or create temp then regroup */
+		var lists = r.querySelectorAll('.llm-quiz-admin__cat-list');
+		if (lists.length) {
+			lists[lists.length - 1].appendChild(block);
+		} else {
+			r.appendChild(block);
+		}
+		regroupByCategory();
 		block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 	}
 
-	function onListClick(e) {
+	function onRootClick(e) {
 		var t = e.target;
 		if (!t || !t.closest) {
 			return;
@@ -74,27 +205,28 @@
 			return;
 		}
 
+		if (t.classList.contains('llm-quiz-toggle') || t.closest('.llm-quiz-toggle')) {
+			e.preventDefault();
+			setOpen(block, !block.classList.contains('is-open'));
+			return;
+		}
+
 		if (t.classList.contains('llm-quiz-remove') || t.closest('.llm-quiz-remove')) {
 			e.preventDefault();
-			var msg = (cfg.i18n && cfg.i18n.removeQ) || 'Eliminare?';
-			if (!window.confirm(msg)) {
+			if (!window.confirm(i18n('removeQ', 'Eliminare?'))) {
 				return;
 			}
 			block.parentNode.removeChild(block);
-			if (!questionBlocks().length) {
-				addQuestion();
-			} else {
-				reindex();
-			}
+			regroupByCategory();
 			return;
 		}
 
 		if (t.classList.contains('llm-quiz-move-up') || t.closest('.llm-quiz-move-up')) {
 			e.preventDefault();
 			var prev = block.previousElementSibling;
-			if (prev) {
+			if (prev && prev.classList.contains('llm-quiz-admin__question')) {
 				block.parentNode.insertBefore(block, prev);
-				reindex();
+				reindexNames();
 			}
 			return;
 		}
@@ -102,10 +234,27 @@
 		if (t.classList.contains('llm-quiz-move-down') || t.closest('.llm-quiz-move-down')) {
 			e.preventDefault();
 			var next = block.nextElementSibling;
-			if (next) {
+			if (next && next.classList.contains('llm-quiz-admin__question')) {
 				block.parentNode.insertBefore(next, block);
-				reindex();
+				reindexNames();
 			}
+		}
+	}
+
+	function onRootInput(e) {
+		var t = e.target;
+		if (!t) {
+			return;
+		}
+		var block = t.closest && t.closest('.llm-quiz-admin__question');
+		if (!block) {
+			return;
+		}
+		syncRowPreview(block);
+		if (t.classList.contains('llm-quiz-q-category')) {
+			/* debounce regroup lightly */
+			window.clearTimeout(onRootInput._t);
+			onRootInput._t = window.setTimeout(regroupByCategory, 400);
 		}
 	}
 
@@ -125,18 +274,16 @@
 		var csvEl = el('llm_quiz_csv');
 		var csv = csvEl ? csvEl.value : '';
 		if (!csv || !String(csv).trim()) {
-			setStatus((cfg.i18n && cfg.i18n.importEmpty) || 'CSV vuoto', 'is-error');
+			setStatus(i18n('importEmpty', 'CSV vuoto'), 'is-error');
 			return;
 		}
-
 		var confirmMsg =
 			mode === 'replace'
-				? (cfg.i18n && cfg.i18n.confirmReplace) || 'Sostituire?'
-				: (cfg.i18n && cfg.i18n.confirmAppend) || 'Aggiungere?';
+				? i18n('confirmReplace', 'Sostituire?')
+				: i18n('confirmAppend', 'Aggiungere?');
 		if (!window.confirm(confirmMsg)) {
 			return;
 		}
-
 		var postIdField = document.getElementById('post_ID');
 		var postId = postIdField ? postIdField.value : '0';
 		if (!postId || postId === '0') {
@@ -144,8 +291,7 @@
 			return;
 		}
 
-		setStatus((cfg.i18n && cfg.i18n.importing) || 'Importo…', '');
-
+		setStatus(i18n('importing', 'Importo…'), '');
 		var body = new window.FormData();
 		body.append('action', cfg.action || 'llm_quiz_import_csv');
 		body.append('nonce', cfg.nonce || '');
@@ -154,7 +300,7 @@
 		body.append('csv', csv);
 
 		window
-			.fetch(cfg.ajaxUrl || ajaxurl, {
+			.fetch(cfg.ajaxUrl || '', {
 				method: 'POST',
 				credentials: 'same-origin',
 				body: body
@@ -167,19 +313,19 @@
 					var err =
 						json && json.data && json.data.message
 							? json.data.message
-							: (cfg.i18n && cfg.i18n.networkError) || 'Errore';
+							: i18n('networkError', 'Errore');
 					setStatus(err, 'is-error');
 					return;
 				}
-				var root = list();
-				if (root && json.data && json.data.html) {
-					root.innerHTML = json.data.html;
-					reindex();
+				var r = root();
+				if (r && json.data && json.data.html) {
+					r.innerHTML = json.data.html;
+					reindexNames();
 				}
 				setStatus((json.data && json.data.message) || 'OK', 'is-ok');
 			})
 			.catch(function () {
-				setStatus((cfg.i18n && cfg.i18n.networkError) || 'Errore di rete', 'is-error');
+				setStatus(i18n('networkError', 'Errore di rete'), 'is-error');
 			});
 	}
 
@@ -191,10 +337,21 @@
 				addQuestion();
 			});
 		}
+		var collapseBtn = el('llm-quiz-collapse-all');
+		if (collapseBtn) {
+			collapseBtn.addEventListener('click', function (e) {
+				e.preventDefault();
+				questionBlocks().forEach(function (b) {
+					setOpen(b, false);
+				});
+			});
+		}
 
-		var root = list();
-		if (root) {
-			root.addEventListener('click', onListClick);
+		var r = root();
+		if (r) {
+			r.addEventListener('click', onRootClick);
+			r.addEventListener('input', onRootInput);
+			r.addEventListener('change', onRootInput);
 		}
 
 		var appendBtn = el('llm-quiz-import-append');
@@ -212,7 +369,7 @@
 			});
 		}
 
-		reindex();
+		reindexNames();
 	}
 
 	if (document.readyState === 'loading') {
