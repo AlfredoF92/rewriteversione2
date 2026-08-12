@@ -335,12 +335,10 @@ class LLM_Magazine_Shortcode {
 		$thumb_id  = get_post_thumbnail_id( $story_id );
 		$thumb_url = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'medium_large' ) : '';
 
-		// Prime 3 frasi per anteprima (solo layout verticale).
-		$preview_phrases = array();
-		if ( 'horizontal' !== $layout ) {
-			$all_phrases     = LLM_Story_Repository::get_phrases( $story_id );
-			$preview_phrases = array_slice( $all_phrases, 0, 3 );
-		}
+		// Frasi: conta totale + prime 3 per anteprima.
+		$all_phrases     = LLM_Story_Repository::get_phrases( $story_id );
+		$phrase_count    = count( $all_phrases );
+		$preview_phrases = 'horizontal' !== $layout ? array_slice( $all_phrases, 0, 3 ) : array();
 
 		if ( '' === trim( $card_text ) ) {
 			$card_text = has_excerpt( $story_id ) ? get_the_excerpt( $story_id ) : '';
@@ -401,6 +399,16 @@ class LLM_Magazine_Shortcode {
 						<h4 class="llm-magazine__card-title"><?php echo esc_html( $title_known ); ?></h4>
 					<?php endif; ?>
 
+					<?php if ( $card_text && 'horizontal' !== $layout ) : ?>
+						<p class="llm-magazine__card-intro"><?php echo esc_html( wp_strip_all_tags( $card_text ) ); ?></p>
+					<?php endif; ?>
+
+					<?php if ( $phrase_count > 0 ) : ?>
+						<span class="llm-magazine__card-phrase-count">
+							<?php echo esc_html( sprintf( _n( '%d frase', '%d frasi', $phrase_count, 'llm-con-tabelle' ), $phrase_count ) ); ?>
+						</span>
+					<?php endif; ?>
+
 					<?php if ( ! empty( $preview_phrases ) ) : ?>
 						<ul class="llm-magazine__card-phrases">
 							<?php foreach ( $preview_phrases as $phrase ) : ?>
@@ -412,8 +420,6 @@ class LLM_Magazine_Shortcode {
 								</li>
 							<?php endforeach; ?>
 						</ul>
-					<?php elseif ( $card_text ) : ?>
-						<p class="llm-magazine__card-text"><?php echo esc_html( wp_strip_all_tags( $card_text ) ); ?></p>
 					<?php endif; ?>
 				</div>
 			</a>
