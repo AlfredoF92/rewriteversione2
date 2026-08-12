@@ -73,12 +73,15 @@
 
 /* Contenitore fisso: background-image centrato e ritagliato, nessun <img> interno. */
 .llm-magazine__card-media {
+	position: relative;
 	aspect-ratio: 4 / 3;
-	width: 100%;
-	background-color: #f0f0ec;
+	width: auto;
+	background: #f0f0ec;
+	overflow: hidden;
+	height: auto;
+	align-content: center;
+	background-position: center;
 	background-size: cover;
-	background-position: center center;
-	background-repeat: no-repeat;
 }
 
 .llm-magazine__card-media--empty {
