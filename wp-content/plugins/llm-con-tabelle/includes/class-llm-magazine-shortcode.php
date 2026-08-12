@@ -332,8 +332,8 @@ class LLM_Magazine_Shortcode {
 		$card_text     = (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_CARD_TEXT, true );
 		$cefr          = (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_CEFR_LEVEL, true );
 		$target        = (string) get_post_meta( $story_id, LLM_Story_Meta::TARGET_LANG, true );
-		$img_class     = 'horizontal' === $layout ? 'llm-magazine__card-img llm-magazine__card-img--h' : 'llm-magazine__card-img';
-		$thumb         = get_the_post_thumbnail( $story_id, 'medium_large', array( 'class' => $img_class ) );
+		$thumb_id  = get_post_thumbnail_id( $story_id );
+		$thumb_url = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'medium_large' ) : '';
 
 		if ( '' === trim( $card_text ) ) {
 			$card_text = has_excerpt( $story_id ) ? get_the_excerpt( $story_id ) : '';
@@ -355,8 +355,8 @@ class LLM_Magazine_Shortcode {
 		?>
 		<article class="<?php echo esc_attr( $article_class ); ?>">
 			<a class="llm-magazine__card-link" href="<?php echo esc_url( $url ); ?>">
-				<?php if ( $thumb ) : ?>
-					<div class="llm-magazine__card-media"><?php echo $thumb; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></div>
+				<?php if ( $thumb_url ) : ?>
+					<div class="llm-magazine__card-media" style="background-image:url('<?php echo esc_url( $thumb_url ); ?>');" role="img" aria-label="<?php echo esc_attr( $title_known ); ?>"></div>
 				<?php else : ?>
 					<div class="llm-magazine__card-media llm-magazine__card-media--empty" aria-hidden="true"></div>
 				<?php endif; ?>
