@@ -336,7 +336,24 @@ class LLM_Magazine_Shortcode {
 		$thumb_url = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'medium_large' ) : '';
 
 		// Frasi/versi: conta totale + prime 3 per anteprima.
-		$is_music        = ( 'horizontal' === $layout );
+		$is_music = ( 'horizontal' === $layout );
+
+		// Categorie contenuto: tutte tranne coppie lingua (es. it-english) e quelle di sistema.
+		$content_cats = array();
+		$raw_cats     = get_the_terms( $story_id, 'category' );
+		if ( ! empty( $raw_cats ) && ! is_wp_error( $raw_cats ) ) {
+			$skip_slugs = array( 'uncategorized', 'senza-categoria' );
+			foreach ( $raw_cats as $cat ) {
+				// Salta categoria sistema e coppie lingua (pattern: due codici separati da trattino, es. it-english, pl-wloski).
+				if ( in_array( $cat->slug, $skip_slugs, true ) ) {
+					continue;
+				}
+				if ( preg_match( '/^[a-z]{2,3}-[a-z]{2,10}$/', $cat->slug ) ) {
+					continue;
+				}
+				$content_cats[] = $cat->name;
+			}
+		}
 		$all_phrases     = LLM_Story_Repository::get_phrases( $story_id );
 		$phrase_count    = count( $all_phrases );
 		$preview_phrases = array_slice( $all_phrases, 0, 3 );
@@ -376,13 +393,18 @@ class LLM_Magazine_Shortcode {
 						}
 					}
 					?>
-					<?php if ( $cefr_code ) : ?>
-						<span class="llm-magazine__card-level llm-magazine__card-level--<?php echo esc_attr( $cefr_code ); ?>"><?php echo esc_html( strtoupper( $cefr_code ) ); ?></span>
-					<?php elseif ( $cefr ) : ?>
-						<span class="llm-magazine__card-level"><?php echo esc_html( $cefr ); ?></span>
-					<?php elseif ( $target ) : ?>
-						<span class="llm-magazine__card-level"><?php echo esc_html( LLM_Languages::label( $target ) ); ?></span>
-					<?php endif; ?>
+					<div class="llm-magazine__card-badges">
+						<?php if ( $cefr_code ) : ?>
+							<span class="llm-magazine__card-level llm-magazine__card-level--<?php echo esc_attr( $cefr_code ); ?>"><?php echo esc_html( strtoupper( $cefr_code ) ); ?></span>
+						<?php elseif ( $cefr ) : ?>
+							<span class="llm-magazine__card-level"><?php echo esc_html( $cefr ); ?></span>
+						<?php elseif ( $target ) : ?>
+							<span class="llm-magazine__card-level"><?php echo esc_html( LLM_Languages::label( $target ) ); ?></span>
+						<?php endif; ?>
+						<?php foreach ( $content_cats as $cat_name ) : ?>
+							<span class="llm-magazine__card-cat"><?php echo esc_html( $cat_name ); ?></span>
+						<?php endforeach; ?>
+					</div>
 
 					<?php if ( 'horizontal' === $layout ) : ?>
 						<div class="llm-magazine__music-title-row">

@@ -96,6 +96,13 @@
 	flex: 1 1 auto;
 }
 
+.llm-magazine__card-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.3rem;
+	align-items: center;
+}
+
 .llm-magazine__card-level {
 	display: inline-block;
 	align-self: flex-start;
@@ -116,6 +123,19 @@
 .llm-magazine__card-level--b2 { background: #ea580c; }
 .llm-magazine__card-level--c1 { background: #dc2626; }
 .llm-magazine__card-level--c2 { background: #991b1b; }
+
+.llm-magazine__card-cat {
+	display: inline-block;
+	font-size: 0.65rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: #3d3d3a;
+	background: #efefeb;
+	border: 1px solid #d8d8d3;
+	border-radius: 4px;
+	padding: 0.2rem 0.45rem;
+}
 
 .llm-magazine__card-intro {
 	margin: 0;
