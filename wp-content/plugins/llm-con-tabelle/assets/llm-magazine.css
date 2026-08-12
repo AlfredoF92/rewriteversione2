@@ -11,20 +11,120 @@
 }
 
 .llm-magazine__header {
-	margin-bottom: 1.5rem;
+	margin-bottom: 2rem;
+	padding-bottom: 1.35rem;
+	border-bottom: 2px solid #2c2c2a;
+}
+
+.llm-magazine__masthead {
+	display: flex;
+	flex-direction: column;
+	gap: 0.55rem;
+}
+
+.llm-magazine__nav {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 0.75rem;
+	margin-bottom: 0.35rem;
+}
+
+.llm-magazine__nav-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: #2c2c2a;
+	text-decoration: none !important;
+	padding: 0.35rem 0.55rem;
+	border: 1px solid #d8d8d3;
+	border-radius: 6px;
+	background: #fff;
+	transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.llm-magazine__nav-btn:hover,
+.llm-magazine__nav-btn:focus-visible {
+	border-color: #2c2c2a;
+	background: #f7f7f4;
+	outline: none;
+}
+
+.llm-magazine__nav-btn.is-disabled {
+	opacity: 0.35;
+	pointer-events: none;
+}
+
+.llm-magazine__nav-arrow {
+	font-size: 1rem;
+	line-height: 1;
+}
+
+.llm-magazine__issue {
+	margin: 0;
+	font-size: 0.78rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: #6b6b66;
 }
 
 .llm-magazine__title {
-	margin: 0 0 0.35rem;
-	font-size: 1.75rem;
-	font-weight: 700;
-	line-height: 1.25;
+	margin: 0;
+	font-size: clamp(1.85rem, 4vw, 2.6rem);
+	font-weight: 800;
+	line-height: 1.15;
+	color: #1a1a18;
+	letter-spacing: -0.02em;
 }
 
 .llm-magazine__date {
 	margin: 0;
+	font-size: 1rem;
+	color: #5a5a55;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	align-items: baseline;
+}
+
+.llm-magazine__date-label {
+	font-weight: 500;
+	color: #8a8a85;
+}
+
+.llm-magazine__date time {
+	font-weight: 600;
+	color: #2c2c2a;
+}
+
+.llm-magazine__pair {
+	margin: 0.25rem 0 0;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.55rem 0.75rem;
+}
+
+.llm-magazine__pair-flags {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	font-size: 1.25rem;
+	line-height: 1;
+}
+
+.llm-magazine__pair-arrow {
 	font-size: 0.95rem;
-	color: #6b6b66;
+	color: #8a8a85;
+}
+
+.llm-magazine__pair-text {
+	font-size: 0.92rem;
+	font-weight: 500;
+	color: #3d3d3a;
 }
 
 .llm-magazine__section {

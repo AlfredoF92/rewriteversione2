@@ -164,6 +164,100 @@ class LLM_Magazine {
 	}
 
 	/**
+	 * Elenco riviste pubblicate della stessa coppia, ordinate per data (più vecchia → più nuova).
+	 *
+	 * @param string $known  Lingua nota.
+	 * @param string $target Lingua di studio.
+	 * @return int[]
+	 */
+	public static function get_pair_ids_by_date( $known, $target ) {
+		$known  = sanitize_key( (string) $known );
+		$target = sanitize_key( (string) $target );
+		if ( ! LLM_Languages::is_valid( $known ) || ! LLM_Languages::is_valid( $target ) || $known === $target ) {
+			return array();
+		}
+
+		$q = new WP_Query(
+			array(
+				'post_type'              => self::CPT,
+				'post_status'            => 'publish',
+				'posts_per_page'         => -1,
+				'fields'                 => 'ids',
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => true,
+				'update_post_term_cache' => false,
+				'meta_query'             => array(
+					'relation' => 'AND',
+					array(
+						'key'   => self::META_KNOWN,
+						'value' => $known,
+					),
+					array(
+						'key'   => self::META_TARGET,
+						'value' => $target,
+					),
+				),
+			)
+		);
+
+		$ids = array_map( 'absint', $q->posts );
+		if ( empty( $ids ) ) {
+			return array();
+		}
+
+		usort(
+			$ids,
+			static function ( $a, $b ) {
+				$da = self::get_date( $a );
+				$db = self::get_date( $b );
+				if ( $da === $db ) {
+					return $a <=> $b;
+				}
+				return strcmp( $da, $db );
+			}
+		);
+
+		return $ids;
+	}
+
+	/**
+	 * Navigazione rivista: numero progressivo, precedente e successiva (stessa coppia).
+	 *
+	 * @param int $post_id ID rivista corrente.
+	 * @return array{issue:int,total:int,prev:int,next:int}
+	 */
+	public static function get_nav_context( $post_id ) {
+		$post_id = absint( $post_id );
+		$empty   = array(
+			'issue' => 0,
+			'total' => 0,
+			'prev'  => 0,
+			'next'  => 0,
+		);
+		if ( ! $post_id ) {
+			return $empty;
+		}
+
+		$ids = self::get_pair_ids_by_date( self::get_known( $post_id ), self::get_target( $post_id ) );
+		if ( empty( $ids ) ) {
+			return $empty;
+		}
+
+		$index = array_search( $post_id, $ids, true );
+		if ( false === $index ) {
+			return $empty;
+		}
+
+		$total = count( $ids );
+		return array(
+			'issue' => (int) $index + 1,
+			'total' => $total,
+			'prev'  => $index > 0 ? (int) $ids[ $index - 1 ] : 0,
+			'next'  => $index < $total - 1 ? (int) $ids[ $index + 1 ] : 0,
+		);
+	}
+
+	/**
 	 * Data rivista Y-m-d; fallback alla data del post.
 	 *
 	 * @param int $post_id ID rivista.

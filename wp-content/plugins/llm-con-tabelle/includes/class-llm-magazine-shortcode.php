@@ -97,6 +97,22 @@ class LLM_Magazine_Shortcode {
 		}
 
 		$mag_id = LLM_Magazine::find_homepage_id( $known, $target );
+
+		// Navigazione: ?llm_rivista=ID sulla stessa pagina (CPT non pubblico).
+		$req_id = isset( $_GET['llm_rivista'] ) ? absint( wp_unslash( $_GET['llm_rivista'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( $req_id ) {
+			$req_post = get_post( $req_id );
+			if (
+				$req_post
+				&& LLM_Magazine::CPT === $req_post->post_type
+				&& 'publish' === $req_post->post_status
+				&& LLM_Magazine::get_known( $req_id ) === $known
+				&& LLM_Magazine::get_target( $req_id ) === $target
+			) {
+				$mag_id = $req_id;
+			}
+		}
+
 		if ( ! $mag_id ) {
 			return self::admin_notice(
 				sprintf(
@@ -126,6 +142,9 @@ class LLM_Magazine_Shortcode {
 
 		$title        = get_the_title( $mag_id );
 		$date         = LLM_Magazine::get_date( $mag_id );
+		$known        = LLM_Magazine::get_known( $mag_id );
+		$target       = LLM_Magazine::get_target( $mag_id );
+		$nav          = LLM_Magazine::get_nav_context( $mag_id );
 		$crossword_id = LLM_Magazine::get_crossword_id( $mag_id );
 		$story_ids    = LLM_Magazine::get_story_ids( $mag_id );
 		$music_ids    = LLM_Magazine::get_music_ids( $mag_id );
@@ -133,17 +152,104 @@ class LLM_Magazine_Shortcode {
 		$videos       = LLM_Magazine::get_videos( $mag_id );
 		$idiom        = LLM_Magazine::get_idiom( $mag_id );
 		$date_label   = mysql2date( get_option( 'date_format' ), $date . ' 00:00:00' );
+		$known_flag   = LLM_Languages::flag_emoji( $known );
+		$target_flag  = LLM_Languages::flag_emoji( $target );
+		$known_label  = LLM_Languages::label( $known );
+		$target_label = LLM_Languages::label( $target );
+
+		$base_url = remove_query_arg( 'llm_rivista' );
+		$prev_url = $nav['prev'] ? add_query_arg( 'llm_rivista', $nav['prev'], $base_url ) : '';
+		$next_url = $nav['next'] ? add_query_arg( 'llm_rivista', $nav['next'], $base_url ) : '';
 
 		ob_start();
 		?>
 		<div class="llm-magazine llm-ui-scope" data-magazine-id="<?php echo esc_attr( (string) $mag_id ); ?>">
 			<header class="llm-magazine__header">
-				<?php if ( $title ) : ?>
-					<h2 class="llm-magazine__title"><?php echo esc_html( $title ); ?></h2>
-				<?php endif; ?>
-				<?php if ( $date_label ) : ?>
-					<p class="llm-magazine__date"><?php echo esc_html( $date_label ); ?></p>
-				<?php endif; ?>
+				<div class="llm-magazine__masthead">
+					<?php if ( $prev_url || $next_url ) : ?>
+						<nav class="llm-magazine__nav" aria-label="<?php esc_attr_e( 'Navigazione riviste', 'llm-con-tabelle' ); ?>">
+							<?php if ( $prev_url ) : ?>
+								<a class="llm-magazine__nav-btn llm-magazine__nav-btn--prev" href="<?php echo esc_url( $prev_url ); ?>">
+									<span class="llm-magazine__nav-arrow" aria-hidden="true">←</span>
+									<span class="llm-magazine__nav-label"><?php esc_html_e( 'Precedente', 'llm-con-tabelle' ); ?></span>
+								</a>
+							<?php else : ?>
+								<span class="llm-magazine__nav-btn llm-magazine__nav-btn--prev is-disabled" aria-disabled="true">
+									<span class="llm-magazine__nav-arrow" aria-hidden="true">←</span>
+									<span class="llm-magazine__nav-label"><?php esc_html_e( 'Precedente', 'llm-con-tabelle' ); ?></span>
+								</span>
+							<?php endif; ?>
+
+							<?php if ( $next_url ) : ?>
+								<a class="llm-magazine__nav-btn llm-magazine__nav-btn--next" href="<?php echo esc_url( $next_url ); ?>">
+									<span class="llm-magazine__nav-label"><?php esc_html_e( 'Successiva', 'llm-con-tabelle' ); ?></span>
+									<span class="llm-magazine__nav-arrow" aria-hidden="true">→</span>
+								</a>
+							<?php else : ?>
+								<span class="llm-magazine__nav-btn llm-magazine__nav-btn--next is-disabled" aria-disabled="true">
+									<span class="llm-magazine__nav-label"><?php esc_html_e( 'Successiva', 'llm-con-tabelle' ); ?></span>
+									<span class="llm-magazine__nav-arrow" aria-hidden="true">→</span>
+								</span>
+							<?php endif; ?>
+						</nav>
+					<?php endif; ?>
+
+					<?php if ( $nav['issue'] > 0 ) : ?>
+						<p class="llm-magazine__issue">
+							<?php
+							echo esc_html(
+								sprintf(
+									/* translators: 1: issue number, 2: total issues */
+									__( 'Numero %1$d', 'llm-con-tabelle' ),
+									$nav['issue']
+								)
+							);
+							if ( $nav['total'] > 1 ) {
+								echo ' · ' . esc_html(
+									sprintf(
+										/* translators: %d: total magazines in this language pair */
+										__( 'di %d', 'llm-con-tabelle' ),
+										$nav['total']
+									)
+								);
+							}
+							?>
+						</p>
+					<?php endif; ?>
+
+					<?php if ( $title ) : ?>
+						<h1 class="llm-magazine__title"><?php echo esc_html( $title ); ?></h1>
+					<?php endif; ?>
+
+					<?php if ( $date_label ) : ?>
+						<p class="llm-magazine__date">
+							<span class="llm-magazine__date-label"><?php esc_html_e( 'Pubblicata il', 'llm-con-tabelle' ); ?></span>
+							<time datetime="<?php echo esc_attr( $date ); ?>"><?php echo esc_html( $date_label ); ?></time>
+						</p>
+					<?php endif; ?>
+
+					<?php if ( $known && $target ) : ?>
+						<p class="llm-magazine__pair">
+							<span class="llm-magazine__pair-flags" aria-hidden="true">
+								<span class="llm-magazine__pair-flag"><?php echo esc_html( $known_flag ); ?></span>
+								<span class="llm-magazine__pair-arrow">→</span>
+								<span class="llm-magazine__pair-flag"><?php echo esc_html( $target_flag ); ?></span>
+							</span>
+							<span class="llm-magazine__pair-text">
+								<?php
+								echo esc_html(
+									sprintf(
+										/* translators: 1: known language label, 2: target language label */
+										__( 'Per chi parla %1$s e studia %2$s', 'llm-con-tabelle' ),
+										$known_label,
+										$target_label
+									)
+								);
+								?>
+							</span>
+						</p>
+					<?php endif; ?>
+				</div>
 			</header>
 
 			<?php if ( $crossword_id ) : ?>
