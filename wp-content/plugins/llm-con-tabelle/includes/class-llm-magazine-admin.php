@@ -855,7 +855,19 @@ class LLM_Magazine_Admin {
 		switch ( $column ) {
 			case 'llm_mag_pair':
 				if ( $known && $target ) {
-					echo esc_html( LLM_Languages::label( $known ) . ' → ' . LLM_Languages::label( $target ) );
+					$fk = LLM_Languages::flag_emoji( $known );
+					$ft = LLM_Languages::flag_emoji( $target );
+					$parts = array();
+					if ( $fk ) {
+						$parts[] = $fk;
+					}
+					$parts[] = LLM_Languages::label( $known );
+					$parts[] = '→';
+					if ( $ft ) {
+						$parts[] = $ft;
+					}
+					$parts[] = LLM_Languages::label( $target );
+					echo esc_html( implode( ' ', $parts ) );
 				} else {
 					echo '—';
 				}
