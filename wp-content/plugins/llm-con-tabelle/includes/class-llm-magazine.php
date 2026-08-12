@@ -914,7 +914,7 @@ class LLM_Magazine {
 	/**
 	 * Elenco cruciverba per select admin.
 	 *
-	 * @return array<int,string> ID → titolo.
+	 * @return array<int,array{title:string,known:string,target:string,pair:string}>
 	 */
 	public static function crossword_choices() {
 		$q = new WP_Query(
@@ -925,14 +925,22 @@ class LLM_Magazine {
 				'orderby'                => 'title',
 				'order'                  => 'ASC',
 				'no_found_rows'          => true,
-				'update_post_meta_cache' => false,
+				'update_post_meta_cache' => true,
 				'update_post_term_cache' => false,
 			)
 		);
 
 		$out = array();
 		foreach ( $q->posts as $post ) {
-			$out[ (int) $post->ID ] = $post->post_title ? $post->post_title : ( '#' . $post->ID );
+			$id     = (int) $post->ID;
+			$known  = LLM_Crossword::get_known( $id );
+			$target = LLM_Crossword::get_target( $id );
+			$out[ $id ] = array(
+				'title'  => $post->post_title ? $post->post_title : ( '#' . $id ),
+				'known'  => $known,
+				'target' => $target,
+				'pair'   => ( $known && $target ) ? self::pair_key( $known, $target ) : '',
+			);
 		}
 		return $out;
 	}

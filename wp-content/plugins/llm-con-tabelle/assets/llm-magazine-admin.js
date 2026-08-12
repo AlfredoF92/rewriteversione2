@@ -176,11 +176,42 @@
 		syncList('llm-mag-music', 'llm-mag-music-empty', true, hasPair, pairKey, cfg.noMusic || '');
 		syncList('llm-mag-quiz', 'llm-mag-quiz-empty', null, hasPair, pairKey, cfg.noQuiz || '');
 		syncList('llm-mag-idioms', 'llm-mag-idiom-empty', null, hasPair, pairKey, cfg.noIdiom || '');
+		syncCrossword(hasPair, pairKey);
 
 		var field = el('llm-mag-shortcode');
 		var sc = shortcodeFor(k, t);
 		if (field && sc) {
 			field.value = sc;
+		}
+	}
+
+	function syncCrossword(hasPair, pairKey) {
+		var select = el('llm_mag_crossword');
+		var emptyEl = el('llm-mag-crossword-empty');
+		if (!select) {
+			return;
+		}
+		if (emptyEl) {
+			emptyEl.hidden = !!hasPair;
+		}
+		select.hidden = !hasPair;
+		if (!hasPair) {
+			return;
+		}
+
+		var current = select.value;
+		var options = select.querySelectorAll('option[data-pair]');
+		var keepCurrent = false;
+		options.forEach(function (opt) {
+			var pair = opt.getAttribute('data-pair') || '';
+			var match = pair === pairKey;
+			opt.hidden = !match;
+			if (match && opt.value === current) {
+				keepCurrent = true;
+			}
+		});
+		if (!keepCurrent && current !== '0') {
+			select.value = '0';
 		}
 	}
 

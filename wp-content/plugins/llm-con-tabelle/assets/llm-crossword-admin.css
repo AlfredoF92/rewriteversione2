@@ -2,6 +2,30 @@
  * llm-crossword-admin.css — schermata di modifica cruciverba.
  */
 
+.llm-cw-admin__pair {
+	margin-bottom: 1.25rem;
+	padding: 12px 14px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #fff;
+}
+
+.llm-cw-admin__pair-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+}
+
+.llm-cw-admin__pair-row p {
+	margin: 0;
+}
+
+@media (max-width: 782px) {
+	.llm-cw-admin__pair-row {
+		grid-template-columns: 1fr;
+	}
+}
+
 .llm-cw-admin__shortcode {
 	background: #f6f7f7;
 	border: 1px solid #dcdcde;

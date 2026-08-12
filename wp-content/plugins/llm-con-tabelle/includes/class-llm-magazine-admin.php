@@ -184,12 +184,28 @@ class LLM_Magazine_Admin {
 		<div class="llm-mag-admin llm-mag-admin--rubriche">
 			<div class="llm-mag-admin__section">
 				<h3><?php esc_html_e( 'Cruciverba del giorno', 'llm-con-tabelle' ); ?></h3>
-				<p class="description"><?php esc_html_e( 'Seleziona un cruciverba già creato. In frontend verrà mostrato con lo shortcode del gioco.', 'llm-con-tabelle' ); ?></p>
-				<select name="llm_mag_crossword" id="llm_mag_crossword" class="widefat">
+				<p class="description"><?php esc_html_e( 'Seleziona un cruciverba della stessa coppia di lingue della rivista.', 'llm-con-tabelle' ); ?></p>
+				<p class="llm-mag-admin__stories-empty" id="llm-mag-crossword-empty" <?php echo ( $known && $target ) ? 'hidden' : ''; ?>>
+					<?php esc_html_e( 'Seleziona prima la coppia di lingue nelle impostazioni.', 'llm-con-tabelle' ); ?>
+				</p>
+				<select name="llm_mag_crossword" id="llm_mag_crossword" class="widefat" data-current="<?php echo esc_attr( (string) $crossword_id ); ?>" <?php echo ( $known && $target ) ? '' : 'hidden'; ?>>
 					<option value="0"><?php esc_html_e( '— Nessun cruciverba —', 'llm-con-tabelle' ); ?></option>
-					<?php foreach ( $crosswords as $id => $title ) : ?>
-						<option value="<?php echo esc_attr( (string) $id ); ?>" <?php selected( $crossword_id, $id ); ?>>
-							<?php echo esc_html( $title . ' (#' . $id . ')' ); ?>
+					<?php foreach ( $crosswords as $id => $cw ) : ?>
+						<?php
+						$pair_attr = ! empty( $cw['pair'] ) ? $cw['pair'] : '';
+						$label     = $cw['title'] . ' (#' . $id . ')';
+						if ( ! empty( $cw['known'] ) && ! empty( $cw['target'] ) ) {
+							$label .= ' — ' . LLM_Languages::label( $cw['known'] ) . ' → ' . LLM_Languages::label( $cw['target'] );
+						}
+						$show = ( $current_key && $pair_attr === $current_key ) || ( (int) $id === (int) $crossword_id );
+						?>
+						<option
+							value="<?php echo esc_attr( (string) $id ); ?>"
+							data-pair="<?php echo esc_attr( $pair_attr ); ?>"
+							<?php selected( $crossword_id, $id ); ?>
+							<?php echo $show ? '' : 'hidden'; ?>
+						>
+							<?php echo esc_html( $label ); ?>
 						</option>
 					<?php endforeach; ?>
 				</select>
@@ -767,6 +783,15 @@ class LLM_Magazine_Admin {
 
 		$homepage    = ! empty( $_POST['llm_mag_homepage'] ) ? '1' : '';
 		$crossword   = isset( $_POST['llm_mag_crossword'] ) ? absint( $_POST['llm_mag_crossword'] ) : 0;
+		if ( $crossword && $known && $target ) {
+			$cw_known  = LLM_Crossword::get_known( $crossword );
+			$cw_target = LLM_Crossword::get_target( $crossword );
+			if ( $cw_known !== $known || $cw_target !== $target ) {
+				$crossword = 0;
+			}
+		} elseif ( $crossword && ( ! $known || ! $target ) ) {
+			$crossword = 0;
+		}
 		$story_ids   = self::sanitize_id_list_from_post( 'llm_mag_stories' );
 		$music_ids   = self::sanitize_id_list_from_post( 'llm_mag_music' );
 		$quiz_qids   = self::sanitize_quiz_qid_list_from_post();

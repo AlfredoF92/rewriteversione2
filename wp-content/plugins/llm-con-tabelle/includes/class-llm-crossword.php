@@ -12,9 +12,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 class LLM_Crossword {
 
 	const CPT       = 'llm_crossword';
-	const META_CSV  = '_llm_crossword_csv';
-	const META_DEFS = '_llm_crossword_defs';
-	const META_LANG = '_llm_crossword_lang';
+	const META_CSV    = '_llm_crossword_csv';
+	const META_DEFS   = '_llm_crossword_defs';
+	const META_LANG   = '_llm_crossword_lang';
+	const META_KNOWN  = '_llm_crossword_known_lang';
+	const META_TARGET = '_llm_crossword_target_lang';
 
 	/** Lato massimo della griglia (righe o colonne). */
 	const MAX_SIDE = 40;
@@ -87,7 +89,116 @@ class LLM_Crossword {
 	 * @return string
 	 */
 	public static function get_lang( $post_id ) {
-		return (string) get_post_meta( absint( $post_id ), self::META_LANG, true );
+		$post_id = absint( $post_id );
+		$known   = self::get_known( $post_id );
+		$target  = self::get_target( $post_id );
+		if ( $known && $target ) {
+			return self::format_lang_line( $known, $target );
+		}
+		return (string) get_post_meta( $post_id, self::META_LANG, true );
+	}
+
+	/**
+	 * @param int $post_id ID cruciverba.
+	 * @return string
+	 */
+	public static function get_known( $post_id ) {
+		return sanitize_key( (string) get_post_meta( absint( $post_id ), self::META_KNOWN, true ) );
+	}
+
+	/**
+	 * @param int $post_id ID cruciverba.
+	 * @return string
+	 */
+	public static function get_target( $post_id ) {
+		return sanitize_key( (string) get_post_meta( absint( $post_id ), self::META_TARGET, true ) );
+	}
+
+	/**
+	 * Etichette italiane per la riga LINGUA del file.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function lang_display_names() {
+		return array(
+			'it' => 'Italiano',
+			'en' => 'Inglese',
+			'pl' => 'Polacco',
+			'es' => 'Spagnolo',
+		);
+	}
+
+	/**
+	 * @param string $known  Codice lingua nota.
+	 * @param string $target Codice lingua di studio.
+	 * @return string
+	 */
+	public static function format_lang_line( $known, $target ) {
+		$names  = self::lang_display_names();
+		$known  = sanitize_key( (string) $known );
+		$target = sanitize_key( (string) $target );
+		$left   = isset( $names[ $known ] ) ? $names[ $known ] : LLM_Languages::label( $known );
+		$right  = isset( $names[ $target ] ) ? $names[ $target ] : LLM_Languages::label( $target );
+		return $left . ' → ' . $right;
+	}
+
+	/**
+	 * Interpreta "Italiano → Polacco", "it → pl", "Italian -> Polish".
+	 *
+	 * @param string $line Riga lingua.
+	 * @return array{known:string,target:string}|null
+	 */
+	public static function parse_lang_line( $line ) {
+		$line = trim( (string) $line );
+		if ( '' === $line ) {
+			return null;
+		}
+		$line = str_replace( array( '→', '⇒', '->', '—', '–' ), '|', $line );
+		$parts = preg_split( '/\s*\|\s*/', $line, 2 );
+		if ( ! is_array( $parts ) || count( $parts ) < 2 ) {
+			return null;
+		}
+
+		$known  = self::resolve_lang_token( $parts[0] );
+		$target = self::resolve_lang_token( $parts[1] );
+		if ( ! $known || ! $target || $known === $target ) {
+			return null;
+		}
+		return array(
+			'known'  => $known,
+			'target' => $target,
+		);
+	}
+
+	/**
+	 * @param string $token Nome o codice lingua.
+	 * @return string Codice o ''.
+	 */
+	private static function resolve_lang_token( $token ) {
+		$token = strtolower( trim( (string) $token ) );
+		$token = preg_replace( '/\s+/', ' ', $token );
+		if ( LLM_Languages::is_valid( $token ) ) {
+			return $token;
+		}
+
+		$aliases = array(
+			'italian'  => 'it',
+			'italiano' => 'it',
+			'it'       => 'it',
+			'english'  => 'en',
+			'inglese'  => 'en',
+			'en'       => 'en',
+			'polish'   => 'pl',
+			'polacco'  => 'pl',
+			'polski'   => 'pl',
+			'pl'       => 'pl',
+			'spanish'  => 'es',
+			'spagnolo' => 'es',
+			'español'  => 'es',
+			'espanol'  => 'es',
+			'es'       => 'es',
+		);
+		return isset( $aliases[ $token ] ) ? $aliases[ $token ] : '';
 	}
 
 	/**

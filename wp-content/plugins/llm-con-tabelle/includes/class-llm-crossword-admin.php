@@ -96,11 +96,17 @@ class LLM_Crossword_Admin {
 	public static function render_box( $post ) {
 		wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME );
 
-		$has_data = '' !== trim( LLM_Crossword::get_csv( $post->ID ) ) || '' !== trim( LLM_Crossword::get_defs( $post->ID ) );
-		$bundle   = $has_data
+		$known     = LLM_Crossword::get_known( $post->ID );
+		$target    = LLM_Crossword::get_target( $post->ID );
+		$has_data  = '' !== trim( LLM_Crossword::get_csv( $post->ID ) ) || '' !== trim( LLM_Crossword::get_defs( $post->ID ) );
+		$lang_line = ( $known && $target )
+			? LLM_Crossword::format_lang_line( $known, $target )
+			: 'Italiano → Polacco';
+		$bundle    = $has_data
 			? LLM_Crossword::get_bundle( $post->ID )
-			: LLM_Crossword::format_bundle( 'Italiano → Polacco', '', '' );
+			: LLM_Crossword::format_bundle( $lang_line, '', '' );
 		$shortcode = '[llm_crossword id="' . (int) $post->ID . '"]';
+		$codes     = LLM_Languages::get_codes();
 		?>
 		<div class="llm-cw-admin">
 			<?php if ( 'auto-draft' !== $post->post_status ) : ?>
@@ -118,13 +124,37 @@ class LLM_Crossword_Admin {
 				</p>
 			<?php endif; ?>
 
+			<div class="llm-cw-admin__pair">
+				<p class="description"><?php esc_html_e( 'Coppia di lingue: serve per mostrare questo cruciverba solo nelle riviste della stessa coppia.', 'llm-con-tabelle' ); ?></p>
+				<div class="llm-cw-admin__pair-row">
+					<p>
+						<label for="llm_cw_known"><strong><?php esc_html_e( 'Lingua interfaccia (nota)', 'llm-con-tabelle' ); ?></strong></label>
+						<select name="llm_cw_known" id="llm_cw_known" class="widefat" required>
+							<option value=""><?php esc_html_e( '— Scegli —', 'llm-con-tabelle' ); ?></option>
+							<?php foreach ( $codes as $code => $label ) : ?>
+								<option value="<?php echo esc_attr( $code ); ?>" <?php selected( $known, $code ); ?>><?php echo esc_html( $label . ' (' . $code . ')' ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</p>
+					<p>
+						<label for="llm_cw_target"><strong><?php esc_html_e( 'Lingua da imparare', 'llm-con-tabelle' ); ?></strong></label>
+						<select name="llm_cw_target" id="llm_cw_target" class="widefat" required>
+							<option value=""><?php esc_html_e( '— Scegli —', 'llm-con-tabelle' ); ?></option>
+							<?php foreach ( $codes as $code => $label ) : ?>
+								<option value="<?php echo esc_attr( $code ); ?>" <?php selected( $target, $code ); ?>><?php echo esc_html( $label . ' (' . $code . ')' ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</p>
+				</div>
+			</div>
+
 			<div class="llm-cw-admin__field">
 				<label for="llm-cw-bundle"><strong><?php esc_html_e( 'File completo del cruciverba', 'llm-con-tabelle' ); ?></strong></label>
 				<p class="description">
 					<?php
 					esc_html_e( 'Incolla qui un unico testo con tre sezioni:', 'llm-con-tabelle' );
 					echo ' <code>###### LINGUA</code>, <code>###### SCHEMA</code>, <code>###### DEFINIZIONI</code>. ';
-					esc_html_e( 'Nello schema le celle sono separate da virgola (# = casella nera). Nelle definizioni: numero|O o V|PAROLA|Categoria|def. lingua target|def. lingua nota.', 'llm-con-tabelle' );
+					esc_html_e( 'La riga LINGUA viene aggiornata automaticamente dalla coppia scelta sopra al salvataggio.', 'llm-con-tabelle' );
 					?>
 				</p>
 				<textarea id="llm-cw-bundle" name="llm_crossword_bundle" rows="28" class="large-text code" spellcheck="false"><?php echo esc_textarea( $bundle ); ?></textarea>
@@ -163,6 +193,18 @@ class LLM_Crossword_Admin {
 		$raw = isset( $_POST['llm_crossword_bundle'] ) ? wp_unslash( (string) $_POST['llm_crossword_bundle'] ) : '';
 		$raw = str_replace( "\0", '', $raw );
 
+		$known  = isset( $_POST['llm_cw_known'] ) ? sanitize_key( wp_unslash( $_POST['llm_cw_known'] ) ) : '';
+		$target = isset( $_POST['llm_cw_target'] ) ? sanitize_key( wp_unslash( $_POST['llm_cw_target'] ) ) : '';
+		if ( ! LLM_Languages::is_valid( $known ) ) {
+			$known = '';
+		}
+		if ( ! LLM_Languages::is_valid( $target ) ) {
+			$target = '';
+		}
+		if ( $known && $target && $known === $target ) {
+			$target = '';
+		}
+
 		$parsed = LLM_Crossword::parse_bundle( $raw );
 		if ( is_wp_error( $parsed ) ) {
 			self::store_notice(
@@ -176,11 +218,30 @@ class LLM_Crossword_Admin {
 			return;
 		}
 
-		update_post_meta( $post_id, LLM_Crossword::META_LANG, sanitize_text_field( $parsed['lang'] ) );
+		// Se i select non sono valorizzati, prova a ricavare la coppia dalla sezione LINGUA.
+		if ( ( ! $known || ! $target ) && '' !== trim( $parsed['lang'] ) ) {
+			$from_line = LLM_Crossword::parse_lang_line( $parsed['lang'] );
+			if ( $from_line ) {
+				$known  = $from_line['known'];
+				$target = $from_line['target'];
+			}
+		}
+
+		$lang_line = ( $known && $target )
+			? LLM_Crossword::format_lang_line( $known, $target )
+			: sanitize_text_field( $parsed['lang'] );
+
+		update_post_meta( $post_id, LLM_Crossword::META_KNOWN, $known );
+		update_post_meta( $post_id, LLM_Crossword::META_TARGET, $target );
+		update_post_meta( $post_id, LLM_Crossword::META_LANG, $lang_line );
 		update_post_meta( $post_id, LLM_Crossword::META_CSV, $parsed['csv'] );
 		update_post_meta( $post_id, LLM_Crossword::META_DEFS, $parsed['defs'] );
 
-		self::store_notice( $post_id, self::validate( $parsed['csv'], $parsed['defs'] ) );
+		$notice = self::validate( $parsed['csv'], $parsed['defs'] );
+		if ( ! $known || ! $target ) {
+			$notice['warnings'][] = __( 'Seleziona la coppia di lingue: senza coppia il cruciverba non compare nelle riviste.', 'llm-con-tabelle' );
+		}
+		self::store_notice( $post_id, $notice );
 	}
 
 	/**
@@ -446,6 +507,7 @@ class LLM_Crossword_Admin {
 		foreach ( $columns as $key => $label ) {
 			$out[ $key ] = $label;
 			if ( 'title' === $key ) {
+				$out['llm_cw_pair']      = __( 'Coppia', 'llm-con-tabelle' );
 				$out['llm_cw_grid']      = __( 'Griglia', 'llm-con-tabelle' );
 				$out['llm_cw_shortcode'] = __( 'Shortcode', 'llm-con-tabelle' );
 			}
@@ -458,6 +520,16 @@ class LLM_Crossword_Admin {
 	 * @param int    $post_id ID cruciverba.
 	 */
 	public static function column_content( $column, $post_id ) {
+		if ( 'llm_cw_pair' === $column ) {
+			$known  = LLM_Crossword::get_known( $post_id );
+			$target = LLM_Crossword::get_target( $post_id );
+			if ( $known && $target ) {
+				echo esc_html( LLM_Languages::label( $known ) . ' → ' . LLM_Languages::label( $target ) );
+			} else {
+				echo '—';
+			}
+			return;
+		}
 		if ( 'llm_cw_shortcode' === $column ) {
 			echo '<code>[llm_crossword id="' . (int) $post_id . '"]</code>';
 			return;

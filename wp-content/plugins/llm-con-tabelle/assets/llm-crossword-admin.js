@@ -79,6 +79,43 @@
 			return;
 		}
 
+		var knownSel = el('llm_cw_known');
+		var targetSel = el('llm_cw_target');
+		var langNames = {
+			it: 'Italiano',
+			en: 'Inglese',
+			pl: 'Polacco',
+			es: 'Spagnolo'
+		};
+
+		function syncLangInBundle() {
+			if (!knownSel || !targetSel || !bundleField) {
+				return;
+			}
+			var k = knownSel.value;
+			var t = targetSel.value;
+			if (!k || !t || k === t) {
+				return;
+			}
+			var line = (langNames[k] || k) + ' → ' + (langNames[t] || t);
+			var text = bundleField.value;
+			if (/^#{2,}\s*LINGUA\b/im.test(text)) {
+				bundleField.value = text.replace(
+					/(#{2,}\s*LINGUA\b[^\n]*\n)([^\n#]*(?:\n(?!#{2,})[^\n]*)*)/i,
+					function (full, header) {
+						return header + line + '\n';
+					}
+				);
+			}
+		}
+
+		if (knownSel) {
+			knownSel.addEventListener('change', syncLangInBundle);
+		}
+		if (targetSel) {
+			targetSel.addEventListener('change', syncLangInBundle);
+		}
+
 		function showPreview(data) {
 			if (!previewBox) {
 				return;
