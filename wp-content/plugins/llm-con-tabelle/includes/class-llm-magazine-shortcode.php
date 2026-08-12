@@ -403,12 +403,6 @@ class LLM_Magazine_Shortcode {
 						<p class="llm-magazine__card-intro"><?php echo esc_html( wp_strip_all_tags( $card_text ) ); ?></p>
 					<?php endif; ?>
 
-					<?php if ( $phrase_count > 0 ) : ?>
-						<span class="llm-magazine__card-phrase-count">
-							<?php echo esc_html( sprintf( _n( '%d frase', '%d frasi', $phrase_count, 'llm-con-tabelle' ), $phrase_count ) ); ?>
-						</span>
-					<?php endif; ?>
-
 					<?php if ( ! empty( $preview_phrases ) ) : ?>
 						<ul class="llm-magazine__card-phrases">
 							<?php foreach ( $preview_phrases as $phrase ) : ?>
@@ -420,6 +414,19 @@ class LLM_Magazine_Shortcode {
 								</li>
 							<?php endforeach; ?>
 						</ul>
+					<?php endif; ?>
+
+					<?php if ( $phrase_count > 0 ) : ?>
+						<span class="llm-magazine__card-phrase-count">
+							<?php
+							$count_label = sprintf( _n( '%d frase', '%d frasi', $phrase_count, 'llm-con-tabelle' ), $phrase_count );
+							if ( $cefr_code ) {
+								$count_label .= ' ' . __( 'livello', 'llm-con-tabelle' ) . ' ' . strtoupper( $cefr_code );
+							}
+							echo esc_html( $count_label );
+							?>
+							<span class="llm-magazine__card-phrase-count-arrow" aria-hidden="true">→</span>
+						</span>
 					<?php endif; ?>
 				</div>
 			</a>

@@ -129,15 +129,21 @@
 }
 
 .llm-magazine__card-phrase-count {
-	display: inline-block;
-	align-self: flex-start;
-	font-size: 0.62rem;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-top: auto;
+	padding-top: 0.5rem;
+	font-size: 0.7rem;
 	font-weight: 600;
-	color: #6b6b66;
-	background: #f3f3f0;
-	border: 1px solid #e0e0db;
-	border-radius: 20px;
-	padding: 0.15rem 0.5rem;
+	color: #5a5a55;
+	border-top: 1px solid #ebebE7;
+}
+
+.llm-magazine__card-phrase-count-arrow {
+	font-size: 0.9rem;
+	font-weight: 400;
+	color: #9a9a95;
 }
 
 .llm-magazine__card-phrases {
