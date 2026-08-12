@@ -735,6 +735,9 @@
 				return;
 			}
 			var show = !!visible;
+			if (show && !listenTargetBtn._llmListenWrapReady) {
+				ensureListenTargetWrap(listenTargetBtn);
+			}
 			listenTargetBtn.hidden = !show;
 			listenTargetBtn.classList.toggle(
 				'llm-phrase-game__listen-target--force-hidden',
@@ -2838,33 +2841,6 @@
 			}
 		}
 
-		/**
-		 * Larghezza campo (solo desktop via CSS): proporzionale a parole/caratteri
-		 * della traduzione attesa (in inverted: frase originale).
-		 */
-		function syncInputShellWidth(phrase) {
-			var expected = isPlayInverted
-				? String((phrase && phrase.interface) || '')
-				: String((phrase && phrase.target) || '');
-			var plain = plainSpeechText(expected);
-			if (!plain) {
-				plain = plainSpeechText(
-					isPlayInverted
-						? (phrase && phrase.target)
-						: (phrase && phrase.interface)
-				);
-			}
-			var words = plain ? plain.split(/\s+/).filter(Boolean).length : 0;
-			var chars = plain.length;
-			/* Mix parole + caratteri, con margine per digitare; clamp 36–100%. */
-			var fromWords = 28 + words * 5.5;
-			var fromChars = 26 + chars * 0.8;
-			var pct = Math.round(Math.min(100, Math.max(36, Math.max(fromWords, fromChars))));
-			qsa(root, '.llm-phrase-game__input-shell').forEach(function (shell) {
-				shell.style.setProperty('--llm-input-shell-width', pct + '%');
-			});
-		}
-
 		function setMessage(text, isError) {
 			if (!messageEl) {
 				return;
@@ -3037,7 +3013,6 @@
 		}
 			syncInputPlaceholders();
 			var p = phrases[phraseIx];
-			syncInputShellWidth(p);
 			var useResume =
 				resumeStep2 &&
 				cfg.resumeAnalysis &&
