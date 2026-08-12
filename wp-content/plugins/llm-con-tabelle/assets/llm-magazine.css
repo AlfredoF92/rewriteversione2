@@ -128,13 +128,23 @@
 }
 
 .llm-magazine__section {
-	margin: 0 0 2.5rem;
+	margin: 0;
+	padding: 2.25rem 0 2rem;
+	border-top: 1px solid #d8d8d3;
+}
+
+.llm-magazine__section:first-of-type {
+	border-top: 0;
+	padding-top: 0.5rem;
 }
 
 .llm-magazine__section-title {
-	margin: 0 0 1rem;
-	font-size: 1.2rem;
-	font-weight: 700;
+	margin: 0 0 1.25rem;
+	font-size: clamp(1.45rem, 3vw, 1.9rem);
+	font-weight: 800;
+	line-height: 1.2;
+	letter-spacing: -0.015em;
+	color: #1a1a18;
 }
 
 .llm-magazine__stories {
