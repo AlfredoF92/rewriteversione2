@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LLM_TABELLE_VERSION', '2.2.138' );
+define( 'LLM_TABELLE_VERSION', '2.2.139' );
 define( 'LLM_TABELLE_FILE', __FILE__ );
 define( 'LLM_TABELLE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LLM_TABELLE_URL', plugin_dir_url( __FILE__ ) );
@@ -325,3 +325,4 @@ function llm_tabelle_deactivate() {
 	flush_rewrite_rules();
 }
 register_deactivation_hook( __FILE__, 'llm_tabelle_deactivate' );
+

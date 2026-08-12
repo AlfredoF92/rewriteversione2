@@ -1693,13 +1693,13 @@
 				});
 			});
 		} else if (pendingStoryIntroTypewriter) {
-			/* Prima visita: typewriter — loadPhrase e pulsante ascolto aspettano */
+			/* Prima visita: niente typewriter, solo fade (transition su opacity) */
 			introWrap.classList.add('llm-phrase-game__story-intro--visible');
-			var introStreamRun2 = ++storyStreamRun;
-			introReady = typewriterInto(introText, String(cfg.storyIntro), function () {
-				return storyStreamRun === introStreamRun2;
-			}).then(function () {
-				introComplete = true;
+			introText.textContent = String(cfg.storyIntro);
+			introComplete = true;
+			introReady = Promise.resolve();
+			// Rimuove lo stato "intro attiva" in modo da non disturbare eventuali animazioni UI.
+			requestAnimationFrame(function () {
 				root.classList.remove('llm-phrase-game--story-intro-active');
 			});
 		}
