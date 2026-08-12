@@ -183,12 +183,6 @@ class LLM_Story_Phrase_Game {
 					<div class="llm-phrase-game__interface-row">
 						<span class="llm-phrase-game__lang-flag llm-phrase-game__lang-flag--source" aria-hidden="true"></span>
 						<div class="llm-phrase-game__interface"></div>
-						<button type="button" class="llm-phrase-game__listen-target llm-phrase-game__listen-target--force-hidden" hidden aria-label="<?php echo esc_attr( $listen_target_aria ); ?>" title="<?php echo esc_attr( $listen_target_aria ); ?>" aria-hidden="true">
-							<span class="llm-phrase-game__listen-target-icon" aria-hidden="true">
-								<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-							</span>
-							<span class="llm-phrase-game__listen-target-text"><?php echo esc_html( $listen_target_label ); ?></span>
-						</button>
 					</div>
 					<p class="llm-phrase-game__prompt llm-phrase-game__prompt--translate">
 						<span class="llm-phrase-game__prompt-text"></span>
@@ -200,6 +194,12 @@ class LLM_Story_Phrase_Game {
 								<span class="llm-phrase-game__lang-flag llm-phrase-game__lang-flag--write" aria-hidden="true"></span>
 								<input type="text" id="<?php echo esc_attr( $uid ); ?>-input1" class="llm-phrase-game__input llm-phrase-game__input--1" autocomplete="off" />
 							</div>
+							<button type="button" class="llm-phrase-game__listen-target llm-phrase-game__listen-target--force-hidden" hidden aria-label="<?php echo esc_attr( $listen_target_aria ); ?>" title="<?php echo esc_attr( $listen_target_aria ); ?>" aria-hidden="true">
+								<span class="llm-phrase-game__listen-target-icon" aria-hidden="true">
+									<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+								</span>
+								<span class="llm-phrase-game__listen-target-text"><?php echo esc_html( $listen_target_label ); ?></span>
+							</button>
 							<div class="llm-phrase-game__clear-wrap llm-phrase-game__clear-wrap--1 llm-phrase-game__action-fade" hidden>
 								<?php echo self::render_clear_input_button( '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 							</div>
