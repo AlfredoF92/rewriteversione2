@@ -406,6 +406,14 @@ class LLM_Story_Phrase_Game {
 		}
 
 		$target_code = (string) get_post_meta( $story_id, LLM_Story_Meta::TARGET_LANG, true );
+		// In questa UI:
+		// - interfaceLang* = lingua “fonte” (quella della traduzione che vedi e in cui scrivi nella fase 1)
+		// - targetLang*    = lingua “obiettivo” (quella della frase attesa)
+		// Le bandiere DEVONO quindi venire da `KNOWN_LANG/TARGET_LANG` della storia, non dalla lingua corrente dell’utente.
+		$interface_code = (string) get_post_meta( $story_id, LLM_Story_Meta::KNOWN_LANG, true );
+		if ( '' === $interface_code ) {
+			$interface_code = LLM_Phrase_Game_I18n::lang();
+		}
 
 		$n_phrases         = count( $phrases );
 		$uid               = is_user_logged_in() ? get_current_user_id() : 0;
@@ -535,8 +543,8 @@ class LLM_Story_Phrase_Game {
 				'phrases'         => $boot,
 				'targetLangLabel' => LLM_Phrase_Game_I18n::target_lang_label_for_ui( $target_code ),
 				'targetLangCode'  => sanitize_key( $target_code ),
-				'interfaceLangLabel' => LLM_Phrase_Game_I18n::target_lang_label_for_ui( LLM_Phrase_Game_I18n::lang() ),
-				'interfaceLangCode'  => LLM_Phrase_Game_I18n::lang(),
+				'interfaceLangLabel' => LLM_Phrase_Game_I18n::target_lang_label_for_ui( $interface_code ),
+				'interfaceLangCode'  => sanitize_key( $interface_code ),
 				'langFlags'          => class_exists( 'LLM_Languages' ) ? LLM_Languages::flag_map() : array(),
 				'i18n'                => array(
 				'translatePrompt'  => LLM_Phrase_Game_I18n::get( 'translate_prompt' ),
