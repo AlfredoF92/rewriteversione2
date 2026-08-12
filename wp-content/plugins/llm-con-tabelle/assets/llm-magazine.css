@@ -119,30 +119,31 @@
 
 .llm-magazine__card-phrases {
 	list-style: none;
-	margin: 0.3rem 0 0;
+	margin: 0.4rem 0 0;
 	padding: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 0.45rem;
+	gap: 0.4rem;
 }
 
 .llm-magazine__card-phrase {
 	display: flex;
 	flex-direction: column;
-	gap: 0.1rem;
+	gap: 0.05rem;
 }
 
-.llm-magazine__card-phrase-iface {
-	font-size: 0.8rem;
-	font-weight: 500;
+.llm-magazine__card-phrase-target {
+	font-size: 0.72rem;
+	font-weight: 600;
 	color: #2c2c2a;
 	line-height: 1.3;
 }
 
-.llm-magazine__card-phrase-target {
-	font-size: 0.75rem;
+.llm-magazine__card-phrase-iface {
+	font-size: 0.65rem;
 	font-style: italic;
-	color: #6b6b66;
+	font-weight: 400;
+	color: #8a8a85;
 	line-height: 1.3;
 }
 

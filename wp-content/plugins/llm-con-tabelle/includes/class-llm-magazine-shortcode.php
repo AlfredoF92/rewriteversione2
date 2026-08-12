@@ -368,8 +368,19 @@ class LLM_Magazine_Shortcode {
 					<div class="llm-magazine__card-media llm-magazine__card-media--empty" aria-hidden="true"></div>
 				<?php endif; ?>
 				<div class="llm-magazine__card-body">
-					<?php if ( $cefr ) : ?>
-						<span class="llm-magazine__card-level llm-magazine__card-level--<?php echo esc_attr( strtolower( $cefr ) ); ?>"><?php echo esc_html( strtoupper( $cefr ) ); ?></span>
+					<?php
+					// Estrae solo il codice CEFR (A1, A2, B1, B2, C1, C2) dal campo che può contenere testo extra.
+					$cefr_code = '';
+					if ( $cefr ) {
+						if ( preg_match( '/\b([ABC][12])\b/i', $cefr, $m ) ) {
+							$cefr_code = strtolower( $m[1] );
+						}
+					}
+					?>
+					<?php if ( $cefr_code ) : ?>
+						<span class="llm-magazine__card-level llm-magazine__card-level--<?php echo esc_attr( $cefr_code ); ?>"><?php echo esc_html( strtoupper( $cefr_code ) ); ?></span>
+					<?php elseif ( $cefr ) : ?>
+						<span class="llm-magazine__card-level"><?php echo esc_html( $cefr ); ?></span>
 					<?php elseif ( $target ) : ?>
 						<span class="llm-magazine__card-level"><?php echo esc_html( LLM_Languages::label( $target ) ); ?></span>
 					<?php endif; ?>
@@ -394,10 +405,10 @@ class LLM_Magazine_Shortcode {
 						<ul class="llm-magazine__card-phrases">
 							<?php foreach ( $preview_phrases as $phrase ) : ?>
 								<li class="llm-magazine__card-phrase">
-									<span class="llm-magazine__card-phrase-iface"><?php echo esc_html( wp_strip_all_tags( $phrase['interface'] ) ); ?></span>
 									<?php if ( ! empty( $phrase['target'] ) ) : ?>
 										<span class="llm-magazine__card-phrase-target"><?php echo esc_html( wp_strip_all_tags( $phrase['target'] ) ); ?></span>
 									<?php endif; ?>
+									<span class="llm-magazine__card-phrase-iface"><?php echo esc_html( wp_strip_all_tags( $phrase['interface'] ) ); ?></span>
 								</li>
 							<?php endforeach; ?>
 						</ul>
