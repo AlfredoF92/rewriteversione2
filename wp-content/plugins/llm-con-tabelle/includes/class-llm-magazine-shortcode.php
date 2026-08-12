@@ -402,7 +402,7 @@ class LLM_Magazine_Shortcode {
 							<span class="llm-magazine__card-level"><?php echo esc_html( LLM_Languages::label( $target ) ); ?></span>
 						<?php endif; ?>
 						<?php foreach ( $content_cats as $cat_name ) : ?>
-							<span class="llm-magazine__card-cat"><?php echo esc_html( $cat_name ); ?></span>
+							<span class="llm-magazine__card-cat<?php echo $cefr_code ? ' llm-magazine__card-level--' . esc_attr( $cefr_code ) : ''; ?>"><?php echo esc_html( $cat_name ); ?></span>
 						<?php endforeach; ?>
 					</div>
 
