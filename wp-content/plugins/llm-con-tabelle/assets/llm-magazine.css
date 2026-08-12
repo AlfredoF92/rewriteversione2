@@ -117,13 +117,6 @@
 	padding: 0.2rem 0.45rem;
 }
 
-.llm-magazine__card-level--a1 { background: #16a34a; }
-.llm-magazine__card-level--a2 { background: #65a30d; }
-.llm-magazine__card-level--b1 { background: #d97706; }
-.llm-magazine__card-level--b2 { background: #ea580c; }
-.llm-magazine__card-level--c1 { background: #dc2626; }
-.llm-magazine__card-level--c2 { background: #991b1b; }
-
 .llm-magazine__card-cat {
 	display: inline-block;
 	font-size: 0.65rem;
@@ -135,6 +128,14 @@
 	border-radius: 4px;
 	padding: 0.2rem 0.45rem;
 }
+
+/* Dopo .card-cat così i colori vincono anche sulle sottocategorie. */
+.llm-magazine__card-level--a1 { background: #16a34a !important; }
+.llm-magazine__card-level--a2 { background: #65a30d !important; }
+.llm-magazine__card-level--b1 { background: #d97706 !important; }
+.llm-magazine__card-level--b2 { background: #ea580c !important; }
+.llm-magazine__card-level--c1 { background: #dc2626 !important; }
+.llm-magazine__card-level--c2 { background: #991b1b !important; }
 
 .llm-magazine__card-intro {
 	margin: 0;
