@@ -14,12 +14,16 @@ class LLM_Crossword {
 	const CPT       = 'llm_crossword';
 	const META_CSV  = '_llm_crossword_csv';
 	const META_DEFS = '_llm_crossword_defs';
+	const META_LANG = '_llm_crossword_lang';
 
 	/** Lato massimo della griglia (righe o colonne). */
 	const MAX_SIDE = 40;
 
 	/** Separatore dei campi nella textarea delle definizioni. */
 	const DEF_SEPARATOR = '|';
+
+	/** Intestazioni sezione nel file unificato. */
+	const BUNDLE_SECTIONS = array( 'LINGUA', 'SCHEMA', 'DEFINIZIONI' );
 
 	public static function init() {
 		add_action( 'init', array( __CLASS__, 'register' ) );
@@ -74,6 +78,116 @@ class LLM_Crossword {
 	 */
 	public static function get_defs( $post_id ) {
 		return (string) get_post_meta( absint( $post_id ), self::META_DEFS, true );
+	}
+
+	/**
+	 * Riga lingua (es. "Italiano → Polacco").
+	 *
+	 * @param int $post_id ID cruciverba.
+	 * @return string
+	 */
+	public static function get_lang( $post_id ) {
+		return (string) get_post_meta( absint( $post_id ), self::META_LANG, true );
+	}
+
+	/**
+	 * Compone il testo unificato per l'admin.
+	 *
+	 * @param string $lang Lingua.
+	 * @param string $csv  Schema.
+	 * @param string $defs Definizioni.
+	 * @return string
+	 */
+	public static function format_bundle( $lang = '', $csv = '', $defs = '' ) {
+		$lang = trim( (string) $lang );
+		$csv  = trim( (string) $csv );
+		$defs = trim( (string) $defs );
+
+		$parts = array(
+			'###### LINGUA',
+			'' !== $lang ? $lang : 'Italiano → Inglese',
+			'',
+			'###### SCHEMA',
+			'' !== $csv ? $csv : '',
+			'',
+			'###### DEFINIZIONI',
+		);
+		if ( '' !== $defs ) {
+			$parts[] = $defs;
+		} else {
+			$parts[] = '# numero|O=orizzontale V=verticale|PAROLA|Categoria|Definizione lingua target|Definizione lingua nota';
+		}
+		return implode( "\n", $parts ) . "\n";
+	}
+
+	/**
+	 * Legge il file unificato (LINGUA / SCHEMA / DEFINIZIONI).
+	 *
+	 * @param string $raw Testo completo.
+	 * @return array{lang:string,csv:string,defs:string}|WP_Error
+	 */
+	public static function parse_bundle( $raw ) {
+		$raw = is_string( $raw ) ? str_replace( array( "\r\n", "\r" ), "\n", $raw ) : '';
+		$raw = trim( $raw );
+		if ( '' === $raw ) {
+			return new WP_Error( 'llm_cw_bundle_empty', __( 'Incolla il file del cruciverba (LINGUA, SCHEMA, DEFINIZIONI).', 'llm-con-tabelle' ) );
+		}
+
+		// Formato unificato con sezioni ###### NOME.
+		if ( preg_match( '/^#{2,}\s*(LINGUA|SCHEMA|DEFINIZIONI)\b/mi', $raw ) ) {
+			$sections = array(
+				'LINGUA'       => '',
+				'SCHEMA'       => '',
+				'DEFINIZIONI'  => '',
+			);
+			$current = '';
+			foreach ( explode( "\n", $raw ) as $line ) {
+				if ( preg_match( '/^#{2,}\s*(LINGUA|SCHEMA|DEFINIZIONI)\b/i', $line, $m ) ) {
+					$current = strtoupper( $m[1] );
+					continue;
+				}
+				if ( '' === $current || ! isset( $sections[ $current ] ) ) {
+					continue;
+				}
+				$sections[ $current ] .= ( '' === $sections[ $current ] ? '' : "\n" ) . $line;
+			}
+
+			$lang = trim( $sections['LINGUA'] );
+			$csv  = trim( $sections['SCHEMA'] );
+			$defs = trim( $sections['DEFINIZIONI'] );
+
+			// Togli eventuali righe vuote iniziali/finali già gestite da trim.
+			if ( '' === $csv ) {
+				return new WP_Error( 'llm_cw_bundle_no_schema', __( 'Manca la sezione ###### SCHEMA.', 'llm-con-tabelle' ) );
+			}
+
+			return array(
+				'lang' => $lang,
+				'csv'  => $csv,
+				'defs' => $defs,
+			);
+		}
+
+		// Retrocompatibilità: solo schema CSV senza sezioni.
+		return array(
+			'lang' => '',
+			'csv'  => $raw,
+			'defs' => '',
+		);
+	}
+
+	/**
+	 * Testo unificato salvato / ricostruito per un cruciverba.
+	 *
+	 * @param int $post_id ID cruciverba.
+	 * @return string
+	 */
+	public static function get_bundle( $post_id ) {
+		return self::format_bundle(
+			self::get_lang( $post_id ),
+			self::get_csv( $post_id ),
+			self::get_defs( $post_id )
+		);
 	}
 
 	/**

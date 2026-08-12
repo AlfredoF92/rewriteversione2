@@ -14,7 +14,6 @@ class LLM_Crossword_Admin {
 	const NONCE_ACTION  = 'llm_crossword_save';
 	const NONCE_NAME    = 'llm_crossword_nonce';
 	const AJAX_ACTION   = 'llm_crossword_analyze';
-	const AJAX_IMPORT   = 'llm_crossword_import_defs';
 	const NOTICE_PREFIX = 'llm_cw_notice_';
 
 	public static function init() {
@@ -23,7 +22,6 @@ class LLM_Crossword_Admin {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'notices' ) );
 		add_action( 'wp_ajax_' . self::AJAX_ACTION, array( __CLASS__, 'ajax_analyze' ) );
-		add_action( 'wp_ajax_' . self::AJAX_IMPORT, array( __CLASS__, 'ajax_import_defs' ) );
 		add_filter( 'manage_' . LLM_Crossword::CPT . '_posts_columns', array( __CLASS__, 'columns' ) );
 		add_action( 'manage_' . LLM_Crossword::CPT . '_posts_custom_column', array( __CLASS__, 'column_content' ), 10, 2 );
 	}
@@ -66,20 +64,16 @@ class LLM_Crossword_Admin {
 			'llm-crossword-admin',
 			'llmCrosswordAdmin',
 			array(
-				'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
-				'action'       => self::AJAX_ACTION,
-				'importAction' => self::AJAX_IMPORT,
-				'nonce'        => wp_create_nonce( self::AJAX_ACTION ),
-				'importNonce'  => wp_create_nonce( self::AJAX_IMPORT ),
-				'i18n'         => array(
-					'working'       => __( 'Leggo lo schema…', 'llm-con-tabelle' ),
-					'importing'     => __( 'Importo le definizioni…', 'llm-con-tabelle' ),
-					'networkError'  => __( 'Errore di rete. Riprova.', 'llm-con-tabelle' ),
-					'copied'        => __( 'Shortcode copiato.', 'llm-con-tabelle' ),
-					'copyFailed'    => __( 'Copia non riuscita: seleziona il testo a mano.', 'llm-con-tabelle' ),
-					'confirmDefs'   => __( 'Rigenero l’elenco: le definizioni già scritte vengono mantenute, le righe non riconosciute vanno perse. Procedo?', 'llm-con-tabelle' ),
-					'confirmImport' => __( 'Sostituisco le definizioni attuali con quelle del CSV. Procedo?', 'llm-con-tabelle' ),
-					'importEmpty'   => __( 'Incolla prima il CSV delle definizioni.', 'llm-con-tabelle' ),
+				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+				'action'  => self::AJAX_ACTION,
+				'nonce'   => wp_create_nonce( self::AJAX_ACTION ),
+				'i18n'    => array(
+					'working'      => __( 'Leggo il cruciverba…', 'llm-con-tabelle' ),
+					'networkError' => __( 'Errore di rete. Riprova.', 'llm-con-tabelle' ),
+					'copied'       => __( 'Shortcode copiato.', 'llm-con-tabelle' ),
+					'copyFailed'   => __( 'Copia non riuscita: seleziona il testo a mano.', 'llm-con-tabelle' ),
+					'confirmDefs'  => __( 'Rigenero le definizioni dallo schema: quelle già scritte vengono mantenute se corrispondono. Procedo?', 'llm-con-tabelle' ),
+					'bundleEmpty'  => __( 'Incolla prima il file del cruciverba.', 'llm-con-tabelle' ),
 				),
 			)
 		);
@@ -88,7 +82,7 @@ class LLM_Crossword_Admin {
 	public static function meta_boxes() {
 		add_meta_box(
 			'llm_crossword_data',
-			__( 'Schema e definizioni', 'llm-con-tabelle' ),
+			__( 'File cruciverba', 'llm-con-tabelle' ),
 			array( __CLASS__, 'render_box' ),
 			LLM_Crossword::CPT,
 			'normal',
@@ -102,8 +96,10 @@ class LLM_Crossword_Admin {
 	public static function render_box( $post ) {
 		wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME );
 
-		$csv       = LLM_Crossword::get_csv( $post->ID );
-		$defs      = LLM_Crossword::get_defs( $post->ID );
+		$has_data = '' !== trim( LLM_Crossword::get_csv( $post->ID ) ) || '' !== trim( LLM_Crossword::get_defs( $post->ID ) );
+		$bundle   = $has_data
+			? LLM_Crossword::get_bundle( $post->ID )
+			: LLM_Crossword::format_bundle( 'Italiano → Polacco', '', '' );
 		$shortcode = '[llm_crossword id="' . (int) $post->ID . '"]';
 		?>
 		<div class="llm-cw-admin">
@@ -123,47 +119,24 @@ class LLM_Crossword_Admin {
 			<?php endif; ?>
 
 			<div class="llm-cw-admin__field">
-				<label for="llm-cw-csv"><strong><?php esc_html_e( 'Schema in formato CSV', 'llm-con-tabelle' ); ?></strong></label>
+				<label for="llm-cw-bundle"><strong><?php esc_html_e( 'File completo del cruciverba', 'llm-con-tabelle' ); ?></strong></label>
 				<p class="description">
-					<?php esc_html_e( 'Una riga della griglia per ogni riga di testo, celle separate da virgola. Scrivi la lettera della soluzione, oppure # (o una cella vuota) per le caselle nere. Tutte le righe devono avere lo stesso numero di celle.', 'llm-con-tabelle' ); ?>
+					<?php
+					esc_html_e( 'Incolla qui un unico testo con tre sezioni:', 'llm-con-tabelle' );
+					echo ' <code>###### LINGUA</code>, <code>###### SCHEMA</code>, <code>###### DEFINIZIONI</code>. ';
+					esc_html_e( 'Nello schema le celle sono separate da virgola (# = casella nera). Nelle definizioni: numero|O o V|PAROLA|Categoria|def. lingua target|def. lingua nota.', 'llm-con-tabelle' );
+					?>
 				</p>
-				<textarea id="llm-cw-csv" name="llm_crossword_csv" rows="12" class="large-text code" spellcheck="false" placeholder="K,I,T,C,H,E,N,#,D,#,H&#10;#,#,A,#,#,#,#,#,I,#,O"><?php echo esc_textarea( $csv ); ?></textarea>
+				<textarea id="llm-cw-bundle" name="llm_crossword_bundle" rows="28" class="large-text code" spellcheck="false"><?php echo esc_textarea( $bundle ); ?></textarea>
 			</div>
 
 			<p class="llm-cw-admin__actions">
-				<button type="button" class="button button-secondary" id="llm-cw-preview"><?php esc_html_e( 'Controlla schema', 'llm-con-tabelle' ); ?></button>
-				<button type="button" class="button button-primary" id="llm-cw-skeleton"><?php esc_html_e( 'Genera elenco definizioni dal CSV', 'llm-con-tabelle' ); ?></button>
+				<button type="button" class="button button-secondary" id="llm-cw-preview"><?php esc_html_e( 'Controlla cruciverba', 'llm-con-tabelle' ); ?></button>
+				<button type="button" class="button" id="llm-cw-skeleton"><?php esc_html_e( 'Rigenera elenco definizioni dallo schema', 'llm-con-tabelle' ); ?></button>
 				<span class="llm-cw-admin__status" id="llm-cw-status" role="status" aria-live="polite"></span>
 			</p>
 
 			<div class="llm-cw-admin__preview" id="llm-cw-preview-box" hidden></div>
-
-			<div class="llm-cw-admin__field">
-				<label for="llm-cw-defs"><strong><?php esc_html_e( 'Definizioni', 'llm-con-tabelle' ); ?></strong></label>
-				<p class="description">
-					<?php
-					echo esc_html__( 'Una definizione per riga, campi separati da barra verticale:', 'llm-con-tabelle' );
-					echo ' <code>numero|direzione|parola|categoria|definizione inglese|definizione italiana</code>. ';
-					echo esc_html__( 'La direzione è O per orizzontale e V per verticale. I campi che non ti servono lasciali vuoti; le righe che iniziano con # sono commenti.', 'llm-con-tabelle' );
-					?>
-				</p>
-				<textarea id="llm-cw-defs" name="llm_crossword_defs" rows="16" class="large-text code" spellcheck="false" placeholder="1|O|KITCHEN|Noun|The room where you cook|La stanza dove cucini"><?php echo esc_textarea( $defs ); ?></textarea>
-			</div>
-
-			<div class="llm-cw-admin__import">
-				<label for="llm-cw-defs-csv"><strong><?php esc_html_e( 'Importa definizioni da CSV', 'llm-con-tabelle' ); ?></strong></label>
-				<p class="description">
-					<?php
-					echo esc_html__( 'Incolla qui un CSV completo (virgole e campi tra virgolette), poi premi Importa. Formato:', 'llm-con-tabelle' );
-					echo ' <code>numero,direzione,parola,categoria,definizione_en,definizione_it</code>.';
-					?>
-				</p>
-				<textarea id="llm-cw-defs-csv" rows="8" class="large-text code" spellcheck="false" placeholder="numero,direzione,parola,categoria,definizione_en,definizione_it&#10;1,O,CITY,Noun,&quot;A large, important town...&quot;,Un grande centro abitato..."></textarea>
-				<p class="llm-cw-admin__actions">
-					<button type="button" class="button button-primary" id="llm-cw-import-defs"><?php esc_html_e( 'Importa da CSV', 'llm-con-tabelle' ); ?></button>
-					<span class="llm-cw-admin__status" id="llm-cw-import-status" role="status" aria-live="polite"></span>
-				</p>
-			</div>
 		</div>
 		<?php
 	}
@@ -186,13 +159,28 @@ class LLM_Crossword_Admin {
 			return;
 		}
 
-		$csv  = isset( $_POST['llm_crossword_csv'] ) ? sanitize_textarea_field( wp_unslash( $_POST['llm_crossword_csv'] ) ) : '';
-		$defs = isset( $_POST['llm_crossword_defs'] ) ? sanitize_textarea_field( wp_unslash( $_POST['llm_crossword_defs'] ) ) : '';
+		/* Non sanitize_textarea_field: lascia caratteri speciali delle definizioni. */
+		$raw = isset( $_POST['llm_crossword_bundle'] ) ? wp_unslash( (string) $_POST['llm_crossword_bundle'] ) : '';
+		$raw = str_replace( "\0", '', $raw );
 
-		update_post_meta( $post_id, LLM_Crossword::META_CSV, $csv );
-		update_post_meta( $post_id, LLM_Crossword::META_DEFS, $defs );
+		$parsed = LLM_Crossword::parse_bundle( $raw );
+		if ( is_wp_error( $parsed ) ) {
+			self::store_notice(
+				$post_id,
+				array(
+					'errors'   => array( $parsed->get_error_message() ),
+					'warnings' => array(),
+					'info'     => array(),
+				)
+			);
+			return;
+		}
 
-		self::store_notice( $post_id, self::validate( $csv, $defs ) );
+		update_post_meta( $post_id, LLM_Crossword::META_LANG, sanitize_text_field( $parsed['lang'] ) );
+		update_post_meta( $post_id, LLM_Crossword::META_CSV, $parsed['csv'] );
+		update_post_meta( $post_id, LLM_Crossword::META_DEFS, $parsed['defs'] );
+
+		self::store_notice( $post_id, self::validate( $parsed['csv'], $parsed['defs'] ) );
 	}
 
 	/**
@@ -400,55 +388,6 @@ class LLM_Crossword_Admin {
 			. '</div>';
 	}
 
-	public static function ajax_import_defs() {
-		if ( ! check_ajax_referer( self::AJAX_IMPORT, 'nonce', false ) ) {
-			wp_send_json_error( array( 'message' => __( 'Sessione scaduta. Ricarica la pagina.', 'llm-con-tabelle' ) ), 403 );
-		}
-
-		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
-		if ( ! $post_id || ! current_user_can( 'edit_post', $post_id ) ) {
-			wp_send_json_error( array( 'message' => __( 'Permessi insufficienti.', 'llm-con-tabelle' ) ), 403 );
-		}
-
-		/* Non usare sanitize_textarea_field: toglierebbe le virgolette necessarie al CSV. */
-		$defs_csv = isset( $_POST['defs_csv'] ) ? wp_unslash( (string) $_POST['defs_csv'] ) : '';
-		$defs_csv = str_replace( "\0", '', $defs_csv );
-		$grid_csv = isset( $_POST['csv'] ) ? sanitize_textarea_field( wp_unslash( $_POST['csv'] ) ) : '';
-
-		$entries = array();
-		if ( '' !== trim( $grid_csv ) ) {
-			$parsed = LLM_Crossword::parse_grid( $grid_csv );
-			if ( ! is_wp_error( $parsed ) ) {
-				$entries = LLM_Crossword::entries( $parsed['grid'] );
-			}
-		}
-
-		$result = LLM_Crossword::import_definitions_csv( $defs_csv, $entries );
-		if ( is_wp_error( $result ) ) {
-			wp_send_json_error( array( 'message' => $result->get_error_message() ), 200 );
-		}
-
-		$summary = sprintf(
-			/* translators: %d: number of imported definitions */
-			_n(
-				'Importata %d definizione. Controlla l’elenco e salva il cruciverba.',
-				'Importate %d definizioni. Controlla l’elenco e salva il cruciverba.',
-				$result['imported'],
-				'llm-con-tabelle'
-			),
-			$result['imported']
-		);
-
-		wp_send_json_success(
-			array(
-				'defs'     => $result['defs'],
-				'imported' => $result['imported'],
-				'warnings' => $result['warnings'],
-				'summary'  => $summary,
-			)
-		);
-	}
-
 	public static function ajax_analyze() {
 		if ( ! check_ajax_referer( self::AJAX_ACTION, 'nonce', false ) ) {
 			wp_send_json_error( array( 'message' => __( 'Sessione scaduta. Ricarica la pagina.', 'llm-con-tabelle' ) ), 403 );
@@ -459,10 +398,15 @@ class LLM_Crossword_Admin {
 			wp_send_json_error( array( 'message' => __( 'Permessi insufficienti.', 'llm-con-tabelle' ) ), 403 );
 		}
 
-		$csv  = isset( $_POST['csv'] ) ? sanitize_textarea_field( wp_unslash( $_POST['csv'] ) ) : '';
-		$defs = isset( $_POST['defs'] ) ? sanitize_textarea_field( wp_unslash( $_POST['defs'] ) ) : '';
+		$raw = isset( $_POST['bundle'] ) ? wp_unslash( (string) $_POST['bundle'] ) : '';
+		$raw = str_replace( "\0", '', $raw );
 
-		$parsed = LLM_Crossword::parse_grid( $csv );
+		$bundle = LLM_Crossword::parse_bundle( $raw );
+		if ( is_wp_error( $bundle ) ) {
+			wp_send_json_error( array( 'message' => $bundle->get_error_message() ), 200 );
+		}
+
+		$parsed = LLM_Crossword::parse_grid( $bundle['csv'] );
 		if ( is_wp_error( $parsed ) ) {
 			wp_send_json_error( array( 'message' => $parsed->get_error_message() ), 200 );
 		}
@@ -472,13 +416,14 @@ class LLM_Crossword_Admin {
 			wp_send_json_error( array( 'message' => __( 'Lo schema non contiene nessuna parola di almeno due lettere.', 'llm-con-tabelle' ) ), 200 );
 		}
 
-		$defs_parsed = LLM_Crossword::parse_definitions( $defs, $entries );
+		$defs_parsed = LLM_Crossword::parse_definitions( $bundle['defs'], $entries );
+		$skeleton    = LLM_Crossword::definitions_skeleton( $entries, $bundle['defs'] );
 		$written     = count( $defs_parsed['clues'] );
 
 		wp_send_json_success(
 			array(
 				'preview'  => self::preview_html( $parsed['grid'], $entries, $defs_parsed['clues'] ),
-				'skeleton' => LLM_Crossword::definitions_skeleton( $entries, $defs ),
+				'bundle'   => LLM_Crossword::format_bundle( $bundle['lang'], $bundle['csv'], $skeleton ),
 				'warnings' => $defs_parsed['warnings'],
 				'summary'  => sprintf(
 					/* translators: 1: rows, 2: columns, 3: number of words, 4: words with a clue */
