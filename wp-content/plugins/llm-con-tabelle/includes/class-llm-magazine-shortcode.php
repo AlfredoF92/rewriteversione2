@@ -335,6 +335,13 @@ class LLM_Magazine_Shortcode {
 		$thumb_id  = get_post_thumbnail_id( $story_id );
 		$thumb_url = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'medium_large' ) : '';
 
+		// Prime 3 frasi per anteprima (solo layout verticale).
+		$preview_phrases = array();
+		if ( 'horizontal' !== $layout ) {
+			$all_phrases     = LLM_Story_Repository::get_phrases( $story_id );
+			$preview_phrases = array_slice( $all_phrases, 0, 3 );
+		}
+
 		if ( '' === trim( $card_text ) ) {
 			$card_text = has_excerpt( $story_id ) ? get_the_excerpt( $story_id ) : '';
 		}
@@ -362,7 +369,7 @@ class LLM_Magazine_Shortcode {
 				<?php endif; ?>
 				<div class="llm-magazine__card-body">
 					<?php if ( $cefr ) : ?>
-						<span class="llm-magazine__card-level"><?php echo esc_html( sprintf( __( 'Parole Livello %s', 'llm-con-tabelle' ), $cefr ) ); ?></span>
+						<span class="llm-magazine__card-level llm-magazine__card-level--<?php echo esc_attr( strtolower( $cefr ) ); ?>"><?php echo esc_html( strtoupper( $cefr ) ); ?></span>
 					<?php elseif ( $target ) : ?>
 						<span class="llm-magazine__card-level"><?php echo esc_html( LLM_Languages::label( $target ) ); ?></span>
 					<?php endif; ?>
@@ -383,7 +390,18 @@ class LLM_Magazine_Shortcode {
 						<h4 class="llm-magazine__card-title"><?php echo esc_html( $title_known ); ?></h4>
 					<?php endif; ?>
 
-					<?php if ( $card_text ) : ?>
+					<?php if ( ! empty( $preview_phrases ) ) : ?>
+						<ul class="llm-magazine__card-phrases">
+							<?php foreach ( $preview_phrases as $phrase ) : ?>
+								<li class="llm-magazine__card-phrase">
+									<span class="llm-magazine__card-phrase-iface"><?php echo esc_html( wp_strip_all_tags( $phrase['interface'] ) ); ?></span>
+									<?php if ( ! empty( $phrase['target'] ) ) : ?>
+										<span class="llm-magazine__card-phrase-target"><?php echo esc_html( wp_strip_all_tags( $phrase['target'] ) ); ?></span>
+									<?php endif; ?>
+								</li>
+							<?php endforeach; ?>
+						</ul>
+					<?php elseif ( $card_text ) : ?>
 						<p class="llm-magazine__card-text"><?php echo esc_html( wp_strip_all_tags( $card_text ) ); ?></p>
 					<?php endif; ?>
 				</div>

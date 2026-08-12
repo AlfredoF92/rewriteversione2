@@ -99,17 +99,51 @@
 .llm-magazine__card-level {
 	display: inline-block;
 	align-self: flex-start;
-	font-size: 0.72rem;
+	font-size: 0.65rem;
 	font-weight: 800;
-	letter-spacing: 0.02em;
-	line-height: 1.2;
-	text-transform: none;
+	letter-spacing: 0.06em;
+	line-height: 1;
+	text-transform: uppercase;
 	color: #fff;
 	background: #18181b;
-	border: 1px solid #09090b;
 	border-radius: 4px;
-	padding: 0.28rem 0.55rem;
-	box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+	padding: 0.2rem 0.45rem;
+}
+
+.llm-magazine__card-level--a1 { background: #16a34a; }
+.llm-magazine__card-level--a2 { background: #65a30d; }
+.llm-magazine__card-level--b1 { background: #d97706; }
+.llm-magazine__card-level--b2 { background: #ea580c; }
+.llm-magazine__card-level--c1 { background: #dc2626; }
+.llm-magazine__card-level--c2 { background: #991b1b; }
+
+.llm-magazine__card-phrases {
+	list-style: none;
+	margin: 0.3rem 0 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.45rem;
+}
+
+.llm-magazine__card-phrase {
+	display: flex;
+	flex-direction: column;
+	gap: 0.1rem;
+}
+
+.llm-magazine__card-phrase-iface {
+	font-size: 0.8rem;
+	font-weight: 500;
+	color: #2c2c2a;
+	line-height: 1.3;
+}
+
+.llm-magazine__card-phrase-target {
+	font-size: 0.75rem;
+	font-style: italic;
+	color: #6b6b66;
+	line-height: 1.3;
 }
 
 .llm-magazine__card-title {
