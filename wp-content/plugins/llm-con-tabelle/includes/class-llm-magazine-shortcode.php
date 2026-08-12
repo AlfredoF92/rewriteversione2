@@ -335,10 +335,11 @@ class LLM_Magazine_Shortcode {
 		$thumb_id  = get_post_thumbnail_id( $story_id );
 		$thumb_url = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'medium_large' ) : '';
 
-		// Frasi: conta totale + prime 3 per anteprima.
+		// Frasi/versi: conta totale + prime 3 per anteprima.
+		$is_music        = ( 'horizontal' === $layout );
 		$all_phrases     = LLM_Story_Repository::get_phrases( $story_id );
 		$phrase_count    = count( $all_phrases );
-		$preview_phrases = 'horizontal' !== $layout ? array_slice( $all_phrases, 0, 3 ) : array();
+		$preview_phrases = array_slice( $all_phrases, 0, 3 );
 
 		if ( '' === trim( $card_text ) ) {
 			$card_text = has_excerpt( $story_id ) ? get_the_excerpt( $story_id ) : '';
@@ -399,7 +400,7 @@ class LLM_Magazine_Shortcode {
 						<h4 class="llm-magazine__card-title"><?php echo esc_html( $title_known ); ?></h4>
 					<?php endif; ?>
 
-					<?php if ( $card_text && 'horizontal' !== $layout ) : ?>
+					<?php if ( $card_text && ! $is_music ) : ?>
 						<p class="llm-magazine__card-intro"><?php echo esc_html( wp_strip_all_tags( $card_text ) ); ?></p>
 					<?php endif; ?>
 
@@ -419,7 +420,11 @@ class LLM_Magazine_Shortcode {
 					<?php if ( $phrase_count > 0 ) : ?>
 						<span class="llm-magazine__card-phrase-count">
 							<?php
-							$count_label = sprintf( _n( '%d frase', '%d frasi', $phrase_count, 'llm-con-tabelle' ), $phrase_count );
+							if ( $is_music ) {
+								$count_label = sprintf( _n( '%d verso', '%d versi', $phrase_count, 'llm-con-tabelle' ), $phrase_count );
+							} else {
+								$count_label = sprintf( _n( '%d frase', '%d frasi', $phrase_count, 'llm-con-tabelle' ), $phrase_count );
+							}
 							if ( $cefr_code ) {
 								$count_label .= ' ' . __( 'livello', 'llm-con-tabelle' ) . ' ' . strtoupper( $cefr_code );
 							}
