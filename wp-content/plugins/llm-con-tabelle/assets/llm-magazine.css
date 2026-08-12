@@ -104,7 +104,8 @@
 }
 
 .llm-magazine__card-level {
-	display: inline-block;
+	display: inline-flex;
+	align-items: center;
 	align-self: flex-start;
 	font-size: 0.65rem;
 	font-weight: 800;
@@ -115,18 +116,24 @@
 	background: #18181b;
 	border-radius: 4px;
 	padding: 0.2rem 0.45rem;
+	box-sizing: border-box;
+	min-height: 1.45em;
 }
 
 .llm-magazine__card-cat {
-	display: inline-block;
+	display: inline-flex;
+	align-items: center;
 	font-size: 0.65rem;
-	font-weight: 700;
-	letter-spacing: 0.04em;
+	font-weight: 800;
+	letter-spacing: 0.06em;
+	line-height: 1;
 	text-transform: uppercase;
 	color: #fff;
 	background: #18181b;
 	border-radius: 4px;
 	padding: 0.2rem 0.45rem;
+	box-sizing: border-box;
+	min-height: 1.45em;
 }
 
 /* Dopo .card-cat così i colori vincono anche sulle sottocategorie. */
