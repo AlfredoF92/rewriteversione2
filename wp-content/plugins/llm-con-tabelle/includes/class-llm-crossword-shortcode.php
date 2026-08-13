@@ -108,6 +108,7 @@ class LLM_Crossword_Shortcode {
 							title="<?php echo esc_attr( $i18n['reveal_letter'] ); ?>"
 						>
 							<span class="cw-mobile-clue__hint-emoji" aria-hidden="true">💡</span>
+							<span class="cw-mobile-clue__hint-label"><?php echo esc_html( $i18n['reveal_letter'] ); ?></span>
 						</button>
 						<div class="cw-mobile-clue__body">
 							<span class="cw-mobile-clue__meta" data-cw-mobile-clue-meta></span>

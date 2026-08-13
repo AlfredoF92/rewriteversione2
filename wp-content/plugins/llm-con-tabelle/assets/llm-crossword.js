@@ -673,7 +673,7 @@
 			if (entry) {
 				var next = entry.cells[entry.cells.indexOf(activeCell) + 1];
 				if (next) {
-					moveTo(next);
+					moveTo(next, { skipScroll: true });
 				}
 			}
 			persist();
