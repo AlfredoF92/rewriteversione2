@@ -191,6 +191,31 @@
 	}
 }
 
+.column-llm_mag_thumb {
+	width: 72px;
+}
+
+.llm-mag-col-thumb {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 60px;
+	height: 60px;
+}
+
+.llm-mag-col-thumb img {
+	width: 60px;
+	height: 60px;
+	object-fit: cover;
+	border-radius: 4px;
+	display: block;
+}
+
+.llm-mag-col-no-thumb {
+	color: #c3c4c7;
+	font-size: 18px;
+}
+
 .llm-mag-col-yes {
 	display: inline-block;
 	padding: 1px 8px;

@@ -35,15 +35,15 @@ class LLM_Magazine_Admin {
 		if ( ! self::is_magazine_screen() ) {
 			return;
 		}
-		if ( 'post.php' !== $hook && 'post-new.php' !== $hook ) {
-			return;
-		}
 		wp_enqueue_style(
 			'llm-magazine-admin',
 			LLM_TABELLE_URL . 'assets/llm-magazine-admin.css',
 			array(),
 			LLM_TABELLE_VERSION
 		);
+		if ( 'post.php' !== $hook && 'post-new.php' !== $hook ) {
+			return;
+		}
 		wp_enqueue_script(
 			'llm-magazine-admin',
 			LLM_TABELLE_URL . 'assets/llm-magazine-admin.js',
@@ -833,6 +833,11 @@ class LLM_Magazine_Admin {
 	public static function columns( $columns ) {
 		$out = array();
 		foreach ( $columns as $key => $label ) {
+			if ( 'cb' === $key ) {
+				$out[ $key ]           = $label;
+				$out['llm_mag_thumb']  = __( 'Anteprima', 'llm-con-tabelle' );
+				continue;
+			}
 			$out[ $key ] = $label;
 			if ( 'title' === $key ) {
 				$out['llm_mag_pair']      = __( 'Coppia', 'llm-con-tabelle' );
@@ -853,6 +858,17 @@ class LLM_Magazine_Admin {
 		$target = LLM_Magazine::get_target( $post_id );
 
 		switch ( $column ) {
+			case 'llm_mag_thumb':
+				$thumb_id  = (int) get_post_thumbnail_id( $post_id );
+				$thumb_url = $thumb_id ? wp_get_attachment_image_url( $thumb_id, array( 60, 60 ) ) : '';
+				echo '<div class="llm-mag-col-thumb">';
+				if ( $thumb_url ) {
+					echo '<img src="' . esc_url( $thumb_url ) . '" alt="" width="60" height="60" />';
+				} else {
+					echo '<span class="llm-mag-col-no-thumb">—</span>';
+				}
+				echo '</div>';
+				break;
 			case 'llm_mag_pair':
 				if ( $known && $target ) {
 					$fk = LLM_Languages::flag_emoji( $known );
