@@ -1307,6 +1307,18 @@
 	margin-top: 1.25rem;
 }
 
+.llm-phrase-game__divider--before-notes {
+	display: block !important;
+	width: 100% !important;
+	height: 0 !important;
+	margin: 0 0 0.75rem !important;
+	padding-top: 1.1rem !important;
+	border: none !important;
+	border-top: 1px solid #b8bcc0 !important;
+	background: none !important;
+	box-shadow: none !important;
+}
+
 /* Single-phase: appunti sopra Continua / Vai alla prossima frase */
 .llm-phrase-game--single-phase .llm-phrase-game__continue-block--1 > .llm-phrase-game__notes {
 	margin-top: 0;

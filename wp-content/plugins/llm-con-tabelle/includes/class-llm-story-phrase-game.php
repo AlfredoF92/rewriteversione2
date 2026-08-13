@@ -236,6 +236,7 @@ class LLM_Story_Phrase_Game {
 		<div class="llm-phrase-game__db-status" role="status" aria-live="polite" aria-atomic="true"></div>
 		<div class="llm-phrase-game__message-phase2 llm-phrase-game__message-solo" role="status" aria-live="polite"></div>
 			<div class="llm-phrase-game__notes" hidden>
+				<hr class="llm-phrase-game__divider llm-phrase-game__divider--before-notes" role="presentation" aria-hidden="true" />
 				<button type="button" class="llm-phrase-game__notes-toggle" aria-expanded="false" aria-controls="<?php echo esc_attr( $uid ); ?>-notes-panel">
 					<span class="llm-phrase-game__notes-toggle-emoji" aria-hidden="true">📝</span>
 					<span class="llm-phrase-game__notes-toggle-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'notes_toggle_show' ) ); ?></span>
