@@ -1036,66 +1036,47 @@
 }
 
 .llm-phrase-game__label-main,
-.llm-phrase-game__label-alt {
+.llm-phrase-game__label-notes {
 	margin: 1rem 0 0.35rem;
 	transition: opacity 0.35s ease;
 }
 
-.llm-phrase-game .llm-phrase-game__alt-toggle,
-.llm-phrase-game__alt-toggle {
-	-webkit-appearance: none;
-	appearance: none;
-	background: transparent !important;
-	background-color: transparent !important;
-	border: none !important;
-	border-radius: 0 !important;
-	box-shadow: none !important;
-	padding: 0 0 0 0.25em !important;
-	margin: 0;
-	min-height: 0;
-	min-width: 0;
-	width: auto;
-	height: auto;
-	cursor: pointer;
-	font: inherit;
-	color: inherit;
-	line-height: inherit;
-	vertical-align: baseline;
-	display: inline;
-	text-decoration: none;
+.llm-phrase-game__label-main:first-child,
+.llm-phrase-game__analysis > .llm-phrase-game__label-main {
+	margin-top: 0;
 }
 
-.llm-phrase-game .llm-phrase-game__alt-toggle:hover,
-.llm-phrase-game .llm-phrase-game__alt-toggle:focus,
-.llm-phrase-game .llm-phrase-game__alt-toggle:active,
-.llm-phrase-game__alt-toggle:hover,
-.llm-phrase-game__alt-toggle:focus,
-.llm-phrase-game__alt-toggle:active {
-	background: transparent !important;
-	background-color: transparent !important;
-	border: none !important;
-	box-shadow: none !important;
-	outline: none;
-	color: inherit;
+.llm-phrase-game__label-notes {
+	margin-top: 1.15rem;
 }
 
-.llm-phrase-game__alt-toggle-arrow {
-	font-size: 0.75em;
-	display: inline-block;
-	line-height: 1;
-	transition: transform 0.2s ease;
+.llm-phrase-game__label-alt {
+	margin: 1rem 0 0.35rem;
+	font-style: italic;
+	font-weight: 400;
+	font-size: 0.9em;
+	transition: opacity 0.35s ease;
 }
 
-.llm-phrase-game__alt-toggle[aria-expanded="true"] .llm-phrase-game__alt-toggle-arrow {
-	transform: rotate(180deg);
+.llm-phrase-game__label-alt em {
+	font-style: italic;
+	font-weight: 400;
 }
 
-.llm-phrase-game__target,
-.llm-phrase-game__alt {
+.llm-phrase-game__target {
 	margin: 0 0 0.65rem;
 	white-space: normal;
 	font-weight: 400;
 	line-height: 1.55;
+}
+
+.llm-phrase-game__alt {
+	margin: 0 0 0.65rem;
+	white-space: normal;
+	font-weight: 400;
+	line-height: 1.5;
+	font-size: 0.82em;
+	opacity: 0.95;
 }
 
 .llm-phrase-game__target p:first-child,

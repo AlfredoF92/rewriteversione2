@@ -252,7 +252,6 @@ class LLM_Story_Phrase_Game {
 						<p class="llm-phrase-game__your-phrase-text"></p>
 					</div>
 					<p class="llm-phrase-game__bravo"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'bravo_intro' ) ); ?></p>
-					<div class="llm-phrase-game__grammar"></div>
 					<p class="llm-phrase-game__label-main"><strong><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'label_main' ) ); ?></strong></p>
 					<div class="llm-phrase-game__target"></div>
 					<button type="button" class="llm-phrase-game__listen-target llm-phrase-game__peek-target" hidden aria-label="<?php echo esc_attr( LLM_Phrase_Game_I18n::get( 'peek_target_aria' ) ); ?>" title="<?php echo esc_attr( LLM_Phrase_Game_I18n::get( 'peek_target_aria' ) ); ?>">
@@ -261,12 +260,9 @@ class LLM_Story_Phrase_Game {
 						</span>
 						<span class="llm-phrase-game__listen-target-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'peek_target_label' ) ); ?></span>
 					</button>
-					<p class="llm-phrase-game__label-alt">
-						<strong><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'label_alt' ) ); ?></strong>
-						<button type="button" class="llm-phrase-game__alt-toggle" aria-expanded="false" aria-controls="<?php echo esc_attr( $uid ); ?>-alt-panel" aria-label="<?php echo esc_attr( LLM_Phrase_Game_I18n::get( 'alt_toggle_show' ) ); ?>" hidden>
-							<span class="llm-phrase-game__alt-toggle-arrow" aria-hidden="true">&#9660;</span>
-						</button>
-					</p>
+					<p class="llm-phrase-game__label-notes" hidden><strong><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'label_notes' ) ); ?></strong></p>
+					<div class="llm-phrase-game__grammar"></div>
+					<p class="llm-phrase-game__label-alt" hidden><em><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'label_alt' ) ); ?></em></p>
 					<div class="llm-phrase-game__alt" id="<?php echo esc_attr( $uid ); ?>-alt-panel" hidden></div>
 				</div>
 				<div class="llm-phrase-game__phase llm-phrase-game__phase--2" hidden>

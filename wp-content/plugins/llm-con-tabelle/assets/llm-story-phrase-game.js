@@ -538,8 +538,8 @@
 		var altShow = qs(root, '.llm-phrase-game__alt');
 		var bravoEl = qs(root, '.llm-phrase-game__bravo');
 		var labelMainEl = qs(root, '.llm-phrase-game__label-main');
+		var labelNotesEl = qs(root, '.llm-phrase-game__label-notes');
 		var labelAltEl = qs(root, '.llm-phrase-game__label-alt');
-		var altToggleBtn = qs(root, '.llm-phrase-game__alt-toggle');
 		var doneEl = qs(root, '.llm-phrase-game__done');
 		var cardEl = qs(root, '.llm-phrase-game__card');
 		var yourPhraseWrap = qs(root, '.llm-phrase-game__your-phrase-wrap');
@@ -1010,11 +1010,16 @@
 			targetShow.innerHTML = '';
 		}
 		resetTargetPeek();
-		resetAltAccordion();
+		resetAltNotes();
 		if (labelMainEl) {
 			labelMainEl.style.opacity = '0';
 		}
+		if (labelNotesEl) {
+			labelNotesEl.hidden = true;
+			labelNotesEl.style.opacity = '0';
+		}
 		if (labelAltEl) {
+			labelAltEl.hidden = true;
 			labelAltEl.style.opacity = '0';
 		}
 		if (promptRewrite) {
@@ -1421,36 +1426,18 @@
 		scheduleTargetAutoHide();
 	}
 
-	function resetAltAccordion() {
+	function resetAltNotes() {
 		if (altShow) {
 			altShow.innerHTML = '';
 			altShow.hidden = true;
 			altShow.style.opacity = '';
 			altShow.style.transition = '';
 		}
-		if (altToggleBtn) {
-			altToggleBtn.hidden = true;
-			altToggleBtn.setAttribute('aria-expanded', 'false');
-			altToggleBtn.setAttribute(
-				'aria-label',
-				i18n.altToggleShow || 'Mostra note di approfondimento'
-			);
+		if (labelAltEl) {
+			labelAltEl.hidden = true;
+			labelAltEl.style.opacity = '';
+			labelAltEl.style.transition = '';
 		}
-	}
-
-	function setAltExpanded(expanded) {
-		if (!altShow || !altToggleBtn) {
-			return;
-		}
-		var open = !!expanded;
-		altShow.hidden = !open;
-		altToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-		altToggleBtn.setAttribute(
-			'aria-label',
-			open
-				? (i18n.altToggleHide || 'Nascondi note di approfondimento')
-				: (i18n.altToggleShow || 'Mostra note di approfondimento')
-		);
 	}
 
 	/**
@@ -1544,8 +1531,29 @@
 			});
 		}
 
-		/* ── Grammatica → fade lento per paragrafo ──────────────────── */
+		/* ── Frase corretta → typewriter (sempre in alto negli appunti) ─ */
+		if (target) {
+			addStep(function () {
+				if (!alive()) { return; }
+				if (labelMainEl) { labelMainEl.style.opacity = '1'; }
+				return typewriterHtmlInto(targetShow, target, alive, TYPE_TICK_MS).then(function () {
+					if (!alive()) { return; }
+					startTargetPeekCycle();
+				});
+			});
+		} else if (labelMainEl && !isPlayInverted) {
+			labelMainEl.style.opacity = '1';
+		}
+
+		/* ── Grammatica → titolo Note: + fade lento per paragrafo ─────── */
 		if (grammar) {
+			addStep(function () {
+				if (!alive() || !labelNotesEl) { return; }
+				labelNotesEl.hidden = false;
+				labelNotesEl.style.opacity = '0';
+				labelNotesEl.style.transition = 'opacity 400ms ease';
+				return fadeReveal(labelNotesEl, 400);
+			}, FADE_GAP);
 			var blocks = splitGrammarBlocks(grammar);
 			blocks.forEach(function (blockHtml) {
 				addStep((function (bHtml) {
@@ -1562,36 +1570,23 @@
 			});
 		}
 
-		/* ── Frase corretta → typewriter ────────────────────────────── */
-		if (target) {
-			addStep(function () {
-				if (!alive()) { return; }
-				if (labelMainEl) { labelMainEl.style.opacity = '1'; }
-				return typewriterHtmlInto(targetShow, target, alive, TYPE_TICK_MS).then(function () {
-					if (!alive()) { return; }
-					startTargetPeekCycle();
-				});
-			});
-		} else if (labelMainEl && !isPlayInverted) {
-			labelMainEl.style.opacity = '1';
-		}
-
-		/* ── Alternativa → accordion chiuso ─────────────────────────── */
+		/* ── Alternativa → sempre visibile, tipografia ridotta ───────── */
 		if (alt) {
 			addStep(function () {
 				if (!alive()) { return; }
 				try { altShow.innerHTML = alt; } catch (e) { altShow.textContent = alt; }
-				setAltExpanded(false);
-				if (altToggleBtn) {
-					altToggleBtn.hidden = false;
-				}
+				altShow.hidden = false;
+				altShow.style.opacity = '0';
 				if (labelAltEl) {
+					labelAltEl.hidden = false;
+					labelAltEl.style.opacity = '0';
 					labelAltEl.style.transition = 'opacity 400ms ease';
-					labelAltEl.style.opacity = '1';
 				}
+				return Promise.all([
+					labelAltEl ? fadeReveal(labelAltEl, 400) : Promise.resolve(),
+					fadeReveal(altShow, FADE_DUR)
+				]);
 			});
-		} else if (labelAltEl) {
-			labelAltEl.style.opacity = '1';
 		}
 
 	return chain.then(function () {
@@ -2940,14 +2935,18 @@
 			targetShow.innerHTML = '';
 		}
 		resetTargetPeek();
-		if (altShow) {
-			resetAltAccordion();
-		}
+		resetAltNotes();
 		if (labelMainEl) {
 			labelMainEl.style.opacity = '';
 			labelMainEl.style.transition = '';
 		}
+		if (labelNotesEl) {
+			labelNotesEl.hidden = true;
+			labelNotesEl.style.opacity = '';
+			labelNotesEl.style.transition = '';
+		}
 		if (labelAltEl) {
+			labelAltEl.hidden = true;
 			labelAltEl.style.opacity = '';
 			labelAltEl.style.transition = '';
 		}
@@ -3190,12 +3189,6 @@
 	}
 	bindTextFieldEnter(input1);
 	bindTextFieldEnter(input2);
-
-	if (altToggleBtn) {
-		altToggleBtn.addEventListener('click', function () {
-			setAltExpanded(altToggleBtn.getAttribute('aria-expanded') !== 'true');
-		});
-	}
 
 	if (targetPeekBtn) {
 		targetPeekBtn.addEventListener('click', onTargetPeekButtonClick);
