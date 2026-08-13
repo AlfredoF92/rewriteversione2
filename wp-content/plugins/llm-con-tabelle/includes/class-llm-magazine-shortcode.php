@@ -167,14 +167,6 @@ class LLM_Magazine_Shortcode {
 		?>
 		<div class="llm-magazine llm-ui-scope" data-magazine-id="<?php echo esc_attr( (string) $mag_id ); ?>">
 			<header class="llm-magazine__header<?php echo $cover_url ? ' llm-magazine__header--has-cover' : ''; ?>">
-				<?php if ( $cover_url ) : ?>
-					<div
-						class="llm-magazine__cover"
-						style="background-image:url('<?php echo esc_url( $cover_url ); ?>');"
-						role="img"
-						aria-label="<?php echo esc_attr( sprintf( /* translators: %s: magazine title */ __( 'Copertina: %s', 'llm-con-tabelle' ), $title ) ); ?>"
-					></div>
-				<?php endif; ?>
 				<div class="llm-magazine__masthead">
 					<?php if ( $prev_url || $next_url ) : ?>
 						<nav class="llm-magazine__nav" aria-label="<?php esc_attr_e( 'Navigazione riviste', 'llm-con-tabelle' ); ?>">
@@ -248,6 +240,14 @@ class LLM_Magazine_Shortcode {
 						</p>
 					<?php endif; ?>
 				</div>
+				<?php if ( $cover_url ) : ?>
+					<div
+						class="llm-magazine__cover"
+						style="background-image:url('<?php echo esc_url( $cover_url ); ?>');"
+						role="img"
+						aria-label="<?php echo esc_attr( sprintf( /* translators: %s: magazine title */ __( 'Copertina: %s', 'llm-con-tabelle' ), $title ) ); ?>"
+					></div>
+				<?php endif; ?>
 			</header>
 
 			<?php if ( $crossword_id ) : ?>
