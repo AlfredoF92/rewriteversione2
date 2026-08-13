@@ -593,13 +593,16 @@
 			if (!width) {
 				return;
 			}
-			var available = width >= SIDE_BY_SIDE_WIDTH ? width - PANEL_RESERVE : width;
-			var size = Math.floor((available - 8) / cols);
-			if (size > MAX_CELL) {
-				size = MAX_CELL;
+			var isMobile = width < SIDE_BY_SIDE_WIDTH;
+			var available = isMobile ? width : width - PANEL_RESERVE;
+			var maxCell = isMobile ? 22 : MAX_CELL;
+			var minCell = isMobile ? 15 : MIN_CELL;
+			var size = Math.floor((available - (isMobile ? 4 : 8)) / cols);
+			if (size > maxCell) {
+				size = maxCell;
 			}
-			if (size < MIN_CELL) {
-				size = MIN_CELL;
+			if (size < minCell) {
+				size = minCell;
 			}
 			root.style.setProperty('--cw-cell-size', size + 'px');
 		}

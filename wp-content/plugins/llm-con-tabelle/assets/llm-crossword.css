@@ -256,31 +256,45 @@
 }
 
 @media (max-width: 782px) {
+	.llm-crossword {
+		--cw-cell-size: 18px;
+	}
+
 	.llm-crossword .cw-container {
-		gap: 0.9rem;
+		gap: 0.55rem;
+	}
+
+	.llm-crossword .cw-board {
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
 	}
 
 	.llm-crossword .cw-panel {
-		max-width: 100%;
-		min-width: 0;
-		flex-basis: 100%;
+		display: none !important;
 	}
 
-	.llm-crossword .cw-entrylist {
-		max-height: none;
+	.llm-crossword .cw-number {
+		font-size: 6px;
+		left: 0.5px;
+	}
+
+	.llm-crossword .cw-input {
+		font-size: calc(var(--cw-cell-size) * 0.52);
 	}
 
 	.llm-crossword .cw-mobile-clue {
 		display: flex;
 		align-items: flex-start;
-		gap: 0.65rem;
+		gap: 0.45rem;
 		width: 100%;
-		margin: 0 0 0.75rem;
-		padding: 0.7rem 0.75rem;
+		margin: 0 0 0.45rem;
+		padding: 0.45rem 0.5rem;
 		border: 1px solid #e2ddd4;
-		border-radius: 10px;
+		border-radius: 8px;
 		background: #fffdf6;
-		box-shadow: 0 4px 14px rgba(40, 32, 20, 0.08);
+		box-shadow: 0 2px 8px rgba(40, 32, 20, 0.06);
 	}
 
 	.llm-crossword .cw-mobile-clue--active {
@@ -296,15 +310,15 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: 0.12rem;
+		gap: 0.08rem;
 		width: auto;
-		min-width: 2.55rem;
-		max-width: 3.6rem;
+		min-width: 2.2rem;
+		max-width: 3.1rem;
 		height: auto;
 		margin: 0;
-		padding: 0.28rem 0.2rem 0.3rem;
-		border: 1.5px solid #d4a017;
-		border-radius: 10px;
+		padding: 0.2rem 0.15rem 0.22rem;
+		border: 1px solid #d4a017;
+		border-radius: 8px;
 		background: #fff4c2;
 		color: #7a5a00;
 		box-shadow: 0 1px 0 #d4a017;
@@ -325,15 +339,15 @@
 	}
 
 	.llm-crossword .cw-mobile-clue__hint-emoji {
-		font-size: 1.1rem;
+		font-size: 0.95rem;
 		line-height: 1;
 	}
 
 	.llm-crossword .cw-mobile-clue__hint-label {
 		display: block;
-		font-size: 0.55rem;
+		font-size: 0.48rem;
 		font-weight: 700;
-		line-height: 1.1;
+		line-height: 1.05;
 		letter-spacing: 0.01em;
 		color: #7a5a00;
 		white-space: normal;
@@ -346,8 +360,8 @@
 
 	.llm-crossword .cw-mobile-clue__meta {
 		display: block;
-		margin: 0 0 0.2rem;
-		font-size: 0.72rem;
+		margin: 0 0 0.12rem;
+		font-size: 0.62rem;
 		font-weight: 700;
 		letter-spacing: 0.03em;
 		text-transform: uppercase;
@@ -355,19 +369,38 @@
 	}
 
 	.llm-crossword .cw-mobile-clue__text {
-		font-size: 0.92rem;
-		line-height: 1.4;
+		font-size: 0.8rem;
+		line-height: 1.3;
 		font-weight: 600;
 		color: #1f1f1c;
 	}
 
 	.llm-crossword .cw-mobile-clue__text .cw-def-pos {
-		font-size: 0.7rem;
+		font-size: 0.62rem;
 		vertical-align: middle;
 	}
 
 	.llm-crossword .cw-reveal-wrap {
 		display: none;
+	}
+
+	.llm-crossword .cw-controls {
+		margin-top: 0.35rem;
+		gap: 5px;
+		justify-content: center;
+		width: 100%;
+	}
+
+	.llm-crossword .cw-controls .cw-btn {
+		font-size: 0.68rem;
+		padding: 0.28rem 0.55rem;
+	}
+
+	.llm-crossword .cw-status {
+		font-size: 11px;
+		margin-top: 4px;
+		text-align: center;
+		width: 100%;
 	}
 }
 
