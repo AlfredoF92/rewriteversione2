@@ -81,6 +81,10 @@
 		var checkBtn = root.querySelector('[data-cw-check]');
 		var restartBtn = root.querySelector('[data-cw-restart]');
 		var revealBtn = root.querySelector('[data-cw-reveal]');
+		var revealBtnMobile = root.querySelector('[data-cw-reveal-mobile]');
+		var mobileClueEl = root.querySelector('[data-cw-mobile-clue]');
+		var mobileClueMeta = root.querySelector('[data-cw-mobile-clue-meta]');
+		var mobileClueText = root.querySelector('[data-cw-mobile-clue-text]');
 		if (!gridEl || !clueListEl) {
 			return;
 		}
@@ -212,13 +216,16 @@
 			inputs.forEach(attachCellListeners);
 		}
 
-		function clearHighlight() {
+		function clearHighlight(keepMobileClue) {
 			inputs.forEach(function (input) {
 				input.classList.remove('cw-highlight', 'cw-active-cell');
 			});
 			clueListEl.querySelectorAll('.cw-clue-active').forEach(function (el) {
 				el.classList.remove('cw-clue-active');
 			});
+			if (!keepMobileClue) {
+				updateMobileClue(null);
+			}
 		}
 
 		function clearCheckColors() {
@@ -227,8 +234,33 @@
 			});
 		}
 
+		function updateMobileClue(entry) {
+			if (!mobileClueEl) {
+				return;
+			}
+			mobileClueEl.hidden = false;
+			if (!entry) {
+				if (mobileClueMeta) {
+					mobileClueMeta.textContent = '';
+				}
+				if (mobileClueText) {
+					mobileClueText.textContent = t('mobile_clue_empty') || t('start_hint');
+				}
+				mobileClueEl.classList.remove('cw-mobile-clue--active');
+				return;
+			}
+			var dirLabel = entry.direction === 'across' ? t('across') : t('down');
+			if (mobileClueMeta) {
+				mobileClueMeta.textContent = entry.number + ' · ' + dirLabel;
+			}
+			if (mobileClueText) {
+				mobileClueText.innerHTML = clueText(entry);
+			}
+			mobileClueEl.classList.add('cw-mobile-clue--active');
+		}
+
 		function highlightWord(input, direction) {
-			clearHighlight();
+			clearHighlight(true);
 			var entry = direction === 'across' ? input._acrossEntry : input._downEntry;
 			if (entry) {
 				entry.cells.forEach(function (cell) {
@@ -238,8 +270,10 @@
 			input.classList.add('cw-active-cell');
 
 			if (!entry) {
+				updateMobileClue(null);
 				return;
 			}
+			updateMobileClue(entry);
 			var clueEl = clueListEl.querySelector(
 				'[data-number="' + entry.number + '"][data-direction="' + entry.direction + '"]'
 			);
@@ -667,6 +701,7 @@
 		renderClues();
 		syncCellSize();
 		watchResize();
+		updateMobileClue(null);
 		setStatus(restore() ? t('resumed') : t('start_hint'));
 
 		if (checkBtn) {
@@ -677,6 +712,15 @@
 		}
 		if (revealBtn) {
 			revealBtn.addEventListener('click', revealLetter);
+		}
+		if (revealBtnMobile) {
+			revealBtnMobile.addEventListener('mousedown', function (e) {
+				e.preventDefault();
+			});
+			revealBtnMobile.addEventListener('click', function (e) {
+				e.preventDefault();
+				revealLetter();
+			});
 		}
 	}
 

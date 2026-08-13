@@ -99,6 +99,21 @@ class LLM_Crossword_Shortcode {
 			<script type="application/json" class="llm-crossword__config"><?php echo wp_json_encode( $config ); ?></script>
 			<div class="cw-container">
 				<div class="cw-board">
+					<div class="cw-mobile-clue" data-cw-mobile-clue hidden>
+						<button
+							type="button"
+							class="cw-mobile-clue__hint"
+							data-cw-reveal-mobile
+							aria-label="<?php echo esc_attr( $i18n['reveal_letter'] ); ?>"
+							title="<?php echo esc_attr( $i18n['reveal_letter'] ); ?>"
+						>
+							<span class="cw-mobile-clue__hint-emoji" aria-hidden="true">💡</span>
+						</button>
+						<div class="cw-mobile-clue__body">
+							<span class="cw-mobile-clue__meta" data-cw-mobile-clue-meta></span>
+							<div class="cw-mobile-clue__text" data-cw-mobile-clue-text></div>
+						</div>
+					</div>
 					<div class="cw-grid" data-cw-grid></div>
 					<div class="cw-reveal-wrap">
 						<button type="button" class="llm-ui-btn llm-ui-btn--primary cw-reveal" data-cw-reveal>
