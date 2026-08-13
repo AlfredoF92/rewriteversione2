@@ -1314,11 +1314,88 @@
 	width: 100%;
 	display: flex;
 	flex-direction: column;
-	align-items: center;
+	align-items: flex-start;
 }
 
 .llm-phrase-game--single-phase .llm-phrase-game__notes-panel {
 	width: 100%;
+}
+
+.llm-phrase-game .llm-phrase-game__notes-toggle,
+.llm-phrase-game__notes-toggle {
+	-webkit-appearance: none;
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 0.55rem;
+	align-self: flex-start;
+	width: auto;
+	max-width: 100%;
+	margin: 0;
+	padding: 0.7rem 1.05rem;
+	border: 2px solid #2f5d8c !important;
+	border-radius: 10px !important;
+	background: #eef5fc !important;
+	color: #1a3f66 !important;
+	box-shadow: 0 2px 0 #2f5d8c !important;
+	cursor: pointer;
+	font-family: inherit;
+	font-size: 1rem;
+	font-weight: 700;
+	line-height: 1.25;
+	text-align: left;
+	text-decoration: none !important;
+	transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.llm-phrase-game .llm-phrase-game__notes-toggle:hover,
+.llm-phrase-game .llm-phrase-game__notes-toggle:focus-visible,
+.llm-phrase-game__notes-toggle:hover,
+.llm-phrase-game__notes-toggle:focus-visible {
+	background: #dceaf8 !important;
+	color: #123352 !important;
+	outline: none;
+	transform: translateY(-1px);
+	box-shadow: 0 3px 0 #2f5d8c !important;
+}
+
+.llm-phrase-game .llm-phrase-game__notes-toggle:active,
+.llm-phrase-game__notes-toggle:active {
+	transform: translateY(1px);
+	box-shadow: 0 1px 0 #2f5d8c !important;
+}
+
+.llm-phrase-game__notes-toggle-emoji {
+	flex: 0 0 auto;
+	font-size: 1.25rem;
+	line-height: 1;
+}
+
+.llm-phrase-game__notes-toggle-text {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.llm-phrase-game__notes-toggle-arrow {
+	flex: 0 0 auto;
+	display: inline-block;
+	font-size: 1.35rem;
+	font-weight: 700;
+	line-height: 1;
+	color: #c0392b;
+	transform: translateX(0);
+	transition: transform 0.2s ease;
+}
+
+.llm-phrase-game__notes-toggle[aria-expanded="true"] .llm-phrase-game__notes-toggle-arrow {
+	transform: rotate(90deg);
+	color: #1a3f66;
+}
+
+.llm-phrase-game__notes-toggle[aria-expanded="true"] {
+	background: #e4edf6 !important;
+	border-color: #3d6f9c !important;
 }
 
 .llm-phrase-game__notes-panel[hidden] {

@@ -551,7 +551,7 @@
 		var phase2RecapCounter   = qs(root, '.llm-phrase-game__phase2-recap__counter');
 	var phase2RecapIface     = qs(root, '.llm-phrase-game__phase2-recap__interface');
 	var phase2RecapPrompt    = qs(root, '.llm-phrase-game__phase2-recap__prompt');
-	var listenTargetBtn      = qs(root, '.llm-phrase-game__listen-target:not(.llm-phrase-game__listen-target--phase2):not(.llm-phrase-game__peek-target):not(.llm-phrase-game__notes-toggle):not(.llm-phrase-game__random-words-toggle)');
+	var listenTargetBtn      = qs(root, '.llm-phrase-game__listen-target:not(.llm-phrase-game__listen-target--phase2):not(.llm-phrase-game__peek-target):not(.llm-phrase-game__random-words-toggle)');
 		var listenTargetBtnPhase2 = qs(root, '.llm-phrase-game__listen-target--phase2');
 		var composePhase1 = qs(root, '.llm-phrase-game__compose--phase1');
 		var composePhase2 = qs(root, '.llm-phrase-game__compose--phase2');

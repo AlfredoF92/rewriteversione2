@@ -236,11 +236,10 @@ class LLM_Story_Phrase_Game {
 		<div class="llm-phrase-game__db-status" role="status" aria-live="polite" aria-atomic="true"></div>
 		<div class="llm-phrase-game__message-phase2 llm-phrase-game__message-solo" role="status" aria-live="polite"></div>
 			<div class="llm-phrase-game__notes" hidden>
-				<button type="button" class="llm-phrase-game__listen-target llm-phrase-game__notes-toggle" aria-expanded="false" aria-controls="<?php echo esc_attr( $uid ); ?>-notes-panel">
-					<span class="llm-phrase-game__listen-target-icon" aria-hidden="true">
-						<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M18 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM8 6h8v2H8V6zm0 4h8v2H8v-2zm0 4h5v2H8v-2z"/></svg>
-					</span>
-					<span class="llm-phrase-game__listen-target-text llm-phrase-game__notes-toggle-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'notes_toggle_show' ) ); ?></span>
+				<button type="button" class="llm-phrase-game__notes-toggle" aria-expanded="false" aria-controls="<?php echo esc_attr( $uid ); ?>-notes-panel">
+					<span class="llm-phrase-game__notes-toggle-emoji" aria-hidden="true">📝</span>
+					<span class="llm-phrase-game__notes-toggle-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'notes_toggle_show' ) ); ?></span>
+					<span class="llm-phrase-game__notes-toggle-arrow" aria-hidden="true">➜</span>
 				</button>
 				<div class="llm-phrase-game__notes-panel" id="<?php echo esc_attr( $uid ); ?>-notes-panel" hidden></div>
 			</div>
