@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LLM_TABELLE_VERSION', '2.2.169' );
+define( 'LLM_TABELLE_VERSION', '2.2.170' );
 define( 'LLM_TABELLE_FILE', __FILE__ );
 define( 'LLM_TABELLE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LLM_TABELLE_URL', plugin_dir_url( __FILE__ ) );
@@ -39,6 +39,7 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-crossword-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-magazine.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-magazine-admin.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-magazine-shortcode.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-magazine-index-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-quiz.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-quiz-admin.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-idiom.php';
@@ -127,6 +128,7 @@ function llm_tabelle_boot() {
 	LLM_Magazine::init();
 	LLM_Magazine_Admin::init();
 	LLM_Magazine_Shortcode::init();
+	LLM_Magazine_Index_Shortcode::init();
 	LLM_Quiz::init();
 	LLM_Quiz_Admin::init();
 	LLM_Idiom::init();
