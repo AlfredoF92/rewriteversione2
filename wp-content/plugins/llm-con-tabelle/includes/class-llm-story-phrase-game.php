@@ -181,23 +181,29 @@ class LLM_Story_Phrase_Game {
 			<div class="llm-phrase-game__card">
 				<div class="llm-phrase-game__progress"></div>
 				<div class="llm-phrase-game__phase llm-phrase-game__phase--1">
-					<div class="llm-phrase-game__interface-row">
-						<span class="llm-phrase-game__lang-flag llm-phrase-game__lang-flag--source" aria-hidden="true"></span>
-						<div class="llm-phrase-game__interface"></div>
+					<div class="llm-phrase-game__sticky-translate">
+						<div class="llm-phrase-game__interface-row">
+							<span class="llm-phrase-game__lang-flag llm-phrase-game__lang-flag--source" aria-hidden="true"></span>
+							<div class="llm-phrase-game__interface"></div>
+						</div>
+						<p class="llm-phrase-game__prompt llm-phrase-game__prompt--translate">
+							<span class="llm-phrase-game__prompt-text"></span>
+						</p>
+						<label class="screen-reader-text" for="<?php echo esc_attr( $uid ); ?>-input1"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'sr_your_translation' ) ); ?></label>
+						<div class="llm-phrase-game__compose llm-phrase-game__compose--phase1">
+							<div class="llm-phrase-game__input-block llm-phrase-game__input-block--sticky">
+								<div class="llm-phrase-game__input-shell">
+									<span class="llm-phrase-game__lang-flag llm-phrase-game__lang-flag--write" aria-hidden="true"></span>
+									<input type="text" id="<?php echo esc_attr( $uid ); ?>-input1" class="llm-phrase-game__input llm-phrase-game__input--1" autocomplete="off" />
+								</div>
+								<div class="llm-phrase-game__clear-wrap llm-phrase-game__clear-wrap--1 llm-phrase-game__action-fade" hidden>
+									<?php echo self::render_clear_input_button( '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+								</div>
+							</div>
+						</div>
 					</div>
-					<p class="llm-phrase-game__prompt llm-phrase-game__prompt--translate">
-						<span class="llm-phrase-game__prompt-text"></span>
-					</p>
-					<label class="screen-reader-text" for="<?php echo esc_attr( $uid ); ?>-input1"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'sr_your_translation' ) ); ?></label>
-					<div class="llm-phrase-game__compose llm-phrase-game__compose--phase1">
-						<div class="llm-phrase-game__input-block">
-							<div class="llm-phrase-game__input-shell">
-								<span class="llm-phrase-game__lang-flag llm-phrase-game__lang-flag--write" aria-hidden="true"></span>
-								<input type="text" id="<?php echo esc_attr( $uid ); ?>-input1" class="llm-phrase-game__input llm-phrase-game__input--1" autocomplete="off" />
-							</div>
-							<div class="llm-phrase-game__clear-wrap llm-phrase-game__clear-wrap--1 llm-phrase-game__action-fade" hidden>
-								<?php echo self::render_clear_input_button( '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
-							</div>
+					<div class="llm-phrase-game__phase1-tools">
+						<div class="llm-phrase-game__input-block llm-phrase-game__input-block--tools">
 							<button type="button" class="llm-phrase-game__mic llm-phrase-game__mic--1" aria-label="<?php echo esc_attr( LLM_Phrase_Game_I18n::get( 'sr_mic' ) . ' ' . $mic_btn_text ); ?>">
 								<span class="llm-phrase-game__mic-icon" aria-hidden="true">&#127908;</span>
 								<span class="llm-phrase-game__mic-text"><?php echo esc_html( $mic_btn_text ); ?></span>

@@ -555,6 +555,7 @@
 		var listenTargetBtnPhase2 = qs(root, '.llm-phrase-game__listen-target--phase2');
 		var composePhase1 = qs(root, '.llm-phrase-game__compose--phase1');
 		var composePhase2 = qs(root, '.llm-phrase-game__compose--phase2');
+		var phase1Tools = qs(root, '.llm-phrase-game__phase1-tools');
 	var feedbackEl      = qs(root, '.llm-phrase-game__phase1-feedback');
 	var loadingNotesEl  = qs(root, '.llm-phrase-game__loading-notes');
 	var dbStatusEl      = qs(root, '.llm-phrase-game__db-status');
@@ -772,6 +773,9 @@
 				return;
 			}
 			el.classList.toggle('llm-phrase-game__compose--visible', !!visible);
+			if (phaseNum === 1 && phase1Tools) {
+				phase1Tools.classList.toggle('llm-phrase-game__phase1-tools--visible', !!visible);
+			}
 			if (phaseNum === 2 && visible) {
 				showPhase2RewritePrompt();
 			}

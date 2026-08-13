@@ -185,12 +185,42 @@
 	display: none;
 }
 
+.llm-phrase-game--phase2-active .llm-phrase-game__phase1-tools {
+	display: none;
+}
+
 .llm-phrase-game--phase2-active .llm-phrase-game__prompt--translate {
 	display: none !important;
 }
 
 .llm-phrase-game__phase2-recap__prompt {
 	display: none !important;
+}
+
+.llm-phrase-game__sticky-translate {
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+}
+
+.llm-phrase-game__phase1-tools {
+	opacity: 0;
+	visibility: hidden;
+	transition: opacity 0.55s ease, visibility 0.55s ease;
+}
+
+.llm-phrase-game__phase1-tools--visible {
+	opacity: 1;
+	visibility: visible;
+}
+
+.llm-phrase-game__input-block--sticky {
+	margin-bottom: 0;
+	gap: 0.45rem;
+}
+
+.llm-phrase-game__input-block--tools {
+	margin-top: 0.75rem;
 }
 
 .llm-phrase-game__interface-row {
@@ -200,7 +230,8 @@
 	margin-bottom: 1.1rem;
 }
 
-.llm-phrase-game__phase--1 > .llm-phrase-game__interface-row {
+.llm-phrase-game__phase--1 > .llm-phrase-game__interface-row,
+.llm-phrase-game__sticky-translate > .llm-phrase-game__interface-row {
 	margin-bottom: 0.85rem;
 	padding-bottom: 0.85rem;
 	border-bottom: 1px solid #e2e2e4;
@@ -1959,3 +1990,44 @@
 	cursor: not-allowed;
 	pointer-events: none;
 }
+
+/* Mobile: frase sorgente + campo traduzione sticky in alto fino a Continua */
+@media (max-width: 782px) {
+	.llm-phrase-game__phase--1 {
+		overflow: visible;
+	}
+
+	.llm-phrase-game__sticky-translate {
+		position: sticky;
+		top: 0;
+		z-index: 60;
+		padding: 0.55rem 0 0.7rem;
+		margin: 0;
+		background: #fff;
+		box-shadow: 0 8px 18px rgba(20, 20, 24, 0.08);
+	}
+
+	.llm-phrase-game__sticky-translate > .llm-phrase-game__interface-row {
+		margin-bottom: 0.65rem;
+		padding-bottom: 0.65rem;
+	}
+
+	.llm-phrase-game__sticky-translate .llm-phrase-game__compose--phase1 {
+		margin-top: 0;
+	}
+
+	.llm-phrase-game__sticky-translate .llm-phrase-game__input-shell {
+		background: #f6f7f7;
+	}
+
+	body.admin-bar .llm-phrase-game__sticky-translate {
+		top: 46px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.llm-phrase-game__phase1-tools {
+		transition-duration: 0.01ms;
+	}
+}
+
