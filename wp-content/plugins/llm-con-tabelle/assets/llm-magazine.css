@@ -96,11 +96,33 @@
 
 .llm-magazine__title {
 	margin: 0;
-	font-size: clamp(1.85rem, 4vw, 2.6rem);
+	font-size: clamp(1.85rem, 4vw, 2.55rem);
 	font-weight: 800;
 	line-height: 1.15;
 	color: #1a1a18;
 	letter-spacing: -0.02em;
+}
+
+.llm-magazine__title-edition {
+	color: #1a1a18;
+}
+
+.llm-magazine__title-sep {
+	color: #9a9a95;
+	font-weight: 500;
+}
+
+.llm-magazine__title-date {
+	font-weight: 700;
+	color: #2c2c2a;
+}
+
+.llm-magazine__subtitle {
+	margin: 0.15rem 0 0;
+	font-size: clamp(1.05rem, 2.2vw, 1.25rem);
+	font-weight: 500;
+	line-height: 1.35;
+	color: #5a5a55;
 }
 
 .llm-magazine__date {

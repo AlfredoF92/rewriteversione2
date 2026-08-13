@@ -204,38 +204,26 @@ class LLM_Magazine_Shortcode {
 						</nav>
 					<?php endif; ?>
 
-					<?php if ( $nav['issue'] > 0 ) : ?>
-						<p class="llm-magazine__issue">
-							<?php
-							echo esc_html(
-								sprintf(
-									/* translators: 1: issue number, 2: total issues */
-									__( 'Numero %1$d', 'llm-con-tabelle' ),
-									$nav['issue']
-								)
-							);
-							if ( $nav['total'] > 1 ) {
-								echo ' · ' . esc_html(
-									sprintf(
-										/* translators: %d: total magazines in this language pair */
-										__( 'di %d', 'llm-con-tabelle' ),
-										$nav['total']
-									)
-								);
-							}
-							?>
-						</p>
+					<?php
+					$issue_num = ! empty( $nav['issue'] ) ? (int) $nav['issue'] : 0;
+					?>
+
+					<?php if ( $issue_num > 0 || $date_label ) : ?>
+						<h1 class="llm-magazine__title">
+							<?php if ( $issue_num > 0 ) : ?>
+								<span class="llm-magazine__title-edition"><?php echo esc_html( sprintf( __( 'Edizione #%s', 'llm-con-tabelle' ), sprintf( '%02d', $issue_num ) ) ); ?></span>
+								<?php if ( $date_label ) : ?>
+									<span class="llm-magazine__title-sep" aria-hidden="true"> — </span>
+									<time class="llm-magazine__title-date" datetime="<?php echo esc_attr( $date ); ?>"><?php echo esc_html( $date_label ); ?></time>
+								<?php endif; ?>
+							<?php else : ?>
+								<time class="llm-magazine__title-date" datetime="<?php echo esc_attr( $date ); ?>"><?php echo esc_html( $date_label ); ?></time>
+							<?php endif; ?>
+						</h1>
 					<?php endif; ?>
 
 					<?php if ( $title ) : ?>
-						<h1 class="llm-magazine__title"><?php echo esc_html( $title ); ?></h1>
-					<?php endif; ?>
-
-					<?php if ( $date_label ) : ?>
-						<p class="llm-magazine__date">
-							<span class="llm-magazine__date-label"><?php esc_html_e( 'Pubblicata il', 'llm-con-tabelle' ); ?></span>
-							<time datetime="<?php echo esc_attr( $date ); ?>"><?php echo esc_html( $date_label ); ?></time>
-						</p>
+						<p class="llm-magazine__subtitle"><?php echo esc_html( $title ); ?></p>
 					<?php endif; ?>
 
 					<?php if ( $known && $target ) : ?>
