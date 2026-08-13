@@ -1991,25 +1991,52 @@
 	pointer-events: none;
 }
 
-/* Mobile: frase sorgente + campo traduzione sticky in alto fino a Continua */
+/* Mobile: frase sorgente + campo traduzione fissi sotto l’header fino a Continua */
 @media (max-width: 782px) {
+	.llm-phrase-game,
+	.llm-phrase-game__card,
 	.llm-phrase-game__phase--1 {
-		overflow: visible;
+		overflow: visible !important;
+		transform: none !important;
+		filter: none !important;
+		perspective: none !important;
+	}
+
+	.llm-phrase-game__sticky-placeholder {
+		display: none;
+		width: 100%;
+		pointer-events: none;
+	}
+
+	.llm-phrase-game__sticky-placeholder.is-active {
+		display: block;
 	}
 
 	.llm-phrase-game__sticky-translate {
-		position: sticky;
-		top: 0;
+		position: relative;
 		z-index: 60;
-		padding: 0.55rem 0 0.7rem;
+		padding: 0.45rem 0.55rem 0.55rem;
 		margin: 0;
 		background: #fff;
-		box-shadow: 0 8px 18px rgba(20, 20, 24, 0.08);
+		border-radius: 0 0 10px 10px;
+		box-shadow: none;
+	}
+
+	.llm-phrase-game__sticky-translate.is-pinned {
+		position: fixed;
+		right: auto;
+		z-index: 1200;
+		box-shadow: 0 10px 22px rgba(20, 20, 24, 0.12);
 	}
 
 	.llm-phrase-game__sticky-translate > .llm-phrase-game__interface-row {
-		margin-bottom: 0.65rem;
-		padding-bottom: 0.65rem;
+		margin-bottom: 0.5rem;
+		padding-bottom: 0.5rem;
+	}
+
+	.llm-phrase-game__sticky-translate .llm-phrase-game__interface {
+		font-size: 0.98rem;
+		line-height: 1.35;
 	}
 
 	.llm-phrase-game__sticky-translate .llm-phrase-game__compose--phase1 {
@@ -2020,8 +2047,8 @@
 		background: #f6f7f7;
 	}
 
-	body.admin-bar .llm-phrase-game__sticky-translate {
-		top: 46px;
+	.llm-phrase-game__sticky-translate .llm-phrase-game__prompt--translate:not(.llm-phrase-game__prompt--has-text) {
+		display: none;
 	}
 }
 

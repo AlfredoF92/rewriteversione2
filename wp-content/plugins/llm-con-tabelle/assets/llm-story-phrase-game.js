@@ -668,12 +668,14 @@
 		}
 
 		function setTranslatePromptText(text) {
+			var value = text || '';
 			if (promptTransText) {
-				promptTransText.textContent = text || '';
-				return;
+				promptTransText.textContent = value;
+			} else if (promptTrans) {
+				promptTrans.textContent = value;
 			}
 			if (promptTrans) {
-				promptTrans.textContent = text || '';
+				promptTrans.classList.toggle('llm-phrase-game__prompt--has-text', value !== '');
 			}
 		}
 
@@ -3774,6 +3776,125 @@
 			});
 		});
 	}
+
+	(function initMobileStickyTranslate() {
+		var stickyEl = qs(root, '.llm-phrase-game__sticky-translate');
+		var phaseEl = qs(root, '.llm-phrase-game__phase--1');
+		if (!stickyEl || !phaseEl || !stickyEl.parentNode) {
+			return;
+		}
+
+		var placeholder = document.createElement('div');
+		placeholder.className = 'llm-phrase-game__sticky-placeholder';
+		placeholder.setAttribute('aria-hidden', 'true');
+		stickyEl.parentNode.insertBefore(placeholder, stickyEl);
+
+		var pinned = false;
+		var raf = 0;
+
+		function isMobile() {
+			return window.matchMedia('(max-width: 782px)').matches;
+		}
+
+		function headerOffset() {
+			var offset = 0;
+			if (document.body.classList.contains('admin-bar')) {
+				offset = window.innerWidth <= 782 ? 46 : 32;
+			}
+			var nodes = document.querySelectorAll(
+				'.elementor-location-header, .elementor-sticky--active, header[data-sticky], .site-header, #masthead'
+			);
+			for (var i = 0; i < nodes.length; i++) {
+				var el = nodes[i];
+				var style = window.getComputedStyle(el);
+				var pos = style.position;
+				var active = el.classList.contains('elementor-sticky--active') || pos === 'fixed' || pos === 'sticky';
+				if (!active) {
+					continue;
+				}
+				var rect = el.getBoundingClientRect();
+				if (rect.height < 8 || rect.bottom <= 0 || rect.top > 160) {
+					continue;
+				}
+				offset = Math.max(offset, Math.round(rect.bottom));
+			}
+			return offset;
+		}
+
+		function unpin() {
+			if (!pinned) {
+				return;
+			}
+			pinned = false;
+			stickyEl.classList.remove('is-pinned');
+			stickyEl.style.top = '';
+			stickyEl.style.left = '';
+			stickyEl.style.width = '';
+			placeholder.classList.remove('is-active');
+			placeholder.style.height = '';
+		}
+
+		function pin(topOff, width, left) {
+			if (!pinned) {
+				placeholder.style.height = stickyEl.offsetHeight + 'px';
+				placeholder.classList.add('is-active');
+				stickyEl.classList.add('is-pinned');
+				pinned = true;
+			} else {
+				placeholder.style.height = stickyEl.offsetHeight + 'px';
+			}
+			stickyEl.style.top = topOff + 'px';
+			stickyEl.style.width = Math.max(0, width) + 'px';
+			stickyEl.style.left = left + 'px';
+		}
+
+		function update() {
+			raf = 0;
+			if (!isMobile() || root.classList.contains('llm-phrase-game--phase2-active') || phaseEl.hidden) {
+				unpin();
+				return;
+			}
+
+			var topOff = headerOffset();
+			var ref = pinned ? placeholder : stickyEl;
+			var refRect = ref.getBoundingClientRect();
+			var phaseRect = phaseEl.getBoundingClientRect();
+			var stickyH = stickyEl.offsetHeight;
+			var width = refRect.width;
+			var left = refRect.left;
+
+			if (phaseRect.bottom <= topOff + stickyH + 12) {
+				if (phaseRect.bottom <= topOff + 24) {
+					unpin();
+					return;
+				}
+				pin(Math.max(topOff, phaseRect.bottom - stickyH), width, left);
+				return;
+			}
+
+			if (refRect.top <= topOff + 1) {
+				pin(topOff, width, left);
+			} else {
+				unpin();
+			}
+		}
+
+		function schedule() {
+			if (raf) {
+				return;
+			}
+			raf = window.requestAnimationFrame(update);
+		}
+
+		window.addEventListener('scroll', schedule, { passive: true });
+		window.addEventListener('resize', schedule);
+		window.addEventListener('orientationchange', schedule);
+		if (window.visualViewport) {
+			window.visualViewport.addEventListener('resize', schedule);
+			window.visualViewport.addEventListener('scroll', schedule);
+		}
+		schedule();
+	})();
 
 	var startResume =
 		!isSinglePhase &&
