@@ -259,7 +259,8 @@
 			mobileClueEl.classList.add('cw-mobile-clue--active');
 		}
 
-		function highlightWord(input, direction) {
+		function highlightWord(input, direction, opts) {
+			opts = opts || {};
 			clearHighlight(true);
 			var entry = direction === 'across' ? input._acrossEntry : input._downEntry;
 			if (entry) {
@@ -279,7 +280,11 @@
 			);
 			if (clueEl) {
 				clueEl.classList.add('cw-clue-active');
-				clueEl.scrollIntoView({ block: 'nearest' });
+				/* Su mobile la definizione e' gia' sopra: non scrollare alla lista sotto. */
+				var isMobile = window.matchMedia('(max-width: 782px)').matches;
+				if (!opts.skipScroll && !isMobile) {
+					clueEl.scrollIntoView({ block: 'nearest' });
+				}
 			}
 		}
 
@@ -317,10 +322,10 @@
 			highlightWord(input, direction);
 		}
 
-		function moveTo(cell) {
+		function moveTo(cell, opts) {
 			activeCell = cell;
-			highlightWord(cell, activeDirection);
-			cell.focus();
+			highlightWord(cell, activeDirection, opts);
+			cell.focus({ preventScroll: true });
 		}
 
 		/**
