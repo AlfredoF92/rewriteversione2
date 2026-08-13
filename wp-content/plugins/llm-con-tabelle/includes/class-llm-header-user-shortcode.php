@@ -133,8 +133,10 @@ class LLM_Header_User_Shortcode {
 				. '<a class="llm-header-user__login" href="%1$s">'
 				. '%4$s'
 				. '<span class="llm-header-user__icon">%3$s</span>'
+				. '<span class="llm-header-user__copy">'
 				. '<span class="llm-header-user__text" data-llm-header-user-text>%2$s</span>'
 				. '<span class="llm-header-user__browser-tag" data-llm-header-user-browser-tag hidden>%5$s</span>'
+				. '</span>'
 				. '</a></span>',
 				$guest_url,
 				esc_html( $guest_label ),
