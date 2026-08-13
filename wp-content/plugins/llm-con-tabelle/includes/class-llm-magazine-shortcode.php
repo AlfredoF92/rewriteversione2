@@ -241,12 +241,14 @@ class LLM_Magazine_Shortcode {
 					<?php endif; ?>
 				</div>
 				<?php if ( $cover_url ) : ?>
-					<div
-						class="llm-magazine__cover"
-						style="background-image:url('<?php echo esc_url( $cover_url ); ?>');"
-						role="img"
-						aria-label="<?php echo esc_attr( sprintf( /* translators: %s: magazine title */ __( 'Copertina: %s', 'llm-con-tabelle' ), $title ) ); ?>"
-					></div>
+					<div class="llm-magazine__cover-wrap">
+						<div
+							class="llm-magazine__cover"
+							style="background-image:url('<?php echo esc_url( $cover_url ); ?>');"
+							role="img"
+							aria-label="<?php echo esc_attr( sprintf( /* translators: %s: magazine title */ __( 'Copertina: %s', 'llm-con-tabelle' ), $title ) ); ?>"
+						></div>
+					</div>
 				<?php endif; ?>
 			</header>
 
