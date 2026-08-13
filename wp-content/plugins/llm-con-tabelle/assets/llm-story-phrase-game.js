@@ -1119,13 +1119,7 @@
 		var separator = (current && !/\s$/.test(current)) ? ' ' : '';
 		inputEl.value = current + separator + word;
 		inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-		inputEl.focus();
-		var end = inputEl.value.length;
-		try {
-			inputEl.setSelectionRange(end, end);
-		} catch (e) {
-			/* Alcuni browser rifiutano la selezione su textarea non visibili. */
-		}
+		/* Niente focus: su mobile aprirebbe la tastiera. */
 	}
 
 	function appendCharToInput(inputEl, ch) {
