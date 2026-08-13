@@ -16,10 +16,32 @@
 	border-bottom: 2px solid #2c2c2a;
 }
 
+.llm-magazine__header--has-cover {
+	padding-bottom: 0;
+	border-bottom: 0;
+}
+
+.llm-magazine__cover {
+	aspect-ratio: 21 / 9;
+	width: 100%;
+	margin: 0 0 1.25rem;
+	border-radius: 12px;
+	background-color: #f0f0ec;
+	background-size: cover;
+	background-position: center center;
+	background-repeat: no-repeat;
+	overflow: hidden;
+}
+
 .llm-magazine__masthead {
 	display: flex;
 	flex-direction: column;
 	gap: 0.55rem;
+}
+
+.llm-magazine__header--has-cover .llm-magazine__masthead {
+	padding-bottom: 1.35rem;
+	border-bottom: 2px solid #2c2c2a;
 }
 
 .llm-magazine__nav {

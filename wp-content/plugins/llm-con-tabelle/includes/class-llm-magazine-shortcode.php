@@ -156,6 +156,8 @@ class LLM_Magazine_Shortcode {
 		$target_flag  = LLM_Languages::flag_emoji( $target );
 		$known_label  = LLM_Languages::label( $known );
 		$target_label = LLM_Languages::label( $target );
+		$cover_id     = (int) get_post_thumbnail_id( $mag_id );
+		$cover_url    = $cover_id ? wp_get_attachment_image_url( $cover_id, 'large' ) : '';
 
 		$base_url = remove_query_arg( 'llm_rivista' );
 		$prev_url = $nav['prev'] ? add_query_arg( 'llm_rivista', $nav['prev'], $base_url ) : '';
@@ -164,7 +166,15 @@ class LLM_Magazine_Shortcode {
 		ob_start();
 		?>
 		<div class="llm-magazine llm-ui-scope" data-magazine-id="<?php echo esc_attr( (string) $mag_id ); ?>">
-			<header class="llm-magazine__header">
+			<header class="llm-magazine__header<?php echo $cover_url ? ' llm-magazine__header--has-cover' : ''; ?>">
+				<?php if ( $cover_url ) : ?>
+					<div
+						class="llm-magazine__cover"
+						style="background-image:url('<?php echo esc_url( $cover_url ); ?>');"
+						role="img"
+						aria-label="<?php echo esc_attr( sprintf( /* translators: %s: magazine title */ __( 'Copertina: %s', 'llm-con-tabelle' ), $title ) ); ?>"
+					></div>
+				<?php endif; ?>
 				<div class="llm-magazine__masthead">
 					<?php if ( $prev_url || $next_url ) : ?>
 						<nav class="llm-magazine__nav" aria-label="<?php esc_attr_e( 'Navigazione riviste', 'llm-con-tabelle' ); ?>">

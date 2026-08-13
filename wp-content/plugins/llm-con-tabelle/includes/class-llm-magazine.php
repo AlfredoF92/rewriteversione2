@@ -75,7 +75,7 @@ class LLM_Magazine {
 				'capability_type'    => 'post',
 				'has_archive'        => false,
 				'hierarchical'       => false,
-				'supports'           => array( 'title' ),
+				'supports'           => array( 'title', 'thumbnail' ),
 				'show_in_rest'       => false,
 			)
 		);
