@@ -102,6 +102,7 @@ class LLM_Story_Phrase_Game {
 
 		return '<div class="llm-phrase-game__random-words llm-phrase-game__random-words--' . esc_attr( $suffix ) . '" hidden>'
 			. '<button type="button" class="llm-phrase-game__tool-accordion-toggle llm-phrase-game__random-words-toggle" aria-expanded="false" aria-controls="' . esc_attr( $list_id ) . '">'
+			. '<span class="llm-phrase-game__random-words-emoji" aria-hidden="true">💡</span>'
 			. '<span class="llm-phrase-game__tool-accordion-toggle-text">' . esc_html( $label ) . '</span>'
 			. '<span class="llm-phrase-game__tool-accordion-chevron" aria-hidden="true"></span>'
 			. '</button>'

@@ -1437,6 +1437,19 @@
 	align-items: stretch;
 	width: 100%;
 	margin-top: 2.25rem;
+	margin-bottom: 0.5rem;
+}
+
+.llm-phrase-game__random-words-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+}
+
+.llm-phrase-game__random-words-emoji {
+	flex: 0 0 auto;
+	font-size: 1em;
+	line-height: 1;
 }
 
 .llm-phrase-game__random-words-list {
@@ -1446,6 +1459,8 @@
 	gap: 0.4rem;
 	width: 100%;
 	margin-top: 0.75rem;
+	margin-bottom: 1.35rem;
+	padding-bottom: 0.35rem;
 }
 
 .llm-phrase-game .llm-phrase-game__random-word,
@@ -1502,7 +1517,7 @@
 .llm-phrase-game__divider--extra-chars {
 	width: 100%;
 	height: 0;
-	margin: 0 0 0.65rem;
+	margin: 1.1rem 0 0.65rem;
 	border: 0;
 	border-top: 1px solid #e4e4e8;
 }
