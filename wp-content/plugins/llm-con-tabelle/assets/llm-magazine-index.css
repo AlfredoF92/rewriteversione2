@@ -51,10 +51,13 @@
 .llm-mag-index__lang:focus-visible {
 	border-color: #a89884;
 	background: #f7f3ec;
+	color: #1c1c1c;
 	outline: none;
 }
 
-.llm-mag-index__lang.is-active {
+.llm-mag-index__lang.is-active,
+.llm-mag-index__lang.is-active:hover,
+.llm-mag-index__lang.is-active:focus-visible {
 	border-color: #1a3f66;
 	background: #1a3f66;
 	color: #fff;
@@ -63,9 +66,16 @@
 		0 3px 8px rgba(26, 63, 102, 0.12);
 }
 
-.llm-mag-index__lang-flag {
-	font-size: 1.25rem;
-	line-height: 1;
+.llm-mag-index .llm-mag-index__lang,
+.llm-mag-index .llm-mag-index__lang:hover,
+.llm-mag-index .llm-mag-index__lang:focus-visible {
+	color: #1c1c1c !important;
+}
+
+.llm-mag-index .llm-mag-index__lang.is-active,
+.llm-mag-index .llm-mag-index__lang.is-active:hover,
+.llm-mag-index .llm-mag-index__lang.is-active:focus-visible {
+	color: #fff !important;
 }
 
 .llm-mag-index__lang-label {
