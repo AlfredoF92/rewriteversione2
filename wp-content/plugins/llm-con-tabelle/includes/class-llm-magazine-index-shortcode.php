@@ -211,7 +211,7 @@ class LLM_Magazine_Index_Shortcode {
 		$nav        = LLM_Magazine::get_nav_context( $mag_id );
 		$issue_num  = ! empty( $nav['issue'] ) ? (int) $nav['issue'] : 0;
 		$cover_id   = (int) get_post_thumbnail_id( $mag_id );
-		$cover_url  = $cover_id ? wp_get_attachment_image_url( $cover_id, 'medium_large' ) : '';
+		$cover_url  = $cover_id ? wp_get_attachment_image_url( $cover_id, 'large' ) : '';
 		$subtitle   = $issue_num > 0
 			? sprintf( self::edition_label( $ui ), sprintf( '%02d', $issue_num ) )
 			: self::pair_label( $known, $target, $ui );
@@ -263,14 +263,15 @@ class LLM_Magazine_Index_Shortcode {
 					<?php endif; ?>
 					role="img"
 					aria-label="<?php echo esc_attr( $cover_aria ); ?>"
-				>
-					<span class="llm-mag-index__flags" aria-hidden="true">
-						<span class="llm-mag-index__flag"><?php echo esc_html( $known_flag ); ?></span>
-						<span class="llm-mag-index__flags-arrow">→</span>
-						<span class="llm-mag-index__flag"><?php echo esc_html( $target_flag ); ?></span>
-					</span>
-				</div>
+				></div>
 				<div class="llm-mag-index__body">
+					<?php if ( $known_flag || $target_flag ) : ?>
+						<p class="llm-mag-index__flags" aria-hidden="true">
+							<span class="llm-mag-index__flag"><?php echo esc_html( $known_flag ); ?></span>
+							<span class="llm-mag-index__flags-arrow">→</span>
+							<span class="llm-mag-index__flag"><?php echo esc_html( $target_flag ); ?></span>
+						</p>
+					<?php endif; ?>
 					<?php if ( $learn ) : ?>
 						<p class="llm-mag-index__learn"><?php echo esc_html( $learn ); ?></p>
 					<?php endif; ?>

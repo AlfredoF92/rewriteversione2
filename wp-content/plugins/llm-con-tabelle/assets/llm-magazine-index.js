@@ -36,12 +36,15 @@
 		var coverClass = 'llm-mag-index__cover' + (cover ? '' : ' llm-mag-index__cover--empty');
 		var html = '<article class="llm-mag-index__card">';
 		html += '<' + tag + ' class="llm-mag-index__card-link"' + attrs + '>';
-		html += '<div class="' + coverClass + '"' + coverStyle(cover) + ' role="img" aria-label="' + esc(title || 'Copertina rivista') + '">';
-		html += '<span class="llm-mag-index__flags" aria-hidden="true">';
-		html += '<span class="llm-mag-index__flag">' + esc(knownFlag) + '</span>';
-		html += '<span class="llm-mag-index__flags-arrow">→</span>';
-		html += '<span class="llm-mag-index__flag">' + esc(targetFlag) + '</span>';
-		html += '</span></div><div class="llm-mag-index__body">';
+		html += '<div class="' + coverClass + '"' + coverStyle(cover) + ' role="img" aria-label="' + esc(title || 'Copertina rivista') + '"></div>';
+		html += '<div class="llm-mag-index__body">';
+		if (knownFlag || targetFlag) {
+			html += '<p class="llm-mag-index__flags" aria-hidden="true">';
+			html += '<span class="llm-mag-index__flag">' + esc(knownFlag) + '</span>';
+			html += '<span class="llm-mag-index__flags-arrow">→</span>';
+			html += '<span class="llm-mag-index__flag">' + esc(targetFlag) + '</span>';
+			html += '</p>';
+		}
 		if (learn) {
 			html += '<p class="llm-mag-index__learn">' + esc(learn) + '</p>';
 		}
