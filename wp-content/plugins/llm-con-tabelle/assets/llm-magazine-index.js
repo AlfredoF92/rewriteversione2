@@ -31,11 +31,15 @@
 		var contents = card && card.contents ? String(card.contents) : '';
 		var knownFlag = card && card.knownFlag ? String(card.knownFlag) : '';
 		var targetFlag = card && card.targetFlag ? String(card.targetFlag) : '';
+		var target = card && card.target ? String(card.target) : '';
 		var comingSoon = !!(card && card.comingSoon);
 		var tag = (url && !comingSoon) ? 'a' : 'div';
 		var attrs = (url && !comingSoon) ? ' href="' + esc(url) + '"' : ' role="group"';
 		var coverClass = 'llm-mag-index__cover' + (cover ? '' : ' llm-mag-index__cover--empty');
 		var cardClass = 'llm-mag-index__card' + (comingSoon ? ' llm-mag-index__card--soon' : '');
+		if (target) {
+			cardClass += ' llm-mag-index__card--' + target.replace(/[^a-z0-9_-]/gi, '');
+		}
 		var html = '<article class="' + cardClass + '">';
 		html += '<' + tag + ' class="llm-mag-index__card-link"' + attrs + '>';
 		html += '<div class="' + coverClass + '"' + coverStyle(cover) + ' role="img" aria-label="' + esc(title || 'Copertina rivista') + '">';
@@ -70,14 +74,26 @@
 	}
 
 	function renderPayload(grid, payload) {
-		var cards = payload && Array.isArray(payload.cards) ? payload.cards : [];
-		if (!cards.length) {
+		var rows = payload && Array.isArray(payload.rows) ? payload.rows : [];
+		if (!rows.length) {
 			grid.innerHTML = '<p class="llm-mag-index__empty">' + esc(payload && payload.empty ? payload.empty : '') + '</p>';
 			return;
 		}
 		var html = '';
-		for (var i = 0; i < cards.length; i++) {
-			html += cardHtml(cards[i]);
+		for (var r = 0; r < rows.length; r++) {
+			var row = rows[r] || {};
+			var target = row.target ? String(row.target).replace(/[^a-z0-9_-]/gi, '') : '';
+			var heading = row.heading ? String(row.heading) : '';
+			var cards = Array.isArray(row.cards) ? row.cards : [];
+			html += '<section class="llm-mag-index__row"' + (target ? ' data-target="' + esc(target) + '"' : '') + '>';
+			if (heading) {
+				html += '<h3 class="llm-mag-index__row-title">' + esc(heading) + '</h3>';
+			}
+			html += '<div class="llm-mag-index__grid">';
+			for (var i = 0; i < cards.length; i++) {
+				html += cardHtml(cards[i]);
+			}
+			html += '</div></section>';
 		}
 		grid.innerHTML = html;
 	}

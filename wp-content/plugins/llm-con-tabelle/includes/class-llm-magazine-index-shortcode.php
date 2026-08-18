@@ -104,7 +104,7 @@ class LLM_Magazine_Index_Shortcode {
 					</button>
 				<?php endforeach; ?>
 			</div>
-			<div class="llm-mag-index__grid" id="<?php echo esc_attr( $grid_id ); ?>" data-llm-mag-grid>
+			<div class="llm-mag-index__rows" id="<?php echo esc_attr( $grid_id ); ?>" data-llm-mag-grid>
 				<?php echo self::render_grid_from_payload( $payload ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML già escapato. ?>
 			</div>
 		</div>
@@ -132,7 +132,7 @@ class LLM_Magazine_Index_Shortcode {
 
 	/**
 	 * @param string $known Lingua conosciuta.
-	 * @return array{known:string,cards:array<int,array<string,string>>,empty:string}|null
+	 * @return array{known:string,rows:array<int,array{target:string,heading:string,cards:array}>,empty:string}|null
 	 */
 	private static function payload_for_known( $known ) {
 		$group = self::group_for_known( $known );
@@ -143,35 +143,37 @@ class LLM_Magazine_Index_Shortcode {
 		$known   = $group['known'];
 		$ui      = $group['ui'];
 		$targets = array_map( 'sanitize_key', (array) $group['targets'] );
-		$cards   = array();
+		$rows    = array();
 
 		foreach ( $targets as $target ) {
 			if ( ! LLM_Languages::is_valid( $target ) || $known === $target ) {
 				continue;
 			}
-			$row    = array();
-			$mag_id = LLM_Magazine::find_homepage_id( $known, $target );
+			$row_cards = array();
+			$mag_id    = LLM_Magazine::find_homepage_id( $known, $target );
 			if ( $mag_id ) {
 				$pair_url = class_exists( 'LLM_Home_Redirect' ) ? LLM_Home_Redirect::pair_url( $known, $target ) : '';
 				$card     = self::card_data( $mag_id, $pair_url, $ui, $known, $target );
 				if ( $card ) {
-					$row[] = $card;
+					$row_cards[] = $card;
 				}
 			}
-			if ( empty( $row ) ) {
+			if ( empty( $row_cards ) ) {
 				continue;
 			}
-			while ( count( $row ) < 4 ) {
-				$row[] = self::coming_soon_card( $ui, $known, $target );
+			while ( count( $row_cards ) < 4 ) {
+				$row_cards[] = self::coming_soon_card( $ui, $known, $target );
 			}
-			foreach ( $row as $card ) {
-				$cards[] = $card;
-			}
+			$rows[] = array(
+				'target'  => $target,
+				'heading' => self::row_heading( $target ),
+				'cards'   => $row_cards,
+			);
 		}
 
 		return array(
 			'known' => $known,
-			'cards' => $cards,
+			'rows'  => $rows,
 			'empty' => sprintf(
 				/* translators: %s: known language label */
 				__( 'Nessuna rivista di prima pagina per chi conosce %s.', 'llm-con-tabelle' ),
@@ -181,18 +183,46 @@ class LLM_Magazine_Index_Shortcode {
 	}
 
 	/**
-	 * @param array{cards?:array<int,array<string,string>>,empty?:string} $payload Payload JSON.
+	 * Titoletti sempre in inglese.
+	 *
+	 * @param string $target Lingua da imparare.
+	 * @return string
+	 */
+	private static function row_heading( $target ) {
+		$target = sanitize_key( $target );
+		$map    = array(
+			'en' => 'Stories to Learn English',
+			'pl' => 'Stories to Learn Polish',
+			'it' => 'Stories to Learn Italian',
+			'es' => 'Stories to Learn Spanish',
+		);
+		return isset( $map[ $target ] ) ? $map[ $target ] : 'Stories';
+	}
+
+	/**
+	 * @param array{rows?:array,empty?:string,cards?:array} $payload Payload JSON.
 	 * @return string
 	 */
 	private static function render_grid_from_payload( $payload ) {
-		$cards = isset( $payload['cards'] ) && is_array( $payload['cards'] ) ? $payload['cards'] : array();
-		if ( empty( $cards ) ) {
+		$rows = isset( $payload['rows'] ) && is_array( $payload['rows'] ) ? $payload['rows'] : array();
+		if ( empty( $rows ) ) {
 			$empty = isset( $payload['empty'] ) ? (string) $payload['empty'] : '';
 			return '<p class="llm-mag-index__empty">' . esc_html( $empty ) . '</p>';
 		}
 		$html = '';
-		foreach ( $cards as $card ) {
-			$html .= self::render_card_html( $card );
+		foreach ( $rows as $row ) {
+			$target  = isset( $row['target'] ) ? sanitize_key( (string) $row['target'] ) : '';
+			$heading = isset( $row['heading'] ) ? (string) $row['heading'] : '';
+			$cards   = isset( $row['cards'] ) && is_array( $row['cards'] ) ? $row['cards'] : array();
+			$html   .= '<section class="llm-mag-index__row" data-target="' . esc_attr( $target ) . '">';
+			if ( $heading ) {
+				$html .= '<h3 class="llm-mag-index__row-title">' . esc_html( $heading ) . '</h3>';
+			}
+			$html .= '<div class="llm-mag-index__grid">';
+			foreach ( $cards as $card ) {
+				$html .= self::render_card_html( $card );
+			}
+			$html .= '</div></section>';
 		}
 		return $html;
 	}
@@ -237,6 +267,7 @@ class LLM_Magazine_Index_Shortcode {
 			'contents'   => self::contents_summary( $mag_id, $ui ),
 			'knownFlag'  => LLM_Languages::flag_emoji( $known ),
 			'targetFlag' => LLM_Languages::flag_emoji( $target ),
+			'target'     => $target,
 		);
 	}
 
@@ -261,11 +292,12 @@ class LLM_Magazine_Index_Shortcode {
 			'contents'   => '',
 			'knownFlag'  => LLM_Languages::flag_emoji( $known ),
 			'targetFlag' => LLM_Languages::flag_emoji( $target ),
+			'target'     => $target,
 		);
 	}
 
 	/**
-	 * @param array<string,string> $card Dati card.
+	 * @param array<string,mixed> $card Dati card.
 	 * @return string
 	 */
 	private static function render_card_html( $card ) {
@@ -280,8 +312,15 @@ class LLM_Magazine_Index_Shortcode {
 		$known_flag  = isset( $card['knownFlag'] ) ? (string) $card['knownFlag'] : '';
 		$target_flag = isset( $card['targetFlag'] ) ? (string) $card['targetFlag'] : '';
 		$coming_soon = ! empty( $card['comingSoon'] );
+		$target      = isset( $card['target'] ) ? sanitize_key( (string) $card['target'] ) : '';
 		$cover_aria  = $title ? $title : __( 'Copertina rivista', 'llm-con-tabelle' );
-		$card_class  = 'llm-mag-index__card' . ( $coming_soon ? ' llm-mag-index__card--soon' : '' );
+		$card_class  = 'llm-mag-index__card';
+		if ( $coming_soon ) {
+			$card_class .= ' llm-mag-index__card--soon';
+		}
+		if ( $target ) {
+			$card_class .= ' llm-mag-index__card--' . $target;
+		}
 
 		$tag   = ( $url && ! $coming_soon ) ? 'a' : 'div';
 		$attrs = ( $url && ! $coming_soon )

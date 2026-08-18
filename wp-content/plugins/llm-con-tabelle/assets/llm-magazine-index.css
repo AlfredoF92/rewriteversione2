@@ -11,7 +11,7 @@
 	margin: 0 auto;
 }
 
-.llm-mag-index.is-loading .llm-mag-index__grid {
+.llm-mag-index.is-loading .llm-mag-index__rows {
 	opacity: 0.55;
 	pointer-events: none;
 }
@@ -69,6 +69,39 @@
 
 .llm-mag-index__lang-label {
 	line-height: 1;
+}
+
+.llm-mag-index__rows {
+	display: flex;
+	flex-direction: column;
+	gap: 1.75rem;
+}
+
+.llm-mag-index__row {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.llm-mag-index__row-title {
+	margin: 0;
+	font-size: 1.15rem;
+	font-weight: 800;
+	letter-spacing: -0.02em;
+	line-height: 1.25;
+	color: #1c1c1c;
+}
+
+.llm-mag-index__row[data-target="en"] .llm-mag-index__row-title {
+	color: #1a4f8a;
+}
+
+.llm-mag-index__row[data-target="pl"] .llm-mag-index__row-title {
+	color: #9b1c2c;
+}
+
+.llm-mag-index__row[data-target="it"] .llm-mag-index__row-title {
+	color: #1f6b3a;
 }
 
 .llm-mag-index__grid {
@@ -243,6 +276,90 @@ a.llm-mag-index__card-link:focus-visible {
 	font-size: 0.74rem;
 	line-height: 1.4;
 	color: #5a554c;
+}
+
+.llm-mag-index__card--en .llm-mag-index__card-link,
+.llm-mag-index__card--en .llm-mag-index__body {
+	background: linear-gradient(180deg, #eef5fc 0%, #d7e6f6 100%);
+}
+
+.llm-mag-index__card--en .llm-mag-index__body {
+	border-top-color: #b7cce3;
+}
+
+.llm-mag-index__card--en .llm-mag-index__learn {
+	color: #1a4f8a;
+}
+
+.llm-mag-index__card--en .llm-mag-index__kicker,
+.llm-mag-index__card--en .llm-mag-index__date,
+.llm-mag-index__card--en .llm-mag-index__contents,
+.llm-mag-index__card--en .llm-mag-index__flags-arrow {
+	color: #3d5a78;
+}
+
+.llm-mag-index__card--en .llm-mag-index__contents {
+	border-top-color: #c5d7ea;
+}
+
+.llm-mag-index__card--en .llm-mag-index__cover--empty {
+	background-image: linear-gradient(160deg, #1a3f66 0%, #4a7ab0 55%, #1a3f66 100%);
+}
+
+.llm-mag-index__card--pl .llm-mag-index__card-link,
+.llm-mag-index__card--pl .llm-mag-index__body {
+	background: linear-gradient(180deg, #fdf0f1 0%, #f3d6d8 100%);
+}
+
+.llm-mag-index__card--pl .llm-mag-index__body {
+	border-top-color: #e3b4b8;
+}
+
+.llm-mag-index__card--pl .llm-mag-index__learn {
+	color: #9b1c2c;
+}
+
+.llm-mag-index__card--pl .llm-mag-index__kicker,
+.llm-mag-index__card--pl .llm-mag-index__date,
+.llm-mag-index__card--pl .llm-mag-index__contents,
+.llm-mag-index__card--pl .llm-mag-index__flags-arrow {
+	color: #7a3a42;
+}
+
+.llm-mag-index__card--pl .llm-mag-index__contents {
+	border-top-color: #e8c4c8;
+}
+
+.llm-mag-index__card--pl .llm-mag-index__cover--empty {
+	background-image: linear-gradient(160deg, #6b1520 0%, #c45a66 55%, #6b1520 100%);
+}
+
+.llm-mag-index__card--it .llm-mag-index__card-link,
+.llm-mag-index__card--it .llm-mag-index__body {
+	background: linear-gradient(180deg, #eef8f1 0%, #d4eadc 100%);
+}
+
+.llm-mag-index__card--it .llm-mag-index__body {
+	border-top-color: #b5d4c0;
+}
+
+.llm-mag-index__card--it .llm-mag-index__learn {
+	color: #1f6b3a;
+}
+
+.llm-mag-index__card--it .llm-mag-index__kicker,
+.llm-mag-index__card--it .llm-mag-index__date,
+.llm-mag-index__card--it .llm-mag-index__contents,
+.llm-mag-index__card--it .llm-mag-index__flags-arrow {
+	color: #3d6b4e;
+}
+
+.llm-mag-index__card--it .llm-mag-index__contents {
+	border-top-color: #c3dccb;
+}
+
+.llm-mag-index__card--it .llm-mag-index__cover--empty {
+	background-image: linear-gradient(160deg, #1a4d2c 0%, #4d9a68 55%, #1a4d2c 100%);
 }
 
 @media (max-width: 900px) {
