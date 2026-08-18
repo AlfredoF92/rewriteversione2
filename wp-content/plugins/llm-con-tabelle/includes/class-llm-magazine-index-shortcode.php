@@ -34,13 +34,13 @@ class LLM_Magazine_Index_Shortcode {
 				'known'   => 'it',
 				'ui'      => 'it',
 				'targets' => array( 'en', 'pl' ),
-				'label'   => 'Italiano',
+				'label'   => 'I know Italian',
 			),
 			array(
 				'known'   => 'en',
 				'ui'      => 'en',
 				'targets' => array( 'it' ),
-				'label'   => 'Inglese',
+				'label'   => 'I know English',
 			),
 		);
 	}
