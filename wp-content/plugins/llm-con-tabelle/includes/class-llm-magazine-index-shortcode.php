@@ -149,13 +149,22 @@ class LLM_Magazine_Index_Shortcode {
 			if ( ! LLM_Languages::is_valid( $target ) || $known === $target ) {
 				continue;
 			}
+			$row    = array();
 			$mag_id = LLM_Magazine::find_homepage_id( $known, $target );
-			if ( ! $mag_id ) {
+			if ( $mag_id ) {
+				$pair_url = class_exists( 'LLM_Home_Redirect' ) ? LLM_Home_Redirect::pair_url( $known, $target ) : '';
+				$card     = self::card_data( $mag_id, $pair_url, $ui, $known, $target );
+				if ( $card ) {
+					$row[] = $card;
+				}
+			}
+			if ( empty( $row ) ) {
 				continue;
 			}
-			$pair_url = class_exists( 'LLM_Home_Redirect' ) ? LLM_Home_Redirect::pair_url( $known, $target ) : '';
-			$card     = self::card_data( $mag_id, $pair_url, $ui, $known, $target );
-			if ( $card ) {
+			while ( count( $row ) < 4 ) {
+				$row[] = self::coming_soon_card( $ui, $known, $target );
+			}
+			foreach ( $row as $card ) {
 				$cards[] = $card;
 			}
 		}
@@ -217,6 +226,7 @@ class LLM_Magazine_Index_Shortcode {
 			: self::pair_label( $known, $target, $ui );
 
 		return array(
+			'comingSoon' => false,
 			'url'        => (string) $pair_url,
 			'title'      => (string) $title,
 			'cover'      => (string) $cover_url,
@@ -225,6 +235,30 @@ class LLM_Magazine_Index_Shortcode {
 			'learn'      => self::learn_label( $target, $ui ),
 			'kicker'     => (string) $subtitle,
 			'contents'   => self::contents_summary( $mag_id, $ui ),
+			'knownFlag'  => LLM_Languages::flag_emoji( $known ),
+			'targetFlag' => LLM_Languages::flag_emoji( $target ),
+		);
+	}
+
+	/**
+	 * @param string $ui     Lingua UI.
+	 * @param string $known  Lingua conosciuta.
+	 * @param string $target Lingua target.
+	 * @return array<string,mixed>
+	 */
+	private static function coming_soon_card( $ui, $known, $target ) {
+		$known  = sanitize_key( $known );
+		$target = sanitize_key( $target );
+		return array(
+			'comingSoon' => true,
+			'url'        => '',
+			'title'      => 'Coming soon',
+			'cover'      => '',
+			'date'       => '',
+			'dateLabel'  => '',
+			'learn'      => self::learn_label( $target, $ui ),
+			'kicker'     => '',
+			'contents'   => '',
 			'knownFlag'  => LLM_Languages::flag_emoji( $known ),
 			'targetFlag' => LLM_Languages::flag_emoji( $target ),
 		);
@@ -245,16 +279,18 @@ class LLM_Magazine_Index_Shortcode {
 		$contents    = isset( $card['contents'] ) ? (string) $card['contents'] : '';
 		$known_flag  = isset( $card['knownFlag'] ) ? (string) $card['knownFlag'] : '';
 		$target_flag = isset( $card['targetFlag'] ) ? (string) $card['targetFlag'] : '';
+		$coming_soon = ! empty( $card['comingSoon'] );
 		$cover_aria  = $title ? $title : __( 'Copertina rivista', 'llm-con-tabelle' );
+		$card_class  = 'llm-mag-index__card' . ( $coming_soon ? ' llm-mag-index__card--soon' : '' );
 
-		$tag   = $url ? 'a' : 'div';
-		$attrs = $url
+		$tag   = ( $url && ! $coming_soon ) ? 'a' : 'div';
+		$attrs = ( $url && ! $coming_soon )
 			? ' href="' . esc_url( $url ) . '"'
 			: ' role="group"';
 
 		ob_start();
 		?>
-		<article class="llm-mag-index__card">
+		<article class="<?php echo esc_attr( $card_class ); ?>">
 			<<?php echo $tag; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a|div. ?> class="llm-mag-index__card-link"<?php echo $attrs; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- già escapato. ?>>
 				<div
 					class="llm-mag-index__cover<?php echo $cover ? '' : ' llm-mag-index__cover--empty'; ?>"
@@ -263,7 +299,11 @@ class LLM_Magazine_Index_Shortcode {
 					<?php endif; ?>
 					role="img"
 					aria-label="<?php echo esc_attr( $cover_aria ); ?>"
-				></div>
+				>
+					<?php if ( $coming_soon ) : ?>
+						<span class="llm-mag-index__soon">Coming soon</span>
+					<?php endif; ?>
+				</div>
 				<div class="llm-mag-index__body">
 					<?php if ( $known_flag || $target_flag ) : ?>
 						<p class="llm-mag-index__flags" aria-hidden="true">
@@ -275,18 +315,18 @@ class LLM_Magazine_Index_Shortcode {
 					<?php if ( $learn ) : ?>
 						<p class="llm-mag-index__learn"><?php echo esc_html( $learn ); ?></p>
 					<?php endif; ?>
-					<?php if ( $kicker ) : ?>
+					<?php if ( ! $coming_soon && $kicker ) : ?>
 						<p class="llm-mag-index__kicker"><?php echo esc_html( $kicker ); ?></p>
 					<?php endif; ?>
 					<?php if ( $title ) : ?>
 						<h3 class="llm-mag-index__title"><?php echo esc_html( $title ); ?></h3>
 					<?php endif; ?>
-					<?php if ( $date_label ) : ?>
+					<?php if ( ! $coming_soon && $date_label ) : ?>
 						<p class="llm-mag-index__date">
 							<time datetime="<?php echo esc_attr( $date ); ?>"><?php echo esc_html( $date_label ); ?></time>
 						</p>
 					<?php endif; ?>
-					<?php if ( $contents ) : ?>
+					<?php if ( ! $coming_soon && $contents ) : ?>
 						<p class="llm-mag-index__contents"><?php echo esc_html( $contents ); ?></p>
 					<?php endif; ?>
 				</div>

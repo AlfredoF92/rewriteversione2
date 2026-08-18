@@ -31,13 +31,18 @@
 		var contents = card && card.contents ? String(card.contents) : '';
 		var knownFlag = card && card.knownFlag ? String(card.knownFlag) : '';
 		var targetFlag = card && card.targetFlag ? String(card.targetFlag) : '';
-		var tag = url ? 'a' : 'div';
-		var attrs = url ? ' href="' + esc(url) + '"' : ' role="group"';
+		var comingSoon = !!(card && card.comingSoon);
+		var tag = (url && !comingSoon) ? 'a' : 'div';
+		var attrs = (url && !comingSoon) ? ' href="' + esc(url) + '"' : ' role="group"';
 		var coverClass = 'llm-mag-index__cover' + (cover ? '' : ' llm-mag-index__cover--empty');
-		var html = '<article class="llm-mag-index__card">';
+		var cardClass = 'llm-mag-index__card' + (comingSoon ? ' llm-mag-index__card--soon' : '');
+		var html = '<article class="' + cardClass + '">';
 		html += '<' + tag + ' class="llm-mag-index__card-link"' + attrs + '>';
-		html += '<div class="' + coverClass + '"' + coverStyle(cover) + ' role="img" aria-label="' + esc(title || 'Copertina rivista') + '"></div>';
-		html += '<div class="llm-mag-index__body">';
+		html += '<div class="' + coverClass + '"' + coverStyle(cover) + ' role="img" aria-label="' + esc(title || 'Copertina rivista') + '">';
+		if (comingSoon) {
+			html += '<span class="llm-mag-index__soon">Coming soon</span>';
+		}
+		html += '</div><div class="llm-mag-index__body">';
 		if (knownFlag || targetFlag) {
 			html += '<p class="llm-mag-index__flags" aria-hidden="true">';
 			html += '<span class="llm-mag-index__flag">' + esc(knownFlag) + '</span>';
@@ -48,16 +53,16 @@
 		if (learn) {
 			html += '<p class="llm-mag-index__learn">' + esc(learn) + '</p>';
 		}
-		if (kicker) {
+		if (!comingSoon && kicker) {
 			html += '<p class="llm-mag-index__kicker">' + esc(kicker) + '</p>';
 		}
 		if (title) {
 			html += '<h3 class="llm-mag-index__title">' + esc(title) + '</h3>';
 		}
-		if (dateLabel) {
+		if (!comingSoon && dateLabel) {
 			html += '<p class="llm-mag-index__date"><time datetime="' + esc(date) + '">' + esc(dateLabel) + '</time></p>';
 		}
-		if (contents) {
+		if (!comingSoon && contents) {
 			html += '<p class="llm-mag-index__contents">' + esc(contents) + '</p>';
 		}
 		html += '</div></' + tag + '></article>';
