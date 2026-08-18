@@ -85,7 +85,7 @@
 			var target = row.target ? String(row.target).replace(/[^a-z0-9_-]/gi, '') : '';
 			var heading = row.heading ? String(row.heading) : '';
 			var cards = Array.isArray(row.cards) ? row.cards : [];
-			html += '<section class="llm-mag-index__row"' + (target ? ' data-target="' + esc(target) + '"' : '') + '>';
+			html += '<div class="llm-mag-index__row"' + (target ? ' data-target="' + esc(target) + '"' : '') + '>';
 			if (heading) {
 				html += '<h3 class="llm-mag-index__row-title">' + esc(heading) + '</h3>';
 			}
@@ -93,7 +93,7 @@
 			for (var i = 0; i < cards.length; i++) {
 				html += cardHtml(cards[i]);
 			}
-			html += '</div></section>';
+			html += '</div></div>';
 		}
 		grid.innerHTML = html;
 	}

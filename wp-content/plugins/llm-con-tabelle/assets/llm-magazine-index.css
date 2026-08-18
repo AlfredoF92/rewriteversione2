@@ -78,22 +78,38 @@
 	color: #fff !important;
 }
 
+.llm-mag-index__lang-flag {
+	font-size: 1.25rem;
+	line-height: 1;
+}
+
 .llm-mag-index__lang-label {
 	line-height: 1;
+}
+
+.llm-mag-index .llm-mag-index__rows,
+.llm-mag-index .llm-mag-index__row,
+.llm-mag-index .llm-mag-index__grid,
+.llm-mag-index .llm-mag-index__card,
+.llm-mag-index .llm-mag-index__card-link {
+	width: 100% !important;
+	max-width: none !important;
+	box-sizing: border-box;
 }
 
 .llm-mag-index__rows {
 	display: flex;
 	flex-direction: column;
-	width: 100%;
+	flex: 1 1 auto;
+	align-self: stretch;
 	gap: 1.75rem;
 }
 
 .llm-mag-index__row {
 	display: flex;
 	flex-direction: column;
-	width: 100%;
-	max-width: none;
+	flex: 0 0 auto;
+	align-self: stretch;
 	gap: 0.75rem;
 }
 
@@ -120,12 +136,11 @@
 }
 
 .llm-mag-index .llm-mag-index__grid {
-	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
+	display: grid !important;
+	grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
 	gap: 1rem 0.85rem;
 	align-items: stretch;
 	justify-items: stretch;
-	width: 100%;
 }
 
 .llm-mag-index__empty {
@@ -384,13 +399,13 @@ a.llm-mag-index__card-link:focus-visible {
 
 @media (max-width: 900px) {
 	.llm-mag-index .llm-mag-index__grid {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
+		grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
 	}
 }
 
 @media (max-width: 560px) {
 	.llm-mag-index .llm-mag-index__grid {
-		grid-template-columns: minmax(0, 1fr);
+		grid-template-columns: minmax(0, 1fr) !important;
 	}
 
 	.llm-mag-index__lang {

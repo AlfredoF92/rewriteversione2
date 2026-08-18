@@ -214,7 +214,7 @@ class LLM_Magazine_Index_Shortcode {
 			$target  = isset( $row['target'] ) ? sanitize_key( (string) $row['target'] ) : '';
 			$heading = isset( $row['heading'] ) ? (string) $row['heading'] : '';
 			$cards   = isset( $row['cards'] ) && is_array( $row['cards'] ) ? $row['cards'] : array();
-			$html   .= '<section class="llm-mag-index__row" data-target="' . esc_attr( $target ) . '">';
+			$html   .= '<div class="llm-mag-index__row" data-target="' . esc_attr( $target ) . '">';
 			if ( $heading ) {
 				$html .= '<h3 class="llm-mag-index__row-title">' . esc_html( $heading ) . '</h3>';
 			}
@@ -222,7 +222,7 @@ class LLM_Magazine_Index_Shortcode {
 			foreach ( $cards as $card ) {
 				$html .= self::render_card_html( $card );
 			}
-			$html .= '</div></section>';
+			$html .= '</div></div>';
 		}
 		return $html;
 	}
