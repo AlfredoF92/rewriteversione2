@@ -2,7 +2,7 @@
 /**
  * Shortcode [llm_riviste_indice] — card riviste di prima pagina per coppia.
  *
- * Accordion per lingua conosciuta (IT, EN) e card verticali.
+ * Pulsanti lingua (IT / EN): le card si ricaricano sotto via JSON.
  *
  * @package LLM_Tabelle
  */
@@ -13,16 +13,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class LLM_Magazine_Index_Shortcode {
 
-	const SHORTCODE = 'llm_riviste_indice';
+	const SHORTCODE    = 'llm_riviste_indice';
+	const AJAX_ACTION  = 'llm_riviste_indice_cards';
+	const NONCE_ACTION = 'llm_riviste_indice';
 
 	public static function init() {
 		add_shortcode( self::SHORTCODE, array( __CLASS__, 'render' ) );
+		add_action( 'wp_ajax_' . self::AJAX_ACTION, array( __CLASS__, 'ajax_cards' ) );
+		add_action( 'wp_ajax_nopriv_' . self::AJAX_ACTION, array( __CLASS__, 'ajax_cards' ) );
 	}
 
 	/**
 	 * Gruppi per lingua conosciuta.
 	 *
-	 * @return array<int,array{known:string,ui:string,targets:string[]}>
+	 * @return array<int,array{known:string,ui:string,targets:string[],label:string}>
 	 */
 	private static function section_groups() {
 		return array(
@@ -30,13 +34,29 @@ class LLM_Magazine_Index_Shortcode {
 				'known'   => 'it',
 				'ui'      => 'it',
 				'targets' => array( 'en', 'pl' ),
+				'label'   => 'Italiano',
 			),
 			array(
 				'known'   => 'en',
 				'ui'      => 'en',
 				'targets' => array( 'it' ),
+				'label'   => 'Inglese',
 			),
 		);
+	}
+
+	/**
+	 * @param string $known Lingua conosciuta.
+	 * @return array{known:string,ui:string,targets:string[],label:string}|null
+	 */
+	private static function group_for_known( $known ) {
+		$known = sanitize_key( $known );
+		foreach ( self::section_groups() as $group ) {
+			if ( $group['known'] === $known ) {
+				return $group;
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -47,30 +67,81 @@ class LLM_Magazine_Index_Shortcode {
 		unset( $atts );
 		self::enqueue();
 
-		$uid        = function_exists( 'wp_unique_id' ) ? wp_unique_id( 'llm-mag-index-' ) : uniqid( 'llm-mag-index-', false );
-		$open_first = true;
+		$default_known = 'it';
+		$payload       = self::payload_for_known( $default_known );
+		$grid_id       = function_exists( 'wp_unique_id' ) ? wp_unique_id( 'llm-mag-index-grid-' ) : uniqid( 'llm-mag-index-grid-', false );
 
 		ob_start();
 		?>
-		<div class="llm-mag-index llm-ui-scope" data-llm-mag-accordion role="region" aria-label="<?php echo esc_attr( __( 'Seleziona la lingua', 'llm-con-tabelle' ) ); ?>">
-			<?php foreach ( self::section_groups() as $index => $group ) : ?>
-				<?php echo self::render_section_group( $group, (string) $uid, (int) $index, $open_first ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML già escapato. ?>
-			<?php endforeach; ?>
+		<div
+			class="llm-mag-index llm-ui-scope"
+			data-llm-mag-index
+			data-ajax-url="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>"
+			data-action="<?php echo esc_attr( self::AJAX_ACTION ); ?>"
+			data-nonce="<?php echo esc_attr( wp_create_nonce( self::NONCE_ACTION ) ); ?>"
+			data-known="<?php echo esc_attr( $default_known ); ?>"
+			role="region"
+			aria-label="<?php echo esc_attr( __( 'Seleziona la lingua', 'llm-con-tabelle' ) ); ?>"
+		>
+			<div class="llm-mag-index__langs" role="tablist" aria-label="<?php echo esc_attr( __( 'Lingua', 'llm-con-tabelle' ) ); ?>">
+				<?php foreach ( self::section_groups() as $group ) : ?>
+					<?php
+					$known     = $group['known'];
+					$is_active = ( $known === $default_known );
+					$flag      = LLM_Languages::flag_emoji( $known );
+					?>
+					<button
+						type="button"
+						class="llm-mag-index__lang<?php echo $is_active ? ' is-active' : ''; ?>"
+						data-known="<?php echo esc_attr( $known ); ?>"
+						aria-pressed="<?php echo $is_active ? 'true' : 'false'; ?>"
+						aria-controls="<?php echo esc_attr( $grid_id ); ?>"
+					>
+						<?php if ( $flag ) : ?>
+							<span class="llm-mag-index__lang-flag" aria-hidden="true"><?php echo esc_html( $flag ); ?></span>
+						<?php endif; ?>
+						<span class="llm-mag-index__lang-label"><?php echo esc_html( $group['label'] ); ?></span>
+					</button>
+				<?php endforeach; ?>
+			</div>
+			<div class="llm-mag-index__grid" id="<?php echo esc_attr( $grid_id ); ?>" data-llm-mag-grid>
+				<?php echo self::render_grid_from_payload( $payload ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML già escapato. ?>
+			</div>
 		</div>
 		<?php
 		return (string) ob_get_clean();
 	}
 
 	/**
-	 * @param array{known:string,ui:string,targets:string[]} $group      Gruppo sezione.
-	 * @param string                                         $uid        Prefisso id univoco.
-	 * @param int                                            $index      Indice pannello.
-	 * @param bool                                           $open_first Prima sezione visibile aperta.
-	 * @return string
+	 * AJAX: JSON con le card per la lingua selezionata.
 	 */
-	private static function render_section_group( $group, $uid, $index, &$open_first ) {
-		$known   = sanitize_key( $group['known'] );
-		$ui      = sanitize_key( $group['ui'] );
+	public static function ajax_cards() {
+		check_ajax_referer( self::NONCE_ACTION, 'nonce' );
+
+		$known   = isset( $_POST['known'] ) ? sanitize_key( wp_unslash( $_POST['known'] ) ) : 'it';
+		$payload = self::payload_for_known( $known );
+		if ( null === $payload ) {
+			wp_send_json_error(
+				array( 'message' => __( 'Lingua non valida.', 'llm-con-tabelle' ) ),
+				400
+			);
+		}
+
+		wp_send_json_success( $payload );
+	}
+
+	/**
+	 * @param string $known Lingua conosciuta.
+	 * @return array{known:string,cards:array<int,array<string,string>>,empty:string}|null
+	 */
+	private static function payload_for_known( $known ) {
+		$group = self::group_for_known( $known );
+		if ( ! $group ) {
+			return null;
+		}
+
+		$known   = $group['known'];
+		$ui      = $group['ui'];
 		$targets = array_map( 'sanitize_key', (array) $group['targets'] );
 		$cards   = array();
 
@@ -83,64 +154,38 @@ class LLM_Magazine_Index_Shortcode {
 				continue;
 			}
 			$pair_url = class_exists( 'LLM_Home_Redirect' ) ? LLM_Home_Redirect::pair_url( $known, $target ) : '';
-			$card     = self::render_card( $mag_id, $pair_url, $ui, $known, $target );
-			if ( '' !== $card ) {
+			$card     = self::card_data( $mag_id, $pair_url, $ui, $known, $target );
+			if ( $card ) {
 				$cards[] = $card;
 			}
 		}
 
+		return array(
+			'known' => $known,
+			'cards' => $cards,
+			'empty' => sprintf(
+				/* translators: %s: known language label */
+				__( 'Nessuna rivista di prima pagina per chi conosce %s.', 'llm-con-tabelle' ),
+				self::lang_name_in_ui( $known, $ui )
+			),
+		);
+	}
+
+	/**
+	 * @param array{cards?:array<int,array<string,string>>,empty?:string} $payload Payload JSON.
+	 * @return string
+	 */
+	private static function render_grid_from_payload( $payload ) {
+		$cards = isset( $payload['cards'] ) && is_array( $payload['cards'] ) ? $payload['cards'] : array();
 		if ( empty( $cards ) ) {
-			if ( ! current_user_can( 'edit_posts' ) ) {
-				return '';
-			}
-			$cards[] = '<p class="llm-mag-index__empty">' . esc_html(
-				sprintf(
-					/* translators: %s: known language label */
-					__( 'Nessuna rivista di prima pagina per chi conosce %s.', 'llm-con-tabelle' ),
-					self::lang_name_in_ui( $known, $ui )
-				)
-			) . '</p>';
+			$empty = isset( $payload['empty'] ) ? (string) $payload['empty'] : '';
+			return '<p class="llm-mag-index__empty">' . esc_html( $empty ) . '</p>';
 		}
-
-		$is_open  = (bool) $open_first;
-		$open_first = false;
-		$panel_id = $uid . '-panel-' . $index;
-		$btn_id   = $uid . '-btn-' . $index;
-		$flag     = LLM_Languages::flag_emoji( $known );
-		$label    = self::accordion_label( $known );
-
-		ob_start();
-		?>
-		<section class="llm-mag-index__acc-item<?php echo $is_open ? ' is-open' : ''; ?>" data-known="<?php echo esc_attr( $known ); ?>">
-			<h2 class="llm-mag-index__acc-heading">
-				<button
-					type="button"
-					class="llm-mag-index__acc-toggle"
-					id="<?php echo esc_attr( $btn_id ); ?>"
-					aria-expanded="<?php echo $is_open ? 'true' : 'false'; ?>"
-					aria-controls="<?php echo esc_attr( $panel_id ); ?>"
-				>
-					<?php if ( $flag ) : ?>
-						<span class="llm-mag-index__acc-flag" aria-hidden="true"><?php echo esc_html( $flag ); ?></span>
-					<?php endif; ?>
-					<span class="llm-mag-index__acc-label"><?php echo esc_html( $label ); ?></span>
-					<span class="llm-mag-index__acc-chevron" aria-hidden="true"></span>
-				</button>
-			</h2>
-			<div
-				class="llm-mag-index__acc-panel"
-				id="<?php echo esc_attr( $panel_id ); ?>"
-				role="region"
-				aria-labelledby="<?php echo esc_attr( $btn_id ); ?>"
-				<?php echo $is_open ? '' : 'hidden'; ?>
-			>
-				<div class="llm-mag-index__grid">
-					<?php echo implode( '', $cards ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML già escapato. ?>
-				</div>
-			</div>
-		</section>
-		<?php
-		return (string) ob_get_clean();
+		$html = '';
+		foreach ( $cards as $card ) {
+			$html .= self::render_card_html( $card );
+		}
+		return $html;
 	}
 
 	/**
@@ -149,35 +194,62 @@ class LLM_Magazine_Index_Shortcode {
 	 * @param string $ui       Lingua UI della sezione.
 	 * @param string $known    Lingua conosciuta.
 	 * @param string $target   Lingua target.
-	 * @return string
+	 * @return array<string,string>|null
 	 */
-	private static function render_card( $mag_id, $pair_url, $ui, $known, $target ) {
+	private static function card_data( $mag_id, $pair_url, $ui, $known, $target ) {
 		$mag_id = absint( $mag_id );
 		$post   = get_post( $mag_id );
 		if ( ! $post || LLM_Magazine::CPT !== $post->post_type ) {
-			return '';
+			return null;
 		}
 
-		$known        = sanitize_key( $known );
-		$target       = sanitize_key( $target );
-		$title        = get_the_title( $mag_id );
-		$date         = LLM_Magazine::get_date( $mag_id );
-		$date_label   = $date ? mysql2date( get_option( 'date_format' ), $date . ' 00:00:00' ) : '';
-		$nav          = LLM_Magazine::get_nav_context( $mag_id );
-		$issue_num    = ! empty( $nav['issue'] ) ? (int) $nav['issue'] : 0;
-		$cover_id     = (int) get_post_thumbnail_id( $mag_id );
-		$cover_url    = $cover_id ? wp_get_attachment_image_url( $cover_id, 'medium_large' ) : '';
-		$known_flag   = LLM_Languages::flag_emoji( $known );
-		$target_flag  = LLM_Languages::flag_emoji( $target );
-		$contents     = self::contents_summary( $mag_id, $ui );
-		$learn_label  = self::learn_label( $target, $ui );
-		$subtitle     = $issue_num > 0
+		$known      = sanitize_key( $known );
+		$target     = sanitize_key( $target );
+		$title      = get_the_title( $mag_id );
+		$date       = LLM_Magazine::get_date( $mag_id );
+		$date_label = $date ? mysql2date( get_option( 'date_format' ), $date . ' 00:00:00' ) : '';
+		$nav        = LLM_Magazine::get_nav_context( $mag_id );
+		$issue_num  = ! empty( $nav['issue'] ) ? (int) $nav['issue'] : 0;
+		$cover_id   = (int) get_post_thumbnail_id( $mag_id );
+		$cover_url  = $cover_id ? wp_get_attachment_image_url( $cover_id, 'medium_large' ) : '';
+		$subtitle   = $issue_num > 0
 			? sprintf( self::edition_label( $ui ), sprintf( '%02d', $issue_num ) )
 			: self::pair_label( $known, $target, $ui );
 
-		$tag   = $pair_url ? 'a' : 'div';
-		$attrs = $pair_url
-			? ' href="' . esc_url( $pair_url ) . '"'
+		return array(
+			'url'        => (string) $pair_url,
+			'title'      => (string) $title,
+			'cover'      => (string) $cover_url,
+			'date'       => (string) $date,
+			'dateLabel'  => (string) $date_label,
+			'learn'      => self::learn_label( $target, $ui ),
+			'kicker'     => (string) $subtitle,
+			'contents'   => self::contents_summary( $mag_id, $ui ),
+			'knownFlag'  => LLM_Languages::flag_emoji( $known ),
+			'targetFlag' => LLM_Languages::flag_emoji( $target ),
+		);
+	}
+
+	/**
+	 * @param array<string,string> $card Dati card.
+	 * @return string
+	 */
+	private static function render_card_html( $card ) {
+		$url         = isset( $card['url'] ) ? (string) $card['url'] : '';
+		$title       = isset( $card['title'] ) ? (string) $card['title'] : '';
+		$cover       = isset( $card['cover'] ) ? (string) $card['cover'] : '';
+		$date        = isset( $card['date'] ) ? (string) $card['date'] : '';
+		$date_label  = isset( $card['dateLabel'] ) ? (string) $card['dateLabel'] : '';
+		$learn       = isset( $card['learn'] ) ? (string) $card['learn'] : '';
+		$kicker      = isset( $card['kicker'] ) ? (string) $card['kicker'] : '';
+		$contents    = isset( $card['contents'] ) ? (string) $card['contents'] : '';
+		$known_flag  = isset( $card['knownFlag'] ) ? (string) $card['knownFlag'] : '';
+		$target_flag = isset( $card['targetFlag'] ) ? (string) $card['targetFlag'] : '';
+		$cover_aria  = $title ? $title : __( 'Copertina rivista', 'llm-con-tabelle' );
+
+		$tag   = $url ? 'a' : 'div';
+		$attrs = $url
+			? ' href="' . esc_url( $url ) . '"'
 			: ' role="group"';
 
 		ob_start();
@@ -185,12 +257,12 @@ class LLM_Magazine_Index_Shortcode {
 		<article class="llm-mag-index__card">
 			<<?php echo $tag; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a|div. ?> class="llm-mag-index__card-link"<?php echo $attrs; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- già escapato. ?>>
 				<div
-					class="llm-mag-index__cover<?php echo $cover_url ? '' : ' llm-mag-index__cover--empty'; ?>"
-					<?php if ( $cover_url ) : ?>
-						style="background-image:url('<?php echo esc_url( $cover_url ); ?>');"
+					class="llm-mag-index__cover<?php echo $cover ? '' : ' llm-mag-index__cover--empty'; ?>"
+					<?php if ( $cover ) : ?>
+						style="background-image:url('<?php echo esc_url( $cover ); ?>');"
 					<?php endif; ?>
 					role="img"
-					aria-label="<?php echo esc_attr( $title ? $title : __( 'Copertina rivista', 'llm-con-tabelle' ) ); ?>"
+					aria-label="<?php echo esc_attr( $cover_aria ); ?>"
 				>
 					<span class="llm-mag-index__flags" aria-hidden="true">
 						<span class="llm-mag-index__flag"><?php echo esc_html( $known_flag ); ?></span>
@@ -199,11 +271,11 @@ class LLM_Magazine_Index_Shortcode {
 					</span>
 				</div>
 				<div class="llm-mag-index__body">
-					<?php if ( $learn_label ) : ?>
-						<p class="llm-mag-index__learn"><?php echo esc_html( $learn_label ); ?></p>
+					<?php if ( $learn ) : ?>
+						<p class="llm-mag-index__learn"><?php echo esc_html( $learn ); ?></p>
 					<?php endif; ?>
-					<?php if ( $subtitle ) : ?>
-						<p class="llm-mag-index__kicker"><?php echo esc_html( $subtitle ); ?></p>
+					<?php if ( $kicker ) : ?>
+						<p class="llm-mag-index__kicker"><?php echo esc_html( $kicker ); ?></p>
 					<?php endif; ?>
 					<?php if ( $title ) : ?>
 						<h3 class="llm-mag-index__title"><?php echo esc_html( $title ); ?></h3>
@@ -299,20 +371,6 @@ class LLM_Magazine_Index_Shortcode {
 			return $pair[0];
 		}
 		return sprintf( $pair[1], $n );
-	}
-
-	/**
-	 * @param string $known Lingua conosciuta.
-	 * @return string
-	 */
-	private static function accordion_label( $known ) {
-		$labels = array(
-			'it' => 'Italiano',
-			'en' => 'Inglese',
-			'pl' => 'Polacco',
-		);
-		$known = sanitize_key( $known );
-		return isset( $labels[ $known ] ) ? $labels[ $known ] : LLM_Languages::label( $known );
 	}
 
 	/**
