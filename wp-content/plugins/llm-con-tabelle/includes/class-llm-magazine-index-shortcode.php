@@ -2,7 +2,7 @@
 /**
  * Shortcode [llm_riviste_indice] — card riviste di prima pagina per coppia.
  *
- * Sezioni raggruppate per lingua conosciuta (IT, EN).
+ * Accordion per lingua conosciuta (IT, EN) e card verticali.
  *
  * @package LLM_Tabelle
  */
@@ -47,11 +47,14 @@ class LLM_Magazine_Index_Shortcode {
 		unset( $atts );
 		self::enqueue();
 
+		$uid        = function_exists( 'wp_unique_id' ) ? wp_unique_id( 'llm-mag-index-' ) : uniqid( 'llm-mag-index-', false );
+		$open_first = true;
+
 		ob_start();
 		?>
-		<div class="llm-mag-index llm-ui-scope">
-			<?php foreach ( self::section_groups() as $group ) : ?>
-				<?php echo self::render_section_group( $group ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML già escapato. ?>
+		<div class="llm-mag-index llm-ui-scope" data-llm-mag-accordion role="region" aria-label="<?php echo esc_attr( __( 'Seleziona la lingua', 'llm-con-tabelle' ) ); ?>">
+			<?php foreach ( self::section_groups() as $index => $group ) : ?>
+				<?php echo self::render_section_group( $group, (string) $uid, (int) $index, $open_first ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML già escapato. ?>
 			<?php endforeach; ?>
 		</div>
 		<?php
@@ -59,10 +62,13 @@ class LLM_Magazine_Index_Shortcode {
 	}
 
 	/**
-	 * @param array{known:string,ui:string,targets:string[]} $group Gruppo sezione.
+	 * @param array{known:string,ui:string,targets:string[]} $group      Gruppo sezione.
+	 * @param string                                         $uid        Prefisso id univoco.
+	 * @param int                                            $index      Indice pannello.
+	 * @param bool                                           $open_first Prima sezione visibile aperta.
 	 * @return string
 	 */
-	private static function render_section_group( $group ) {
+	private static function render_section_group( $group, $uid, $index, &$open_first ) {
 		$known   = sanitize_key( $group['known'] );
 		$ui      = sanitize_key( $group['ui'] );
 		$targets = array_map( 'sanitize_key', (array) $group['targets'] );
@@ -96,12 +102,41 @@ class LLM_Magazine_Index_Shortcode {
 			) . '</p>';
 		}
 
+		$is_open  = (bool) $open_first;
+		$open_first = false;
+		$panel_id = $uid . '-panel-' . $index;
+		$btn_id   = $uid . '-btn-' . $index;
+		$flag     = LLM_Languages::flag_emoji( $known );
+		$label    = self::accordion_label( $known );
+
 		ob_start();
 		?>
-		<section class="llm-mag-index__section" data-known="<?php echo esc_attr( $known ); ?>">
-			<h2 class="llm-mag-index__heading"><?php echo esc_html( self::section_heading( $known, $ui ) ); ?></h2>
-			<div class="llm-mag-index__grid">
-				<?php echo implode( '', $cards ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML già escapato. ?>
+		<section class="llm-mag-index__acc-item<?php echo $is_open ? ' is-open' : ''; ?>" data-known="<?php echo esc_attr( $known ); ?>">
+			<h2 class="llm-mag-index__acc-heading">
+				<button
+					type="button"
+					class="llm-mag-index__acc-toggle"
+					id="<?php echo esc_attr( $btn_id ); ?>"
+					aria-expanded="<?php echo $is_open ? 'true' : 'false'; ?>"
+					aria-controls="<?php echo esc_attr( $panel_id ); ?>"
+				>
+					<?php if ( $flag ) : ?>
+						<span class="llm-mag-index__acc-flag" aria-hidden="true"><?php echo esc_html( $flag ); ?></span>
+					<?php endif; ?>
+					<span class="llm-mag-index__acc-label"><?php echo esc_html( $label ); ?></span>
+					<span class="llm-mag-index__acc-chevron" aria-hidden="true"></span>
+				</button>
+			</h2>
+			<div
+				class="llm-mag-index__acc-panel"
+				id="<?php echo esc_attr( $panel_id ); ?>"
+				role="region"
+				aria-labelledby="<?php echo esc_attr( $btn_id ); ?>"
+				<?php echo $is_open ? '' : 'hidden'; ?>
+			>
+				<div class="llm-mag-index__grid">
+					<?php echo implode( '', $cards ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML già escapato. ?>
+				</div>
 			</div>
 		</section>
 		<?php
@@ -268,29 +303,16 @@ class LLM_Magazine_Index_Shortcode {
 
 	/**
 	 * @param string $known Lingua conosciuta.
-	 * @param string $ui    Lingua UI.
 	 * @return string
 	 */
-	private static function section_heading( $known, $ui ) {
-		$known_name = self::lang_name_in_ui( $known, $ui );
-		$templates  = array(
-			'it' => 'Riviste se conosci %s:',
-			'en' => 'Magazines if you know %s:',
-			'pl' => 'Czasopisma, jeśli znasz %s:',
+	private static function accordion_label( $known ) {
+		$labels = array(
+			'it' => 'Italiano',
+			'en' => 'Inglese',
+			'pl' => 'Polacco',
 		);
-		$tpl = isset( $templates[ $ui ] ) ? $templates[ $ui ] : $templates['it'];
-
-		if ( 'it' === $ui && 'it' === $known ) {
-			return 'Riviste se conosci l\'italiano:';
-		}
-		if ( 'it' === $ui && 'en' === $known ) {
-			return 'Riviste se conosci l\'inglese:';
-		}
-		if ( 'it' === $ui && 'pl' === $known ) {
-			return 'Riviste se conosci il polacco:';
-		}
-
-		return sprintf( $tpl, $known_name );
+		$known = sanitize_key( $known );
+		return isset( $labels[ $known ] ) ? $labels[ $known ] : LLM_Languages::label( $known );
 	}
 
 	/**
@@ -382,6 +404,13 @@ class LLM_Magazine_Index_Shortcode {
 			LLM_TABELLE_URL . 'assets/llm-magazine-index.css',
 			array( 'llm-ui' ),
 			LLM_TABELLE_VERSION
+		);
+		wp_enqueue_script(
+			'llm-magazine-index',
+			LLM_TABELLE_URL . 'assets/llm-magazine-index.js',
+			array(),
+			LLM_TABELLE_VERSION,
+			true
 		);
 	}
 }
