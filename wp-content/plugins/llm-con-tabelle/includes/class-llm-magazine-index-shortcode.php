@@ -2,7 +2,7 @@
 /**
  * Shortcode [llm_riviste_indice] — card riviste di prima pagina per coppia.
  *
- * Sezioni raggruppate per lingua conosciuta (IT, EN, PL).
+ * Sezioni raggruppate per lingua conosciuta (IT, EN).
  *
  * @package LLM_Tabelle
  */
@@ -34,11 +34,6 @@ class LLM_Magazine_Index_Shortcode {
 			array(
 				'known'   => 'en',
 				'ui'      => 'en',
-				'targets' => array( 'it' ),
-			),
-			array(
-				'known'   => 'pl',
-				'ui'      => 'pl',
 				'targets' => array( 'it' ),
 			),
 		);
