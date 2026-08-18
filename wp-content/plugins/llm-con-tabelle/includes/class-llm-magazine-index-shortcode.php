@@ -2,7 +2,7 @@
 /**
  * Shortcode [llm_riviste_indice] — card riviste di prima pagina per coppia.
  *
- * Per ora: IT→EN, IT→PL (testi IT) e PL→IT (testi PL).
+ * Sezioni raggruppate per lingua conosciuta (IT, EN, PL).
  *
  * @package LLM_Tabelle
  */
@@ -20,26 +20,26 @@ class LLM_Magazine_Index_Shortcode {
 	}
 
 	/**
-	 * Sezioni fisse (estendibili in seguito).
+	 * Gruppi per lingua conosciuta.
 	 *
-	 * @return array<int,array{known:string,target:string,ui:string}>
+	 * @return array<int,array{known:string,ui:string,targets:string[]}>
 	 */
-	private static function sections() {
+	private static function section_groups() {
 		return array(
 			array(
-				'known'  => 'it',
-				'target' => 'en',
-				'ui'     => 'it',
+				'known'   => 'it',
+				'ui'      => 'it',
+				'targets' => array( 'en', 'pl' ),
 			),
 			array(
-				'known'  => 'it',
-				'target' => 'pl',
-				'ui'     => 'it',
+				'known'   => 'en',
+				'ui'      => 'en',
+				'targets' => array( 'it' ),
 			),
 			array(
-				'known'  => 'pl',
-				'target' => 'it',
-				'ui'     => 'pl',
+				'known'   => 'pl',
+				'ui'      => 'pl',
+				'targets' => array( 'it' ),
 			),
 		);
 	}
@@ -55,8 +55,8 @@ class LLM_Magazine_Index_Shortcode {
 		ob_start();
 		?>
 		<div class="llm-mag-index llm-ui-scope">
-			<?php foreach ( self::sections() as $section ) : ?>
-				<?php echo self::render_section( $section ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML già escapato. ?>
+			<?php foreach ( self::section_groups() as $group ) : ?>
+				<?php echo self::render_section_group( $group ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML già escapato. ?>
 			<?php endforeach; ?>
 		</div>
 		<?php
@@ -64,39 +64,49 @@ class LLM_Magazine_Index_Shortcode {
 	}
 
 	/**
-	 * @param array{known:string,target:string,ui:string} $section Sezione.
+	 * @param array{known:string,ui:string,targets:string[]} $group Gruppo sezione.
 	 * @return string
 	 */
-	private static function render_section( $section ) {
-		$known  = sanitize_key( $section['known'] );
-		$target = sanitize_key( $section['target'] );
-		$ui     = sanitize_key( $section['ui'] );
+	private static function render_section_group( $group ) {
+		$known   = sanitize_key( $group['known'] );
+		$ui      = sanitize_key( $group['ui'] );
+		$targets = array_map( 'sanitize_key', (array) $group['targets'] );
+		$cards   = array();
 
-		$mag_id   = LLM_Magazine::find_homepage_id( $known, $target );
-		$pair_url = class_exists( 'LLM_Home_Redirect' ) ? LLM_Home_Redirect::pair_url( $known, $target ) : '';
-		$heading  = self::section_heading( $known, $target, $ui );
+		foreach ( $targets as $target ) {
+			if ( ! LLM_Languages::is_valid( $target ) || $known === $target ) {
+				continue;
+			}
+			$mag_id = LLM_Magazine::find_homepage_id( $known, $target );
+			if ( ! $mag_id ) {
+				continue;
+			}
+			$pair_url = class_exists( 'LLM_Home_Redirect' ) ? LLM_Home_Redirect::pair_url( $known, $target ) : '';
+			$card     = self::render_card( $mag_id, $pair_url, $ui, $known, $target );
+			if ( '' !== $card ) {
+				$cards[] = $card;
+			}
+		}
+
+		if ( empty( $cards ) ) {
+			if ( ! current_user_can( 'edit_posts' ) ) {
+				return '';
+			}
+			$cards[] = '<p class="llm-mag-index__empty">' . esc_html(
+				sprintf(
+					/* translators: %s: known language label */
+					__( 'Nessuna rivista di prima pagina per chi conosce %s.', 'llm-con-tabelle' ),
+					self::lang_name_in_ui( $known, $ui )
+				)
+			) . '</p>';
+		}
 
 		ob_start();
 		?>
-		<section class="llm-mag-index__section" data-known="<?php echo esc_attr( $known ); ?>" data-target="<?php echo esc_attr( $target ); ?>">
-			<h2 class="llm-mag-index__heading"><?php echo esc_html( $heading ); ?></h2>
+		<section class="llm-mag-index__section" data-known="<?php echo esc_attr( $known ); ?>">
+			<h2 class="llm-mag-index__heading"><?php echo esc_html( self::section_heading( $known, $ui ) ); ?></h2>
 			<div class="llm-mag-index__grid">
-				<?php if ( $mag_id ) : ?>
-					<?php echo self::render_card( $mag_id, $pair_url, $ui ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML già escapato. ?>
-				<?php elseif ( current_user_can( 'edit_posts' ) ) : ?>
-					<p class="llm-mag-index__empty">
-						<?php
-						echo esc_html(
-							sprintf(
-								/* translators: 1: known lang, 2: target lang */
-								__( 'Nessuna rivista di prima pagina per %1$s → %2$s.', 'llm-con-tabelle' ),
-								LLM_Languages::label( $known ),
-								LLM_Languages::label( $target )
-							)
-						);
-						?>
-					</p>
-				<?php endif; ?>
+				<?php echo implode( '', $cards ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML già escapato. ?>
 			</div>
 		</section>
 		<?php
@@ -107,17 +117,19 @@ class LLM_Magazine_Index_Shortcode {
 	 * @param int    $mag_id   ID rivista.
 	 * @param string $pair_url URL pagina coppia.
 	 * @param string $ui       Lingua UI della sezione.
+	 * @param string $known    Lingua conosciuta.
+	 * @param string $target   Lingua target.
 	 * @return string
 	 */
-	private static function render_card( $mag_id, $pair_url, $ui ) {
+	private static function render_card( $mag_id, $pair_url, $ui, $known, $target ) {
 		$mag_id = absint( $mag_id );
 		$post   = get_post( $mag_id );
 		if ( ! $post || LLM_Magazine::CPT !== $post->post_type ) {
 			return '';
 		}
 
-		$known        = LLM_Magazine::get_known( $mag_id );
-		$target       = LLM_Magazine::get_target( $mag_id );
+		$known        = sanitize_key( $known );
+		$target       = sanitize_key( $target );
 		$title        = get_the_title( $mag_id );
 		$date         = LLM_Magazine::get_date( $mag_id );
 		$date_label   = $date ? mysql2date( get_option( 'date_format' ), $date . ' 00:00:00' ) : '';
@@ -128,6 +140,7 @@ class LLM_Magazine_Index_Shortcode {
 		$known_flag   = LLM_Languages::flag_emoji( $known );
 		$target_flag  = LLM_Languages::flag_emoji( $target );
 		$contents     = self::contents_summary( $mag_id, $ui );
+		$learn_label  = self::learn_label( $target, $ui );
 		$subtitle     = $issue_num > 0
 			? sprintf( self::edition_label( $ui ), sprintf( '%02d', $issue_num ) )
 			: self::pair_label( $known, $target, $ui );
@@ -156,6 +169,9 @@ class LLM_Magazine_Index_Shortcode {
 					</span>
 				</div>
 				<div class="llm-mag-index__body">
+					<?php if ( $learn_label ) : ?>
+						<p class="llm-mag-index__learn"><?php echo esc_html( $learn_label ); ?></p>
+					<?php endif; ?>
 					<?php if ( $subtitle ) : ?>
 						<p class="llm-mag-index__kicker"><?php echo esc_html( $subtitle ); ?></p>
 					<?php endif; ?>
@@ -256,29 +272,56 @@ class LLM_Magazine_Index_Shortcode {
 	}
 
 	/**
-	 * @param string $known  Lingua nota.
-	 * @param string $target Lingua target.
-	 * @param string $ui     Lingua UI.
+	 * @param string $known Lingua conosciuta.
+	 * @param string $ui    Lingua UI.
 	 * @return string
 	 */
-	private static function section_heading( $known, $target, $ui ) {
-		$target_name = self::lang_name_in_ui( $target, $ui );
-		$templates   = array(
-			'it' => 'Riviste per italiani che vogliono imparare: %s',
-			'pl' => 'Czasopisma dla Polaków, którzy chcą się uczyć: %s',
-			'en' => 'Magazines for speakers who want to learn: %s',
+	private static function section_heading( $known, $ui ) {
+		$known_name = self::lang_name_in_ui( $known, $ui );
+		$templates  = array(
+			'it' => 'Riviste se conosci %s:',
+			'en' => 'Magazines if you know %s:',
+			'pl' => 'Czasopisma, jeśli znasz %s:',
 		);
 		$tpl = isset( $templates[ $ui ] ) ? $templates[ $ui ] : $templates['it'];
 
-		// Override più naturali per le 3 sezioni attuali.
-		if ( 'it' === $ui && 'it' === $known && 'en' === $target ) {
-			return 'Riviste per italiani che vogliono imparare: inglese';
+		if ( 'it' === $ui && 'it' === $known ) {
+			return 'Riviste se conosci l\'italiano:';
 		}
-		if ( 'it' === $ui && 'it' === $known && 'pl' === $target ) {
-			return 'Riviste per italiani che vogliono imparare: polacco';
+		if ( 'it' === $ui && 'en' === $known ) {
+			return 'Riviste se conosci l\'inglese:';
 		}
-		if ( 'pl' === $ui && 'pl' === $known && 'it' === $target ) {
-			return 'Czasopisma dla Polaków, którzy chcą się uczyć: włoski';
+		if ( 'it' === $ui && 'pl' === $known ) {
+			return 'Riviste se conosci il polacco:';
+		}
+
+		return sprintf( $tpl, $known_name );
+	}
+
+	/**
+	 * @param string $target Lingua da imparare.
+	 * @param string $ui     Lingua UI.
+	 * @return string
+	 */
+	private static function learn_label( $target, $ui ) {
+		$target_name = self::lang_name_in_ui( $target, $ui );
+		$templates   = array(
+			'it' => 'Impara %s',
+			'en' => 'Learn %s',
+			'pl' => 'Ucz się %s',
+		);
+		$tpl = isset( $templates[ $ui ] ) ? $templates[ $ui ] : $templates['it'];
+
+		if ( 'it' === $ui ) {
+			$articles = array(
+				'it' => "l'italiano",
+				'en' => "l'inglese",
+				'pl' => 'il polacco',
+				'es' => 'lo spagnolo',
+			);
+			if ( isset( $articles[ $target ] ) ) {
+				return 'Impara ' . $articles[ $target ];
+			}
 		}
 
 		return sprintf( $tpl, $target_name );
