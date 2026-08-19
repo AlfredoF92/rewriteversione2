@@ -146,6 +146,8 @@ class LLM_Magazine_Shortcode {
 		$target       = LLM_Magazine::get_target( $mag_id );
 		$nav          = LLM_Magazine::get_nav_context( $mag_id );
 		$crossword_id = LLM_Magazine::get_crossword_id( $mag_id );
+		$author_note  = LLM_Magazine::get_author_note( $mag_id );
+		$has_note     = ( '' !== trim( $author_note['title'] ) || '' !== trim( $author_note['name'] ) || '' !== trim( $author_note['comment'] ) );
 		$story_ids    = LLM_Magazine::get_story_ids( $mag_id );
 		$music_ids    = LLM_Magazine::get_music_ids( $mag_id );
 		$quiz_qs      = LLM_Magazine::get_quiz_questions_for_magazine( $mag_id );
@@ -159,153 +161,318 @@ class LLM_Magazine_Shortcode {
 		$cover_id     = (int) get_post_thumbnail_id( $mag_id );
 		$cover_url    = $cover_id ? wp_get_attachment_image_url( $cover_id, 'large' ) : '';
 
-		$base_url = remove_query_arg( 'llm_rivista' );
-		$prev_url = $nav['prev'] ? add_query_arg( 'llm_rivista', $nav['prev'], $base_url ) : '';
-		$next_url = $nav['next'] ? add_query_arg( 'llm_rivista', $nav['next'], $base_url ) : '';
+		$issue_num = ! empty( $nav['issue'] ) ? (int) $nav['issue'] : 0;
+
+		// Contatore sezioni progressivo.
+		$sec        = 0;
+		$sec_cross  = $crossword_id ? ++$sec : 0;
+		$sec_story  = ! empty( $story_ids ) ? ++$sec : 0;
+		$sec_music  = ! empty( $music_ids ) ? ++$sec : 0;
+		$sec_quiz   = ! empty( $quiz_qs ) ? ++$sec : 0;
+		$sec_video  = ! empty( $videos ) ? ++$sec : 0;
+		$has_idiom  = $idiom && ( ! empty( $idiom['phrase'] ) || ! empty( $idiom['explanation'] ) || ! empty( $idiom['category'] ) );
+		$sec_idiom  = $has_idiom ? ++$sec : 0;
+
+		// Totale frasi per il badge hero.
+		$total_phrases = 0;
+		foreach ( $story_ids as $sid ) {
+			$total_phrases += count( LLM_Story_Repository::get_phrases( $sid ) );
+		}
+		foreach ( $music_ids as $mid ) {
+			$total_phrases += count( LLM_Story_Repository::get_phrases( $mid ) );
+		}
+
+		$cefr_level   = self::magazine_cefr( array_merge( $story_ids, $music_ids ) );
+		$author_name  = get_the_author_meta( 'display_name', (int) $post->post_author );
+		$welcome_name = '';
+		if ( is_user_logged_in() ) {
+			$current      = wp_get_current_user();
+			$welcome_name = $current && $current->display_name ? $current->display_name : '';
+		}
+		$learn_tagline = self::learn_tagline( $target );
 
 		ob_start();
 		?>
-		<div class="llm-magazine llm-ui-scope" data-magazine-id="<?php echo esc_attr( (string) $mag_id ); ?>">
-			<header class="llm-magazine__header<?php echo $cover_url ? ' llm-magazine__header--has-cover' : ''; ?>">
-				<div class="llm-magazine__masthead">
-					<?php if ( $prev_url || $next_url ) : ?>
-						<nav class="llm-magazine__nav" aria-label="<?php esc_attr_e( 'Navigazione riviste', 'llm-con-tabelle' ); ?>">
-							<?php if ( $prev_url ) : ?>
-								<a class="llm-magazine__nav-btn llm-magazine__nav-btn--prev" href="<?php echo esc_url( $prev_url ); ?>">
-									<span class="llm-magazine__nav-arrow" aria-hidden="true">←</span>
-									<span class="llm-magazine__nav-label"><?php esc_html_e( 'Precedente', 'llm-con-tabelle' ); ?></span>
-								</a>
-							<?php else : ?>
-								<span class="llm-magazine__nav-btn llm-magazine__nav-btn--prev is-disabled" aria-disabled="true">
-									<span class="llm-magazine__nav-arrow" aria-hidden="true">←</span>
-									<span class="llm-magazine__nav-label"><?php esc_html_e( 'Precedente', 'llm-con-tabelle' ); ?></span>
-								</span>
-							<?php endif; ?>
+		<div class="llm-magazine llm-ui-scope llm-magazine--target-<?php echo esc_attr( sanitize_key( $target ) ); ?>" data-magazine-id="<?php echo esc_attr( (string) $mag_id ); ?>">
 
-							<?php if ( $next_url ) : ?>
-								<a class="llm-magazine__nav-btn llm-magazine__nav-btn--next" href="<?php echo esc_url( $next_url ); ?>">
-									<span class="llm-magazine__nav-label"><?php esc_html_e( 'Successiva', 'llm-con-tabelle' ); ?></span>
-									<span class="llm-magazine__nav-arrow" aria-hidden="true">→</span>
-								</a>
-							<?php else : ?>
-								<span class="llm-magazine__nav-btn llm-magazine__nav-btn--next is-disabled" aria-disabled="true">
-									<span class="llm-magazine__nav-label"><?php esc_html_e( 'Successiva', 'llm-con-tabelle' ); ?></span>
-									<span class="llm-magazine__nav-arrow" aria-hidden="true">→</span>
-								</span>
-							<?php endif; ?>
-						</nav>
-					<?php endif; ?>
-
+			<div class="llm-magazine__welcome">
+				<span class="llm-magazine__welcome-brand">
 					<?php
-					$issue_num = ! empty( $nav['issue'] ) ? (int) $nav['issue'] : 0;
+					if ( $welcome_name ) {
+						echo esc_html( sprintf( /* translators: %s: user display name */ __( 'Bentornato su LoveRewrite, %s', 'llm-con-tabelle' ), $welcome_name ) );
+					} else {
+						esc_html_e( 'Bentornato su LoveRewrite', 'llm-con-tabelle' );
+					}
 					?>
+				</span>
+				<?php if ( $author_name ) : ?>
+					<span class="llm-magazine__welcome-sep" aria-hidden="true">|</span>
+					<span class="llm-magazine__welcome-credit">
+						<?php
+						echo esc_html(
+							sprintf(
+								/* translators: %s: editor display name */
+								__( 'Edizione a cura di %s', 'llm-con-tabelle' ),
+								$author_name
+							)
+						);
+						?>
+					</span>
+				<?php endif; ?>
+			</div>
 
-					<?php if ( $issue_num > 0 || $date_label ) : ?>
-						<h1 class="llm-magazine__title">
-							<?php if ( $issue_num > 0 ) : ?>
-								<span class="llm-magazine__title-edition"><?php echo esc_html( sprintf( __( 'Edizione #%s', 'llm-con-tabelle' ), sprintf( '%02d', $issue_num ) ) ); ?></span>
-								<?php if ( $date_label ) : ?>
-									<span class="llm-magazine__title-sep" aria-hidden="true"> — </span>
-									<time class="llm-magazine__title-date" datetime="<?php echo esc_attr( $date ); ?>"><?php echo esc_html( $date_label ); ?></time>
-								<?php endif; ?>
-							<?php else : ?>
-								<time class="llm-magazine__title-date" datetime="<?php echo esc_attr( $date ); ?>"><?php echo esc_html( $date_label ); ?></time>
-							<?php endif; ?>
-						</h1>
-					<?php endif; ?>
+			<!-- ═══ HERO ═══ -->
+			<div class="llm-magazine__hero">
 
-					<?php if ( $title ) : ?>
-						<p class="llm-magazine__subtitle"><?php echo esc_html( $title ); ?></p>
+				<!-- Sidebar sinistra -->
+				<aside class="llm-magazine__sidebar">
+					<?php
+					$brand_aria = $issue_num > 0
+						? sprintf( /* translators: %d: magazine issue number */ __( 'LoveRewrite, edizione %d', 'llm-con-tabelle' ), $issue_num )
+						: 'LoveRewrite';
+					?>
+					<div class="llm-magazine__sidebar-brand" aria-label="<?php echo esc_attr( $brand_aria ); ?>">
+						<p class="llm-magazine__sidebar-brand-name">LoveRewrite</p>
+						<?php if ( $issue_num > 0 ) : ?>
+							<p class="llm-magazine__sidebar-brand-label"><?php esc_html_e( 'Edizione n:', 'llm-con-tabelle' ); ?></p>
+							<p class="llm-magazine__sidebar-num"><?php echo esc_html( sprintf( '%02d', $issue_num ) ); ?></p>
+						<?php endif; ?>
+					</div>
+
+					<?php if ( $date_label ) : ?>
+						<time class="llm-magazine__sidebar-date" datetime="<?php echo esc_attr( $date ); ?>">
+							<?php echo esc_html( strtoupper( $date_label ) ); ?>
+						</time>
 					<?php endif; ?>
 
 					<?php if ( $known && $target ) : ?>
-						<p class="llm-magazine__pair">
-							<span class="llm-magazine__pair-flags" aria-hidden="true">
-								<span class="llm-magazine__pair-flag"><?php echo esc_html( $known_flag ); ?></span>
-								<span class="llm-magazine__pair-arrow">→</span>
-								<span class="llm-magazine__pair-flag"><?php echo esc_html( $target_flag ); ?></span>
+						<div class="llm-magazine__sidebar-pair">
+							<span class="llm-magazine__sidebar-flags" aria-hidden="true">
+								<?php echo esc_html( $known_flag ); ?> → <?php echo esc_html( $target_flag ); ?>
 							</span>
-							<span class="llm-magazine__pair-text">
+							<span class="llm-magazine__sidebar-langs">
+								<?php echo esc_html( strtoupper( $known_label ) ); ?> → <?php echo esc_html( strtoupper( $target_label ) ); ?>
+							</span>
+						</div>
+					<?php endif; ?>
+
+					<?php if ( $cefr_level ) : ?>
+						<div class="llm-magazine__sidebar-level-wrap">
+							<p class="llm-magazine__sidebar-level-label"><?php esc_html_e( 'Livello consigliato', 'llm-con-tabelle' ); ?></p>
+							<span class="llm-magazine__sidebar-level"><?php echo esc_html( $cefr_level ); ?></span>
+						</div>
+					<?php endif; ?>
+
+					<?php if ( $title ) : ?>
+						<p class="llm-magazine__sidebar-title"><?php echo esc_html( $title ); ?></p>
+					<?php endif; ?>
+
+					<?php if ( $total_phrases > 0 ) : ?>
+						<?php
+						$target_word = array(
+							'en' => 'INGLESE',
+							'it' => 'ITALIANO',
+							'pl' => 'POLACCO',
+							'es' => 'SPAGNOLO',
+						);
+						$target_word = isset( $target_word[ $target ] ) ? $target_word[ $target ] : strtoupper( (string) $target_label );
+						?>
+						<div class="llm-magazine__sidebar-count">
+							<span class="llm-magazine__sidebar-count-num"><?php echo esc_html( $total_phrases ); ?></span>
+							<span class="llm-magazine__sidebar-count-label">
+								<?php if ( $target_flag ) : ?>
+									<span class="llm-magazine__sidebar-count-flag" aria-hidden="true"><?php echo esc_html( $target_flag ); ?></span>
+								<?php endif; ?>
 								<?php
 								echo esc_html(
 									sprintf(
-										/* translators: 1: known language label, 2: target language label */
-										__( 'Per chi parla %1$s e studia %2$s', 'llm-con-tabelle' ),
-										$known_label,
-										$target_label
+										/* translators: %s: target language in uppercase, e.g. INGLESE */
+										__( 'FRASI DI %s DA IMPARARE', 'llm-con-tabelle' ),
+										$target_word
 									)
 								);
 								?>
 							</span>
-						</p>
+						</div>
 					<?php endif; ?>
-				</div>
-				<?php if ( $cover_url ) : ?>
-					<div class="llm-magazine__cover-wrap">
-						<div
-							class="llm-magazine__cover"
+				</aside>
+
+				<!-- Cover principale con titolo sovrapposto -->
+				<div class="llm-magazine__hero-main">
+					<div
+						class="llm-magazine__cover<?php echo $cover_url ? '' : ' llm-magazine__cover--empty'; ?>"
+						<?php if ( $cover_url ) : ?>
 							style="background-image:url('<?php echo esc_url( $cover_url ); ?>');"
-							role="img"
-							aria-label="<?php echo esc_attr( sprintf( /* translators: %s: magazine title */ __( 'Copertina: %s', 'llm-con-tabelle' ), $title ) ); ?>"
-						></div>
+						<?php endif; ?>
+						role="img"
+						aria-label="<?php echo esc_attr( sprintf( /* translators: %s: magazine title */ __( 'Copertina: %s', 'llm-con-tabelle' ), $title ) ); ?>"
+					>
+						<div class="llm-magazine__cover-overlay" aria-hidden="true"></div>
+						<p class="llm-magazine__cover-ribbon"><?php echo esc_html( $learn_tagline ); ?></p>
+						<?php if ( $title ) : ?>
+							<h1 class="llm-magazine__cover-title"><?php echo esc_html( strtoupper( $title ) ); ?></h1>
+						<?php endif; ?>
 					</div>
+				</div>
+			</div><!-- /.llm-magazine__hero -->
+
+			<!-- ═══ CORPO SEZIONI ═══ -->
+			<div class="llm-magazine__body" id="llm-mag-content">
+
+				<!-- RIGA 1: Commento+cruciverba (sx) + Storie+brani (dx) -->
+				<?php
+				$has_left  = $has_note || $crossword_id;
+				$has_right = ! empty( $story_ids ) || ! empty( $music_ids );
+				$row_class = 'llm-magazine__row llm-magazine__row--top';
+				if ( $has_left && $has_right ) {
+					$row_class .= ' llm-magazine__row--top-split';
+				} else {
+					$row_class .= ' llm-magazine__row--top-single';
+				}
+				?>
+				<?php if ( $has_left || $has_right ) : ?>
+					<div class="<?php echo esc_attr( $row_class ); ?>">
+
+						<?php if ( $has_left ) : ?>
+							<div class="llm-magazine__col llm-magazine__col--left">
+								<?php if ( $has_note ) : ?>
+									<?php echo self::render_author_note( $author_note ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+								<?php endif; ?>
+
+								<?php if ( $crossword_id ) : ?>
+									<section class="llm-magazine__section llm-magazine__section--crossword">
+										<header class="llm-magazine__section-head">
+											<span class="llm-magazine__section-num"><?php echo esc_html( sprintf( '%02d', $sec_cross ) ); ?></span>
+											<h2 class="llm-magazine__section-title"><?php esc_html_e( 'Cruciverba del giorno', 'llm-con-tabelle' ); ?></h2>
+										</header>
+										<?php echo do_shortcode( '[llm_crossword id="' . (int) $crossword_id . '"]' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+									</section>
+								<?php endif; ?>
+							</div>
+						<?php endif; ?>
+
+						<?php if ( $has_right ) : ?>
+							<div class="llm-magazine__col llm-magazine__col--right">
+								<?php if ( ! empty( $story_ids ) ) : ?>
+									<section class="llm-magazine__section llm-magazine__section--stories">
+										<header class="llm-magazine__section-head">
+											<span class="llm-magazine__section-num"><?php echo esc_html( sprintf( '%02d', $sec_story ) ); ?></span>
+											<h2 class="llm-magazine__section-title"><?php esc_html_e( 'Storie del giorno', 'llm-con-tabelle' ); ?></h2>
+										</header>
+										<div class="llm-magazine__stories">
+											<?php foreach ( $story_ids as $i => $story_id ) : ?>
+												<?php echo self::render_story_card( $story_id, 'vertical', 0 === $i ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+											<?php endforeach; ?>
+										</div>
+									</section>
+								<?php endif; ?>
+
+								<?php if ( ! empty( $music_ids ) ) : ?>
+									<section class="llm-magazine__section llm-magazine__section--music">
+										<p class="llm-magazine__section-kicker"><?php esc_html_e( 'SUONA E IMPARA', 'llm-con-tabelle' ); ?></p>
+										<header class="llm-magazine__section-head">
+											<span class="llm-magazine__section-num"><?php echo esc_html( sprintf( '%02d', $sec_music ) ); ?></span>
+											<h2 class="llm-magazine__section-title"><?php esc_html_e( 'Brani musicali', 'llm-con-tabelle' ); ?></h2>
+										</header>
+										<div class="llm-magazine__music">
+											<?php foreach ( $music_ids as $story_id ) : ?>
+												<?php echo self::render_story_card( $story_id, 'horizontal' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+											<?php endforeach; ?>
+										</div>
+									</section>
+								<?php endif; ?>
+							</div>
+						<?php endif; ?>
+
+					</div><!-- /.llm-magazine__row--top -->
 				<?php endif; ?>
-			</header>
 
-			<?php if ( $crossword_id ) : ?>
-				<section class="llm-magazine__section llm-magazine__section--crossword">
-					<h3 class="llm-magazine__section-title"><?php esc_html_e( 'Cruciverba del giorno', 'llm-con-tabelle' ); ?></h3>
-					<?php echo do_shortcode( '[llm_crossword id="' . (int) $crossword_id . '"]' ); ?>
-				</section>
-			<?php endif; ?>
+				<!-- RIGA 3: Quiz (sx) + Video/Espressione (dx) -->
+				<?php if ( ! empty( $quiz_qs ) || ! empty( $videos ) || $has_idiom ) : ?>
+					<div class="llm-magazine__row llm-magazine__row--bottom">
 
-			<?php if ( ! empty( $story_ids ) ) : ?>
-				<section class="llm-magazine__section llm-magazine__section--stories">
-					<h3 class="llm-magazine__section-title"><?php esc_html_e( 'Storie del giorno', 'llm-con-tabelle' ); ?></h3>
-					<div class="llm-magazine__stories">
-						<?php foreach ( $story_ids as $story_id ) : ?>
-							<?php echo self::render_story_card( $story_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-						<?php endforeach; ?>
-					</div>
-				</section>
-			<?php endif; ?>
+						<?php if ( ! empty( $quiz_qs ) ) : ?>
+							<section class="llm-magazine__section llm-magazine__section--quiz">
+								<header class="llm-magazine__section-head">
+									<span class="llm-magazine__section-num"><?php echo esc_html( sprintf( '%02d', $sec_quiz ) ); ?></span>
+									<h2 class="llm-magazine__section-title"><?php esc_html_e( 'Quiz del giorno', 'llm-con-tabelle' ); ?></h2>
+								</header>
+								<?php echo self::render_quiz( $mag_id, $quiz_qs ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+							</section>
+						<?php endif; ?>
 
-			<?php if ( ! empty( $music_ids ) ) : ?>
-				<section class="llm-magazine__section llm-magazine__section--music">
-					<h3 class="llm-magazine__section-title"><?php esc_html_e( 'Brani musicali', 'llm-con-tabelle' ); ?></h3>
-					<div class="llm-magazine__music">
-						<?php foreach ( $music_ids as $story_id ) : ?>
-							<?php echo self::render_story_card( $story_id, 'horizontal' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-						<?php endforeach; ?>
-					</div>
-				</section>
-			<?php endif; ?>
+						<?php if ( ! empty( $videos ) || $has_idiom ) : ?>
+							<div class="llm-magazine__section-group">
 
-			<?php if ( ! empty( $quiz_qs ) ) : ?>
-				<section class="llm-magazine__section llm-magazine__section--quiz">
-					<h3 class="llm-magazine__section-title"><?php esc_html_e( 'Quiz del giorno', 'llm-con-tabelle' ); ?></h3>
-					<?php echo self::render_quiz( $mag_id, $quiz_qs ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-				</section>
-			<?php endif; ?>
+								<?php if ( ! empty( $videos ) ) : ?>
+									<section class="llm-magazine__section llm-magazine__section--videos">
+										<header class="llm-magazine__section-head">
+											<span class="llm-magazine__section-num"><?php echo esc_html( sprintf( '%02d', $sec_video ) ); ?></span>
+											<h2 class="llm-magazine__section-title"><?php esc_html_e( 'Video da ascoltare', 'llm-con-tabelle' ); ?></h2>
+										</header>
+										<div class="llm-magazine__videos">
+											<?php foreach ( $videos as $video ) : ?>
+												<?php echo self::render_video_card( $video ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+											<?php endforeach; ?>
+										</div>
+									</section>
+								<?php endif; ?>
 
-			<?php if ( ! empty( $videos ) ) : ?>
-				<section class="llm-magazine__section llm-magazine__section--videos">
-					<h3 class="llm-magazine__section-title"><?php esc_html_e( 'Video da ascoltare', 'llm-con-tabelle' ); ?></h3>
-					<div class="llm-magazine__videos">
-						<?php foreach ( $videos as $video ) : ?>
-							<?php echo self::render_video_card( $video ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-						<?php endforeach; ?>
-					</div>
-				</section>
-			<?php endif; ?>
+								<?php if ( $has_idiom ) : ?>
+									<section class="llm-magazine__section llm-magazine__section--idiom">
+										<header class="llm-magazine__section-head">
+											<span class="llm-magazine__section-num"><?php echo esc_html( sprintf( '%02d', $sec_idiom ) ); ?></span>
+											<h2 class="llm-magazine__section-title"><?php esc_html_e( 'Espressione del giorno', 'llm-con-tabelle' ); ?></h2>
+										</header>
+										<?php echo self::render_idiom( $idiom ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+									</section>
+								<?php endif; ?>
 
-			<?php if ( $idiom && ( $idiom['phrase'] || $idiom['explanation'] || $idiom['category'] ) ) : ?>
-				<section class="llm-magazine__section llm-magazine__section--idiom">
-					<h3 class="llm-magazine__section-title"><?php esc_html_e( 'Espressione del giorno', 'llm-con-tabelle' ); ?></h3>
-					<?php echo self::render_idiom( $idiom ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-				</section>
-			<?php endif; ?>
+							</div><!-- /.llm-magazine__section-group -->
+						<?php endif; ?>
+
+					</div><!-- /.llm-magazine__row--bottom -->
+				<?php endif; ?>
+
+			</div><!-- /.llm-magazine__body -->
 		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Commento dell'autore in stile giornale (sopra il cruciverba).
+	 *
+	 * @param array{title:string,name:string,comment:string} $note Campi admin.
+	 * @return string
+	 */
+	private static function render_author_note( array $note ) {
+		$title   = trim( (string) $note['title'] );
+		$name    = trim( (string) $note['name'] );
+		$comment = trim( (string) $note['comment'] );
+		if ( '' === $title && '' === $name && '' === $comment ) {
+			return '';
+		}
+
+		ob_start();
+		?>
+		<aside class="llm-magazine__author-note">
+			<p class="llm-magazine__author-note-kicker"><?php esc_html_e( 'Un commento dallo staff', 'llm-con-tabelle' ); ?></p>
+			<?php if ( '' !== $title ) : ?>
+				<h2 class="llm-magazine__author-note-title"><?php echo esc_html( $title ); ?></h2>
+			<?php endif; ?>
+			<?php if ( '' !== $name ) : ?>
+				<p class="llm-magazine__author-note-byline">
+					<span class="llm-magazine__author-note-mark" aria-hidden="true">»</span>
+					<span class="llm-magazine__author-note-name"><?php echo esc_html( $name ); ?></span>
+				</p>
+			<?php endif; ?>
+			<?php if ( '' !== $comment ) : ?>
+				<div class="llm-magazine__author-note-text">
+					<?php echo wpautop( esc_html( $comment ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+				</div>
+			<?php endif; ?>
+		</aside>
 		<?php
 		return (string) ob_get_clean();
 	}
@@ -422,9 +589,10 @@ class LLM_Magazine_Shortcode {
 	/**
 	 * @param int    $story_id ID storia.
 	 * @param string $layout   vertical|horizontal.
+	 * @param bool   $featured Prima card in evidenza (più grande).
 	 * @return string
 	 */
-	private static function render_story_card( $story_id, $layout = 'vertical' ) {
+	private static function render_story_card( $story_id, $layout = 'vertical', $featured = false ) {
 		$story_id = absint( $story_id );
 		$story    = get_post( $story_id );
 		if ( ! $story || LLM_STORY_CPT !== $story->post_type || 'publish' !== $story->post_status ) {
@@ -478,6 +646,9 @@ class LLM_Magazine_Shortcode {
 		$article_class = 'llm-magazine__card';
 		if ( 'horizontal' === $layout ) {
 			$article_class .= ' llm-magazine__card--horizontal';
+		}
+		if ( $featured ) {
+			$article_class .= ' llm-magazine__card--featured';
 		}
 
 		ob_start();
@@ -544,28 +715,82 @@ class LLM_Magazine_Shortcode {
 							<?php endforeach; ?>
 						</ul>
 					<?php endif; ?>
-
-					<?php if ( $phrase_count > 0 ) : ?>
-						<span class="llm-magazine__card-phrase-count">
+				</div>
+				<?php if ( $phrase_count > 0 ) : ?>
+					<div class="llm-magazine__card-cta" aria-hidden="true">
+						<span class="llm-magazine__card-cta-label"><?php esc_html_e( 'Impara', 'llm-con-tabelle' ); ?></span>
+						<span class="llm-magazine__card-cta-count">
 							<?php
 							if ( $is_music ) {
-								$count_label = sprintf( _n( '%d verso', '%d versi', $phrase_count, 'llm-con-tabelle' ), $phrase_count );
+								echo esc_html( sprintf( _n( '%d verso', '%d versi', $phrase_count, 'llm-con-tabelle' ), $phrase_count ) );
 							} else {
-								$count_label = sprintf( _n( '%d frase', '%d frasi', $phrase_count, 'llm-con-tabelle' ), $phrase_count );
+								$cta_count = sprintf( _n( '%d frase', '%d frasi', $phrase_count, 'llm-con-tabelle' ), $phrase_count );
+								if ( $cefr_code ) {
+									$cta_count .= ' ' . strtoupper( $cefr_code );
+								}
+								echo esc_html( $cta_count );
 							}
-							if ( $cefr_code ) {
-								$count_label .= ' ' . __( 'livello', 'llm-con-tabelle' ) . ' ' . strtoupper( $cefr_code );
-							}
-							echo esc_html( $count_label );
 							?>
-							<span class="llm-magazine__card-phrase-count-arrow" aria-hidden="true">→</span>
 						</span>
-					<?php endif; ?>
-				</div>
+						<span class="llm-magazine__card-cta-arrow" aria-hidden="true">→</span>
+					</div>
+				<?php endif; ?>
 			</a>
 		</article>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Livello CEFR della rivista: singolo codice o range (es. A1–B1).
+	 *
+	 * @param array<int,int> $story_ids ID storie/brani.
+	 * @return string
+	 */
+	private static function magazine_cefr( array $story_ids ) {
+		$order = array(
+			'a1' => 1,
+			'a2' => 2,
+			'b1' => 3,
+			'b2' => 4,
+			'c1' => 5,
+			'c2' => 6,
+		);
+		$found = array();
+		foreach ( $story_ids as $sid ) {
+			$cefr = (string) get_post_meta( absint( $sid ), LLM_Story_Meta::STORY_CEFR_LEVEL, true );
+			if ( preg_match( '/\b([ABC][12])\b/i', $cefr, $m ) ) {
+				$code = strtolower( $m[1] );
+				if ( isset( $order[ $code ] ) ) {
+					$found[ $code ] = $order[ $code ];
+				}
+			}
+		}
+		if ( empty( $found ) ) {
+			return '';
+		}
+		asort( $found, SORT_NUMERIC );
+		$codes = array_keys( $found );
+		$min   = strtoupper( (string) $codes[0] );
+		$max   = strtoupper( (string) end( $codes ) );
+		return $min === $max ? $min : $min . '–' . $max;
+	}
+
+	/**
+	 * Tagline sulla copertina, in base alla lingua da imparare.
+	 *
+	 * @param string $target Lingua target.
+	 * @return string
+	 */
+	private static function learn_tagline( $target ) {
+		$target = sanitize_key( $target );
+		$map    = array(
+			'en' => "Impara l'inglese una frase alla volta",
+			'it' => "Impara l'italiano una frase alla volta",
+			'pl' => 'Impara il polacco una frase alla volta',
+			'es' => 'Impara lo spagnolo una frase alla volta',
+		);
+		return isset( $map[ $target ] ) ? $map[ $target ] : __( 'Impara una frase alla volta', 'llm-con-tabelle' );
 	}
 
 	private static function enqueue() {

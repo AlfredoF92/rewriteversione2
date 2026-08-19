@@ -24,6 +24,9 @@ class LLM_Magazine {
 	const META_VIDEOS     = '_llm_magazine_videos';
 	const META_IDIOM      = '_llm_magazine_idiom';
 	const META_IDIOM_ID   = '_llm_magazine_idiom_id';
+	const META_NOTE_TITLE = '_llm_magazine_note_title';
+	const META_NOTE_NAME  = '_llm_magazine_note_name';
+	const META_NOTE_TEXT  = '_llm_magazine_note_text';
 
 	/** Quante domande quiz in una rivista (default automatico). */
 	const QUIZ_PER_ISSUE = 3;
@@ -584,6 +587,21 @@ class LLM_Magazine {
 	 */
 	public static function get_idiom_id( $post_id ) {
 		return sanitize_key( (string) get_post_meta( absint( $post_id ), self::META_IDIOM_ID, true ) );
+	}
+
+	/**
+	 * Commento dell'autore (titolo, nome, testo).
+	 *
+	 * @param int $post_id ID rivista.
+	 * @return array{title:string,name:string,comment:string}
+	 */
+	public static function get_author_note( $post_id ) {
+		$post_id = absint( $post_id );
+		return array(
+			'title'   => (string) get_post_meta( $post_id, self::META_NOTE_TITLE, true ),
+			'name'    => (string) get_post_meta( $post_id, self::META_NOTE_NAME, true ),
+			'comment' => (string) get_post_meta( $post_id, self::META_NOTE_TEXT, true ),
+		);
 	}
 
 	/**

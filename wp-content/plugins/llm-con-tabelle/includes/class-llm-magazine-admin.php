@@ -81,6 +81,14 @@ class LLM_Magazine_Admin {
 			'high'
 		);
 		add_meta_box(
+			'llm_magazine_author_note',
+			__( 'Commento dell\'autore', 'llm-con-tabelle' ),
+			array( __CLASS__, 'render_author_note' ),
+			LLM_Magazine::CPT,
+			'normal',
+			'high'
+		);
+		add_meta_box(
 			'llm_magazine_rubriche',
 			__( 'Rubriche', 'llm-con-tabelle' ),
 			array( __CLASS__, 'render_rubriche' ),
@@ -153,6 +161,32 @@ class LLM_Magazine_Admin {
 			<?php else : ?>
 				<p class="description" id="llm-mag-shortcode-hint"><?php esc_html_e( 'Scegli la coppia di lingue per vedere lo shortcode da usare nella pagina.', 'llm-con-tabelle' ); ?></p>
 			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * @param WP_Post $post Rivista.
+	 */
+	public static function render_author_note( $post ) {
+		$note = LLM_Magazine::get_author_note( $post->ID );
+		?>
+		<div class="llm-mag-admin">
+			<p class="description"><?php esc_html_e( 'Appare sopra il cruciverba nella pagina della rivista. Lascia vuoto per non mostrare il blocco.', 'llm-con-tabelle' ); ?></p>
+			<div class="llm-mag-admin__row">
+				<div class="llm-mag-admin__field">
+					<label for="llm_mag_note_title"><strong><?php esc_html_e( 'Titolo', 'llm-con-tabelle' ); ?></strong></label>
+					<input type="text" name="llm_mag_note_title" id="llm_mag_note_title" class="widefat" value="<?php echo esc_attr( $note['title'] ); ?>">
+				</div>
+				<div class="llm-mag-admin__field">
+					<label for="llm_mag_note_name"><strong><?php esc_html_e( 'Nome dell\'autore', 'llm-con-tabelle' ); ?></strong></label>
+					<input type="text" name="llm_mag_note_name" id="llm_mag_note_name" class="widefat" value="<?php echo esc_attr( $note['name'] ); ?>">
+				</div>
+			</div>
+			<div class="llm-mag-admin__field">
+				<label for="llm_mag_note_text"><strong><?php esc_html_e( 'Commento / descrizione', 'llm-con-tabelle' ); ?></strong></label>
+				<textarea name="llm_mag_note_text" id="llm_mag_note_text" class="widefat" rows="6"><?php echo esc_textarea( $note['comment'] ); ?></textarea>
+			</div>
 		</div>
 		<?php
 	}
@@ -797,6 +831,9 @@ class LLM_Magazine_Admin {
 		$quiz_qids   = self::sanitize_quiz_qid_list_from_post();
 		$videos      = self::sanitize_videos_from_post();
 		$idiom_id    = isset( $_POST['llm_mag_idiom_id'] ) ? sanitize_key( wp_unslash( $_POST['llm_mag_idiom_id'] ) ) : '';
+		$note_title  = isset( $_POST['llm_mag_note_title'] ) ? sanitize_text_field( wp_unslash( $_POST['llm_mag_note_title'] ) ) : '';
+		$note_name   = isset( $_POST['llm_mag_note_name'] ) ? sanitize_text_field( wp_unslash( $_POST['llm_mag_note_name'] ) ) : '';
+		$note_text   = isset( $_POST['llm_mag_note_text'] ) ? sanitize_textarea_field( wp_unslash( $_POST['llm_mag_note_text'] ) ) : '';
 
 		/* Se nessuna domanda scelta: auto-pick evitando ripetizioni. */
 		if ( empty( $quiz_qids ) && $known && $target ) {
@@ -812,6 +849,9 @@ class LLM_Magazine_Admin {
 		update_post_meta( $post_id, LLM_Magazine::META_MUSIC_IDS, $music_ids );
 		update_post_meta( $post_id, LLM_Magazine::META_QUIZ_QIDS, $quiz_qids );
 		update_post_meta( $post_id, LLM_Magazine::META_VIDEOS, $videos );
+		update_post_meta( $post_id, LLM_Magazine::META_NOTE_TITLE, $note_title );
+		update_post_meta( $post_id, LLM_Magazine::META_NOTE_NAME, $note_name );
+		update_post_meta( $post_id, LLM_Magazine::META_NOTE_TEXT, $note_text );
 		if ( $idiom_id ) {
 			update_post_meta( $post_id, LLM_Magazine::META_IDIOM_ID, $idiom_id );
 		} else {

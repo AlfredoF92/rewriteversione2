@@ -1,69 +1,907 @@
 /*
- * llm-magazine.css — rivista di prima pagina: cruciverba + griglia storie.
+ * llm-magazine.css — rivista di prima pagina: hero editoriale + sezioni numerate.
  */
 
+/* ─── Variabili colore ─── */
 .llm-magazine {
+	--llm-red: #d42222;
+	--llm-blue: #1a4bb8;
+	--llm-yellow: #f5c400;
+	--llm-dark: #1a1a18;
+	--llm-border: #e0ddd6;
+	--llm-bg: #f5f4ef;
+	--llm-white: #fff;
+
 	width: 100%;
 	max-width: none;
 	margin: 0;
 	padding: 0;
-	color: #2c2c2a;
+	color: var(--llm-dark);
+	background: var(--llm-bg);
+	border: 2px solid var(--llm-dark);
+	box-sizing: border-box;
 }
 
-.llm-magazine__header {
-	margin-bottom: 2rem;
-	padding-bottom: 1.35rem;
-	border-bottom: 2px solid #2c2c2a;
+/* Tint colore per lingua target */
+.llm-magazine--target-en { --llm-tint: rgba(26,63,102,0.55); }
+.llm-magazine--target-pl { --llm-tint: rgba(120,20,40,0.55); }
+.llm-magazine--target-it { --llm-tint: rgba(20,80,40,0.50); }
+
+/* ════════════════════════════════
+   BARRA BENVENUTO
+   ════════════════════════════════ */
+.llm-magazine__welcome {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.45rem 0.7rem;
+	padding: 0.55rem 1.15rem;
+	background: var(--llm-yellow);
+	color: var(--llm-dark);
+	font-size: 0.82rem;
+	font-weight: 800;
+	letter-spacing: 0.01em;
+	border-bottom: 2px solid #e0b000;
 }
 
-.llm-magazine__header--has-cover {
-	padding-bottom: 1.35rem;
-	border-bottom: 2px solid #2c2c2a;
+.llm-magazine__welcome-brand {
+	text-transform: none;
 }
 
-.llm-magazine__cover-wrap {
-	width: 100%;
-	margin: 1.25rem 0 0;
-	padding: 1.25rem 0;
-	border-top: 1px solid #d8d8d3;
-	border-bottom: 1px solid #d8d8d3;
+.llm-magazine__welcome-sep {
+	opacity: 0.45;
+	font-weight: 400;
 }
 
-.llm-magazine__cover {
-	aspect-ratio: 3 / 1;
-	width: 100%;
-	max-height: 300px;
+.llm-magazine__welcome-credit {
+	font-weight: 700;
+}
+
+/* ════════════════════════════════
+   HERO
+   ════════════════════════════════ */
+.llm-magazine__hero {
+	display: grid;
+	grid-template-columns: 200px 1fr;
+	border-bottom: 3px solid var(--llm-dark);
+	min-height: 320px;
+}
+
+/* ── Sidebar sinistra ── */
+.llm-magazine__sidebar {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	padding: 1.5rem 1.25rem 1.75rem;
+	border-right: 2px solid var(--llm-border);
+	background: #fff;
+	box-sizing: border-box;
+}
+
+.llm-magazine__sidebar-brand {
+	display: flex;
+	flex-direction: column;
+	gap: 0.12rem;
+	color: var(--llm-blue);
+}
+
+.llm-magazine__sidebar-brand-name,
+.llm-magazine__sidebar-brand-label,
+.llm-magazine__sidebar-num {
 	margin: 0;
-	border-radius: 10px;
-	background-color: #f0f0ec;
-	background-size: cover;
-	background-position: center center;
-	background-repeat: no-repeat;
+	font-weight: 900;
+	color: var(--llm-blue);
+}
+
+.llm-magazine__sidebar-brand-name {
+	font-size: 1.55rem;
+	line-height: 1.05;
+	letter-spacing: -0.045em;
+}
+
+.llm-magazine__sidebar-brand-label {
+	font-size: 0.82rem;
+	line-height: 1.2;
+	letter-spacing: -0.01em;
+}
+
+.llm-magazine__sidebar-num {
+	font-size: 3.4rem;
+	line-height: 0.95;
+	letter-spacing: -0.04em;
+}
+
+.llm-magazine__sidebar-date {
+	font-size: 0.7rem;
+	font-weight: 800;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: #6b6b66;
+}
+
+.llm-magazine__sidebar-pair {
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+}
+
+.llm-magazine__sidebar-flags {
+	font-size: 1.15rem;
+	line-height: 1;
+}
+
+.llm-magazine__sidebar-langs {
+	font-size: 0.68rem;
+	font-weight: 800;
+	letter-spacing: 0.05em;
+	color: var(--llm-blue);
+}
+
+.llm-magazine__sidebar-level-wrap {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.3rem;
+}
+
+.llm-magazine__sidebar-level-label {
+	margin: 0;
+	font-size: 0.62rem;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: #6b6b66;
+}
+
+.llm-magazine__sidebar-level {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 2.6rem;
+	padding: 0.38rem 0.7rem;
+	background: var(--llm-blue);
+	color: #fff;
+	font-size: 1.2rem;
+	font-weight: 900;
+	letter-spacing: -0.02em;
+	line-height: 1;
+	border-radius: 6px;
+}
+
+.llm-magazine__sidebar-title {
+	margin: 0.35rem 0 0;
+	font-size: 0.82rem;
+	font-weight: 500;
+	line-height: 1.4;
+	color: #5a5a55;
+	flex: 1 1 auto;
+}
+
+.llm-magazine__sidebar-count {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	padding: 0.55rem 0.7rem;
+	background: var(--llm-yellow);
+	color: var(--llm-dark);
+	border-radius: 6px;
+	gap: 0.28rem;
+}
+
+.llm-magazine__sidebar-count-num {
+	font-size: 1.85rem;
+	font-weight: 900;
+	line-height: 1;
+	letter-spacing: -0.03em;
+}
+
+.llm-magazine__sidebar-count-label {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.28rem;
+	font-size: 0.6rem;
+	font-weight: 800;
+	letter-spacing: 0.05em;
+	line-height: 1.3;
+	text-transform: uppercase;
+}
+
+.llm-magazine__sidebar-count-flag {
+	flex: 0 0 auto;
+	font-size: 0.95rem;
+	line-height: 1;
+}
+
+/* ── Cover principale ── */
+.llm-magazine__hero-main {
+	display: flex;
+	flex-direction: column;
+	position: relative;
 	overflow: hidden;
 }
 
-.llm-magazine__masthead {
+.llm-magazine__cover-ribbon {
+	position: absolute;
+	top: 1.1rem;
+	left: 0;
+	z-index: 2;
+	margin: 0;
+	padding: 0.42rem 1.1rem 0.42rem 1.25rem;
+	max-width: calc(100% - 1.5rem);
+	background: var(--llm-blue);
+	color: #fff;
+	font-size: 0.72rem;
+	font-weight: 800;
+	letter-spacing: 0.06em;
+	line-height: 1.25;
+	text-transform: uppercase;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+}
+
+.llm-magazine__cover-title {
+	position: absolute;
+	bottom: 1.5rem;
+	left: 1.5rem;
+	right: 1.5rem;
+	z-index: 1;
+	margin: 0;
+	font-size: clamp(1.6rem, 4.5vw, 3rem);
+	font-weight: 900;
+	line-height: 1.1;
+	letter-spacing: -0.025em;
+	text-transform: uppercase;
+	color: #fff;
+	text-shadow: 0 2px 16px rgba(0,0,0,0.5);
+}
+
+.llm-magazine__cover {
+	position: relative;
+	flex: 1 1 auto;
+	min-height: 260px;
+	background-color: #2a2620;
+	background-size: cover;
+	background-position: center center;
+	background-repeat: no-repeat;
+}
+
+.llm-magazine__cover--empty {
+	background: linear-gradient(135deg, #2a2620 0%, #4a4440 100%);
+}
+
+.llm-magazine__cover-overlay {
+	position: absolute;
+	inset: 0;
+	background:
+		linear-gradient(to right, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.4) 55%, transparent 100%),
+		linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 50%);
+	/* tint lingua sovrapposto */
+	background-image:
+		linear-gradient(to right, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.4) 55%, transparent 100%),
+		linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 50%);
+}
+
+.llm-magazine--target-en .llm-magazine__cover-overlay,
+.llm-magazine--target-pl .llm-magazine__cover-overlay,
+.llm-magazine--target-it .llm-magazine__cover-overlay {
+	background-image:
+		linear-gradient(to right, var(--llm-tint, rgba(0,0,0,0.72)) 0%, rgba(0,0,0,0.35) 55%, transparent 100%),
+		linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 55%);
+}
+
+/* ════════════════════════════════
+   CORPO SEZIONI
+   ════════════════════════════════ */
+.llm-magazine__body {
 	display: flex;
 	flex-direction: column;
-	align-items: center;
-	gap: 0.55rem;
-	text-align: center;
-}
-
-.llm-magazine__header--has-cover .llm-magazine__masthead {
-	padding-bottom: 0;
-	border-bottom: 0;
-}
-
-.llm-magazine__nav {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
 	gap: 0.75rem;
-	margin-bottom: 0.35rem;
+	padding: 0.75rem 0 1rem;
+}
+
+/* Ogni riga/sezione è una "card" bianca su bg beige */
+.llm-magazine__row--top,
+.llm-magazine__row--bottom {
+	background: var(--llm-white);
+	border: 1.5px solid var(--llm-border);
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+/* Riga top: colonna sx (commento + cruciverba) + colonna dx (storie + brani) */
+.llm-magazine__row--top {
+	display: grid;
+	grid-template-columns: 38% minmax(0, 1fr);
+	align-items: stretch;
+}
+
+.llm-magazine__row--top-single {
+	grid-template-columns: 1fr;
+}
+
+.llm-magazine__col {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+}
+
+.llm-magazine__col--left {
+	border-right: 1.5px solid var(--llm-border);
+}
+
+.llm-magazine__row--top-single .llm-magazine__col--left {
+	border-right: 0;
+}
+
+.llm-magazine__row--top .llm-magazine__section {
+	padding: 1.25rem 1.1rem 1.35rem;
+	box-sizing: border-box;
+}
+
+.llm-magazine__col--left .llm-magazine__section--crossword {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	background: #1a3566;
+	color: #fff;
+	min-height: 100%;
+}
+
+.llm-magazine__row--top .llm-magazine__section--crossword .llm-crossword {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	height: 100%;
+}
+
+.llm-magazine__row--top .llm-magazine__section--crossword .cw-container {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	flex-wrap: nowrap;
+	align-items: stretch;
+	gap: 0.75rem;
+	min-height: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.llm-magazine__row--top .llm-magazine__section--crossword .cw-board {
+	flex: 0 0 auto;
+	width: 100%;
+	max-width: 100%;
+}
+
+@media (min-width: 783px) {
+	.llm-magazine__section--crossword .cw-grid {
+		width: 100% !important;
+		max-width: 100% !important;
+		box-sizing: border-box;
+		grid-template-columns: repeat(var(--cw-cols, 15), minmax(0, 1fr)) !important;
+		grid-template-rows: repeat(var(--cw-rows, 15), auto) !important;
+	}
+
+	.llm-magazine__section--crossword .cw-cell-wrap,
+	.llm-magazine__section--crossword .cw-black {
+		width: 100%;
+		min-width: 0;
+		aspect-ratio: 1;
+	}
+
+	.llm-magazine__section--crossword .cw-input {
+		width: 100% !important;
+		height: 100% !important;
+		min-width: 0;
+		font-size: clamp(11px, 1.8vw, 20px);
+	}
+
+	.llm-magazine__section--crossword .cw-number {
+		font-size: clamp(7px, 1.1vw, 12px);
+	}
+}
+
+.llm-magazine__row--top .llm-magazine__section--crossword .cw-panel {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	max-width: none;
+	min-width: 0;
+	min-height: 0;
 	width: 100%;
 }
 
+.llm-magazine__row--top .llm-magazine__section--crossword .cw-entrylist {
+	flex: 1 1 auto;
+	max-height: none;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+/* Una definizione alla volta, come da mobile */
+.llm-magazine__section--crossword .cw-panel {
+	display: none !important;
+}
+
+.llm-magazine__section--crossword .cw-reveal-wrap {
+	display: none;
+}
+
+@media (min-width: 783px) {
+	.llm-magazine__section--crossword .cw-mobile-clue--above {
+		display: none !important;
+	}
+
+	.llm-magazine__section--crossword .cw-mobile-clue--below {
+		display: flex !important;
+	}
+}
+
+@media (max-width: 782px) {
+	.llm-magazine__section--crossword .cw-mobile-clue--below {
+		display: none !important;
+	}
+}
+
+.llm-magazine__section--crossword .cw-mobile-clue--below {
+	align-items: flex-start;
+	gap: 0.75rem;
+	width: 100%;
+	margin: 0.85rem 0 0;
+	padding: 0.85rem 0.95rem;
+	border: 2px solid var(--llm-yellow);
+	border-radius: 4px;
+	background: #fff8d6;
+	color: #1a1a18;
+	box-shadow: none;
+}
+
+.llm-magazine__section--crossword .cw-mobile-clue__hint {
+	-webkit-appearance: none;
+	appearance: none;
+	flex: 0 0 auto;
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 0.2rem;
+	min-width: 4.2rem;
+	max-width: 5.2rem;
+	margin: 0;
+	padding: 0.45rem 0.35rem;
+	border: 2px solid var(--llm-dark);
+	border-radius: 4px;
+	background: var(--llm-yellow);
+	color: var(--llm-dark);
+	cursor: pointer;
+	line-height: 1.1;
+	text-align: center;
+}
+
+.llm-magazine__section--crossword .cw-mobile-clue__hint:hover,
+.llm-magazine__section--crossword .cw-mobile-clue__hint:focus-visible {
+	background: #ffe066;
+	outline: none;
+}
+
+.llm-magazine__section--crossword .cw-mobile-clue__hint-emoji {
+	font-size: 1.35rem;
+	line-height: 1;
+}
+
+.llm-magazine__section--crossword .cw-mobile-clue__hint-label {
+	display: block;
+	font-size: 0.58rem;
+	font-weight: 800;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: inherit;
+	white-space: normal;
+}
+
+.llm-magazine__section--crossword .cw-mobile-clue__body {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.llm-magazine__section--crossword .cw-mobile-clue__meta {
+	display: block;
+	margin: 0 0 0.35rem;
+	font-size: 0.78rem;
+	font-weight: 800;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: #1a1a18;
+}
+
+.llm-magazine__section--crossword .cw-mobile-clue__text {
+	font-size: 1.15rem;
+	line-height: 1.4;
+	font-weight: 700;
+	color: #1a1a18;
+}
+
+.llm-magazine__section--crossword .cw-mobile-clue__text .cw-def-pos,
+.llm-magazine__section--crossword .cw-mobile-clue .cw-def-pos {
+	font-size: 0.7rem;
+	font-weight: 800;
+	vertical-align: middle;
+	color: #1a1a18 !important;
+	background: var(--llm-yellow) !important;
+}
+
+/* Riga bottom: Quiz sx + Resto dx */
+.llm-magazine__row--bottom {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+}
+
+.llm-magazine__row--bottom .llm-magazine__section {
+	padding: 1.5rem 1.35rem 1.75rem;
+}
+
+.llm-magazine__row--bottom > .llm-magazine__section--quiz {
+	border-right: 1.5px solid var(--llm-border);
+	background: #fffbeb;
+}
+
+.llm-magazine__section-group {
+	display: flex;
+	flex-direction: column;
+}
+
+.llm-magazine__section-group .llm-magazine__section {
+	padding: 1.5rem 1.35rem 1.75rem;
+}
+
+.llm-magazine__section-group .llm-magazine__section + .llm-magazine__section {
+	border-top: 1.5px solid var(--llm-border);
+	padding-top: 1.35rem;
+}
+
+/* Sezione musica: dentro la colonna destra, sotto le storie */
+.llm-magazine__col--right .llm-magazine__section--music {
+	padding: 1.25rem 1.1rem 1.35rem;
+}
+
+.llm-magazine__col--right .llm-magazine__section--stories + .llm-magazine__section--music {
+	border-top: 1.5px solid var(--llm-border);
+}
+
+.llm-magazine__section--idiom,
+.llm-magazine__section--videos {
+	border-top: 0;
+}
+
+/* Header numerato di sezione */
+.llm-magazine__section-head {
+	display: flex;
+	align-items: baseline;
+	gap: 0.5rem;
+	margin-bottom: 1rem;
+	padding-bottom: 0.6rem;
+	border-bottom: 3px solid var(--llm-dark);
+}
+
+/* Cruciverba: colori invertiti sull'header */
+.llm-magazine__section--crossword .llm-magazine__section-head {
+	border-bottom-color: rgba(255,255,255,0.2);
+}
+
+/* ── Cruciverba: override colori interni su sfondo navy ── */
+.llm-magazine__section--crossword .llm-crossword {
+	--cw-text: #fff;
+	--cw-muted: rgba(255, 255, 255, 0.6);
+	--cw-accent: #93c5fd;
+	color: #fff;
+}
+
+.llm-magazine__section--crossword .llm-crossword .cw-entrylist h3 {
+	color: rgba(255, 255, 255, 0.5);
+}
+
+.llm-magazine__section--crossword .llm-crossword .cw-def-pos {
+	color: #93c5fd;
+	background: rgba(255, 255, 255, 0.12);
+}
+
+.llm-magazine__section--crossword .llm-crossword .cw-status {
+	color: rgba(255, 248, 214, 0.75);
+}
+
+.llm-magazine__section--crossword .llm-crossword .cw-clue-row {
+	border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.llm-magazine__section--crossword .llm-crossword .cw-clue-row:hover {
+	background: rgba(255, 255, 255, 0.08);
+}
+
+/* Mantieni il giallo sull'indizio attivo (leggibile su qualsiasi bg) */
+.llm-magazine__section--crossword .llm-crossword .cw-clue-row.cw-clue-active {
+	background: var(--cw-highlight-bg);
+	color: #1a1a18;
+}
+
+.llm-magazine__section--crossword .llm-crossword .cw-clue-row.cw-clue-active * {
+	color: #1a1a18;
+}
+
+.llm-magazine__section-num {
+	font-size: 2.5rem;
+	font-weight: 900;
+	line-height: 1;
+	letter-spacing: -0.04em;
+	color: var(--llm-red);
+	flex-shrink: 0;
+}
+
+.llm-magazine__section--crossword .llm-magazine__section-num {
+	color: rgba(255,255,255,0.45);
+}
+
+.llm-magazine__section-title {
+	margin: 0;
+	font-size: clamp(1rem, 2vw, 1.25rem);
+	font-weight: 900;
+	line-height: 1.1;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: var(--llm-dark);
+}
+
+.llm-magazine__section--crossword .llm-magazine__section-title {
+	color: #fff;
+}
+
+/* Quiz section heading: ambra */
+.llm-magazine__row--bottom > .llm-magazine__section--quiz .llm-magazine__section-head {
+	border-bottom-color: #d97706;
+}
+
+.llm-magazine__row--bottom > .llm-magazine__section--quiz .llm-magazine__section-num {
+	color: #d97706;
+}
+
+/* Kicker (SUONA E IMPARA) */
+.llm-magazine__section-kicker {
+	margin: 0 0 0.15rem;
+	font-size: 0.6rem;
+	font-weight: 800;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--llm-red);
+}
+
+/* ════════════════════════════════
+   COMMENTO DELL'AUTORE (stile giornale)
+   ════════════════════════════════ */
+.llm-magazine__author-note {
+	flex: 0 0 auto;
+	margin: 0.9rem 0.9rem 1rem;
+	padding: 0.85rem 0.95rem 1rem;
+	background: #fff;
+	color: var(--llm-dark);
+	border: 1.5px solid var(--llm-dark);
+	box-sizing: border-box;
+}
+
+.llm-magazine__author-note-kicker {
+	margin: 0 0 0.5rem;
+	font-size: 0.62rem;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: #111;
+}
+
+.llm-magazine__author-note-title {
+	margin: 0;
+	padding: 0.4rem 0.55rem;
+	background: #bde5f8;
+	font-family: Georgia, "Times New Roman", Times, serif;
+	font-size: 1.2rem;
+	font-weight: 700;
+	line-height: 1.25;
+	letter-spacing: 0;
+	text-align: left;
+	color: #111;
+}
+
+.llm-magazine__author-note-byline {
+	display: flex;
+	align-items: baseline;
+	gap: 0.35rem;
+	margin: 0;
+	padding: 0.5rem 0 0.4rem;
+	border-bottom: 1px solid #ddd;
+	font-family: Georgia, "Times New Roman", Times, serif;
+	font-size: 1.02rem;
+	line-height: 1.3;
+}
+
+.llm-magazine__author-note-mark {
+	flex: 0 0 auto;
+	color: var(--llm-red);
+	font-weight: 700;
+	font-size: 1.05em;
+}
+
+.llm-magazine__author-note-name {
+	font-weight: 700;
+	color: #111;
+}
+
+.llm-magazine__author-note-text {
+	padding: 0.7rem 0 0;
+	font-family: Georgia, "Times New Roman", Times, serif;
+	font-size: 0.92rem;
+	line-height: 1.45;
+	color: #1a1a18;
+}
+
+.llm-magazine__author-note-text p {
+	margin: 0 0 0.65em;
+	text-align: justify;
+	hyphens: auto;
+}
+
+.llm-magazine__author-note-text p:last-child {
+	margin-bottom: 0;
+}
+
+/* ════════════════════════════════
+   STORY CARDS — griglia e featured
+   ════════════════════════════════ */
+.llm-magazine__stories {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 0.6rem;
+}
+
+/* Prima card in evidenza: orizzontale, immagine a sinistra */
+.llm-magazine__card--featured {
+	grid-column: 1 / -1;
+	background: transparent;
+}
+
+.llm-magazine__card--featured .llm-magazine__card-link {
+	flex-direction: row;
+	align-items: stretch;
+	min-height: 168px;
+}
+
+.llm-magazine__card--featured .llm-magazine__card-media {
+	flex: 0 0 46%;
+	width: 46%;
+	aspect-ratio: auto;
+	min-height: 168px;
+	align-self: stretch;
+}
+
+.llm-magazine__card--featured .llm-magazine__card-body {
+	flex: 1 1 auto;
+	justify-content: center;
+	padding: 0.85rem 1rem 1rem;
+	background: transparent;
+	gap: 0.28rem;
+}
+
+.llm-magazine__card--featured .llm-magazine__card-title {
+	font-size: 1.5rem;
+	line-height: 1.2;
+	font-weight: 900;
+}
+
+.llm-magazine__card--featured .llm-magazine__card-intro {
+	-webkit-line-clamp: 3;
+	font-size: 0.8rem;
+}
+
+/* ════════════════════════════════
+   RESPONSIVE
+   ════════════════════════════════ */
+@media (max-width: 860px) {
+	.llm-magazine__hero {
+		grid-template-columns: 160px 1fr;
+	}
+
+	.llm-magazine__sidebar-brand-name {
+		font-size: 1.35rem;
+	}
+
+	.llm-magazine__sidebar-num {
+		font-size: 2.6rem;
+	}
+
+	.llm-magazine__row--top,
+	.llm-magazine__row--bottom {
+		grid-template-columns: 1fr;
+	}
+
+	.llm-magazine__col--left {
+		border-right: 0;
+		border-bottom: 2px solid var(--llm-border);
+	}
+
+	.llm-magazine__row--top .llm-magazine__section--crossword {
+		border-right: 0;
+	}
+
+	.llm-magazine__row--bottom > .llm-magazine__section--quiz {
+		border-right: 0;
+		border-bottom: 2px solid var(--llm-border);
+	}
+}
+
+@media (max-width: 680px) {
+	.llm-magazine__card--featured .llm-magazine__card-link {
+		flex-direction: column;
+		min-height: 0;
+	}
+
+	.llm-magazine__card--featured .llm-magazine__card-media {
+		flex: 0 0 auto;
+		width: 100%;
+		aspect-ratio: 16 / 9;
+		min-height: 0;
+	}
+}
+
+@media (max-width: 600px) {
+	.llm-magazine__hero {
+		grid-template-columns: 1fr;
+		grid-template-rows: auto 260px;
+	}
+
+	.llm-magazine__sidebar {
+		border-right: 0;
+		border-bottom: 2px solid var(--llm-border);
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.6rem 1rem;
+		padding: 1rem;
+	}
+
+	.llm-magazine__sidebar-brand {
+		flex: 0 0 auto;
+	}
+
+	.llm-magazine__sidebar-brand-name {
+		font-size: 1.35rem;
+	}
+
+	.llm-magazine__sidebar-num {
+		font-size: 2.2rem;
+	}
+
+	.llm-magazine__sidebar-title {
+		flex: 1 1 100%;
+	}
+
+	.llm-magazine__cover-title {
+		font-size: clamp(1.35rem, 6vw, 1.8rem);
+	}
+
+	.llm-magazine__stories {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.llm-magazine__card--featured {
+		grid-column: 1 / -1;
+	}
+
+	.llm-magazine__row--top .llm-magazine__section,
+	.llm-magazine__row--bottom .llm-magazine__section,
+	.llm-magazine__section-group .llm-magazine__section {
+		padding: 1.25rem 1rem 1.5rem;
+	}
+}
+
+/* ════════════════════════════════
+   PULSANTE nav (residuo, ora non usato ma mantenuto per compatibilità)
+   ════════════════════════════════ */
 .llm-magazine__nav-btn {
 	display: inline-flex;
 	align-items: center;
@@ -96,128 +934,25 @@
 	line-height: 1;
 }
 
-.llm-magazine__issue {
-	margin: 0;
-	font-size: 0.78rem;
-	font-weight: 700;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: #6b6b66;
-}
-
-.llm-magazine__title {
-	margin: 0;
-	font-size: clamp(1.85rem, 4vw, 2.55rem);
-	font-weight: 800;
-	line-height: 1.15;
-	color: #1a1a18;
-	letter-spacing: -0.02em;
-}
-
-.llm-magazine__title-edition {
-	color: #1a1a18;
-	font-weight: 800;
-}
-
-.llm-magazine__title-sep {
-	color: #9a9a95;
-	font-weight: 500;
-}
-
-.llm-magazine__title-date {
-	font-weight: 600;
-	color: #6b6b66;
-}
-
-.llm-magazine__subtitle {
-	margin: 0.35rem 0 0;
-	font-size: clamp(1.05rem, 2.2vw, 1.3rem);
-	font-weight: 600;
-	line-height: 1.35;
-	color: #2c2c2a;
-	letter-spacing: -0.01em;
-}
-
-.llm-magazine__date {
-	margin: 0;
-	font-size: 1rem;
-	color: #5a5a55;
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.35rem;
-	align-items: baseline;
-}
-
-.llm-magazine__date-label {
-	font-weight: 500;
-	color: #8a8a85;
-}
-
-.llm-magazine__date time {
-	font-weight: 600;
-	color: #2c2c2a;
-}
-
-.llm-magazine__pair {
-	margin: 0.25rem 0 0;
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	justify-content: center;
-	gap: 0.55rem 0.75rem;
-}
-
-.llm-magazine__pair-flags {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.35rem;
-	font-size: 1.25rem;
-	line-height: 1;
-}
-
-.llm-magazine__pair-arrow {
-	font-size: 0.95rem;
-	color: #8a8a85;
-}
-
-.llm-magazine__pair-text {
-	font-size: 0.92rem;
-	font-weight: 500;
-	color: #3d3d3a;
-}
 
 .llm-magazine__section {
 	margin: 0;
-	padding: 2.25rem 0 2rem;
-	border-top: 1px solid #d8d8d3;
-}
-
-.llm-magazine__section:first-of-type {
-	border-top: 0;
-	padding-top: 0.5rem;
-}
-
-.llm-magazine__section-title {
-	margin: 0 0 1.25rem;
-	font-size: clamp(1.45rem, 3vw, 1.9rem);
-	font-weight: 800;
-	line-height: 1.2;
-	letter-spacing: -0.015em;
-	color: #1a1a18;
-}
-
-.llm-magazine__stories {
-	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: 0.9rem;
 }
 
 .llm-magazine__card {
 	margin: 0;
-	border: 1px solid #e5e5e2;
-	border-radius: 10px;
+	border: 2px solid var(--llm-dark);
+	border-radius: 2px;
 	overflow: hidden;
-	background: #fff;
+	background: transparent;
+	box-shadow: none;
+	transition: border-color 0.15s ease;
+}
+
+.llm-magazine__card:hover {
+	border-color: var(--llm-blue);
+	box-shadow: none;
+	transform: none;
 }
 
 .llm-magazine__card-link {
@@ -243,7 +978,7 @@
 /* Contenitore fisso: background-image centrato e ritagliato, nessun <img> interno. */
 .llm-magazine__card-media {
 	position: relative;
-	aspect-ratio: 4 / 3;
+	aspect-ratio: 16 / 9;
 	width: auto;
 	background: #f0f0ec;
 	overflow: hidden;
@@ -260,9 +995,10 @@
 .llm-magazine__card-body {
 	display: flex;
 	flex-direction: column;
-	gap: 0.3rem;
-	padding: 0.65rem 0.75rem 0.85rem;
+	gap: 0.2rem;
+	padding: 0.5rem 0.6rem 0.65rem;
 	flex: 1 1 auto;
+	background: transparent;
 }
 
 .llm-magazine__card-badges {
@@ -374,10 +1110,10 @@
 
 .llm-magazine__card-title {
 	margin: 0;
-	font-size: 0.92rem;
-	font-weight: 700;
-	line-height: 1.3;
-	color: #2c2c2a;
+	font-size: 1.12rem;
+	font-weight: 800;
+	line-height: 1.25;
+	color: #1a1a18;
 	text-decoration: none !important;
 }
 
@@ -401,28 +1137,98 @@
 }
 
 .llm-magazine__card--horizontal {
-	border-radius: 10px;
+	border-radius: 2px;
 }
 
 .llm-magazine__card--horizontal .llm-magazine__card-link {
 	flex-direction: row;
 	align-items: stretch;
-	min-height: 112px;
+	min-height: 132px;
 }
 
 .llm-magazine__card--horizontal .llm-magazine__card-media {
-	flex: 0 0 140px;
-	width: 140px;
+	flex: 0 0 32%;
+	width: 32%;
+	min-width: 0;
+	max-width: 280px;
 	aspect-ratio: auto;
 	align-self: stretch;
-	min-height: 112px;
+	min-height: 132px;
 }
 
 .llm-magazine__card--horizontal .llm-magazine__card-body {
 	justify-content: center;
-	padding: 0.7rem 0.9rem;
-	gap: 0.3rem;
+	padding: 0.65rem 0.9rem;
+	gap: 0.22rem;
 	min-width: 0;
+	flex: 1 1 auto;
+	background: transparent;
+}
+
+/* ── CTA "Impara X versi" — solo card musicali ── */
+.llm-magazine__card-cta {
+	flex-shrink: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 0.15rem;
+	padding: 0.7rem 1rem;
+	border-left: 2px solid var(--llm-dark);
+	background: var(--llm-yellow);
+	color: var(--llm-dark);
+	text-align: center;
+	min-width: 96px;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+.llm-magazine__card:hover .llm-magazine__card-cta {
+	background: var(--llm-blue);
+	color: #fff;
+}
+
+/* Card storie verticali: barra gialla in basso */
+.llm-magazine__card:not(.llm-magazine__card--horizontal):not(.llm-magazine__card--featured) .llm-magazine__card-cta {
+	flex-direction: row;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 0.28rem 0.4rem;
+	padding: 0.55rem 0.65rem;
+	border-left: 0;
+	border-top: 2px solid var(--llm-dark);
+	min-width: 0;
+}
+
+.llm-magazine__card:not(.llm-magazine__card--horizontal):not(.llm-magazine__card--featured) .llm-magazine__card-cta-arrow {
+	margin-top: 0;
+}
+
+.llm-magazine__card:not(.llm-magazine__card--horizontal):not(.llm-magazine__card--featured) .llm-magazine__card-cta-count {
+	font-size: 0.88rem;
+}
+
+.llm-magazine__card-cta-label {
+	font-size: 0.62rem;
+	font-weight: 800;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: inherit;
+	line-height: 1;
+}
+
+.llm-magazine__card-cta-count {
+	font-size: 1rem;
+	font-weight: 900;
+	color: inherit;
+	line-height: 1.1;
+	letter-spacing: -0.02em;
+}
+
+.llm-magazine__card-cta-arrow {
+	font-size: 0.9rem;
+	color: inherit;
+	margin-top: 0.15rem;
+	line-height: 1;
 }
 
 .llm-magazine__music-title-row {
@@ -450,9 +1256,9 @@
 
 .llm-magazine__card-title--music {
 	margin: 0;
-	font-size: 1.2rem;
-	font-weight: 800;
-	line-height: 1.25;
+	font-size: 1.4rem;
+	font-weight: 900;
+	line-height: 1.2;
 	letter-spacing: -0.01em;
 	color: #111;
 	text-decoration: none !important;
@@ -483,12 +1289,12 @@
 /* —— Quiz del giorno —— */
 .llm-mag-quiz {
 	width: 100%;
-	max-width: 40rem;
+	max-width: 100%;
 	margin: 0;
-	padding: 1.1rem 1.15rem 1.25rem;
-	background: #fff;
-	border: 1px solid #e5e5e2;
-	border-radius: 10px;
+	padding: 0;
+	background: transparent;
+	border: none;
+	border-radius: 0;
 }
 
 .llm-mag-quiz__progress {
@@ -513,8 +1319,8 @@
 }
 
 .llm-mag-quiz__question {
-	margin: 0 0 1rem;
-	font-size: 1.15rem;
+	margin: 0 0 0.7rem;
+	font-size: 0.97rem;
 	font-weight: 700;
 	line-height: 1.35;
 	color: #18181b;
@@ -523,7 +1329,7 @@
 .llm-mag-quiz__answers {
 	display: flex;
 	flex-direction: column;
-	gap: 0.7rem;
+	gap: 0.4rem;
 }
 
 .llm-mag-quiz__option {
@@ -535,18 +1341,18 @@
 .llm-mag-quiz__answer {
 	display: flex;
 	align-items: flex-start;
-	gap: 0.7rem;
+	gap: 0.55rem;
 	width: 100%;
 	margin: 0;
-	padding: 0.75rem 0.85rem;
+	padding: 0.5rem 0.65rem;
 	text-align: left;
 	font: inherit;
-	font-size: 0.95rem;
-	line-height: 1.4;
+	font-size: 0.85rem;
+	line-height: 1.35;
 	color: #18181b !important;
-	background: #fafafa;
+	background: rgba(255,255,255,0.7);
 	border: 1px solid #e4e4e7;
-	border-radius: 8px;
+	border-radius: 6px;
 	cursor: pointer;
 	transition: border-color 0.15s ease, background 0.15s ease, border-radius 0.12s ease;
 }
@@ -931,8 +1737,10 @@
 	}
 
 	.llm-magazine__card--horizontal .llm-magazine__card-media {
-		flex-basis: 112px;
-		width: 112px;
+		flex: 0 0 38%;
+		width: 38%;
+		min-width: 140px;
+		max-width: none;
 	}
 }
 
@@ -942,12 +1750,24 @@
 	}
 
 	.llm-magazine__card--horizontal .llm-magazine__card-link {
-		flex-direction: row;
+		flex-direction: column;
+		min-height: 0;
 	}
 
 	.llm-magazine__card--horizontal .llm-magazine__card-media {
-		flex-basis: 96px;
-		width: 96px;
-		min-height: 96px;
+		flex: 0 0 auto;
+		width: 100%;
+		min-width: 0;
+		aspect-ratio: 16 / 9;
+		min-height: 0;
+	}
+
+	.llm-magazine__card-cta {
+		flex-direction: row;
+		gap: 0.4rem;
+		padding: 0.55rem 0.85rem;
+		border-left: 0;
+		border-top: 2px solid var(--llm-dark);
+		min-width: 0;
 	}
 }
