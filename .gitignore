@@ -5,6 +5,7 @@ wp-content/upgrade/
 wp-content/backup*/
 wp-content/cache/
 wp-content/debug.log
+backup*.zip
 *.log
 .DS_Store
 Thumbs.db
