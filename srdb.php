@@ -1,12 +1,12 @@
 <?php
 /**
  * Search-Replace DB per WordPress
- * Sostituisce http://localhost/rewrite con https://rewrite.alfredofiorillo.it
+ * Sostituisce http://localhost/rewrite con http://rewrite.alfredofiorillo.it
  * gestendo correttamente i dati serializzati PHP.
  *
  * ISTRUZIONI:
  *  1. Carica questo file nella root del sito online.
- *  2. Apri https://rewrite.alfredofiorillo.it/srdb.php nel browser.
+ *  2. Apri http://rewrite.alfredofiorillo.it/srdb.php nel browser.
  *  3. Cancella il file dal server dopo l'uso.
  */
 
@@ -14,7 +14,7 @@ define( 'ABSPATH', __DIR__ . '/' );
 require_once ABSPATH . 'wp-config.php';
 
 $old = 'http://localhost/rewrite';
-$new = 'https://rewrite.alfredofiorillo.it';
+$new = 'http://rewrite.alfredofiorillo.it';
 
 if ( ! defined( 'DB_HOST' ) ) {
     die( 'Impossibile caricare wp-config.php' );

@@ -2,7 +2,7 @@
 /**
  * Shortcode [llm_riviste_indice] — card riviste di prima pagina per coppia.
  *
- * Pulsanti lingua (IT / EN): le card si ricaricano sotto via JSON.
+ * Tutto renderizzato server-side. I pulsanti fanno scroll anchor alla sezione.
  *
  * @package LLM_Tabelle
  */
@@ -19,8 +19,6 @@ class LLM_Magazine_Index_Shortcode {
 
 	public static function init() {
 		add_shortcode( self::SHORTCODE, array( __CLASS__, 'render' ) );
-		add_action( 'wp_ajax_' . self::AJAX_ACTION, array( __CLASS__, 'ajax_cards' ) );
-		add_action( 'wp_ajax_nopriv_' . self::AJAX_ACTION, array( __CLASS__, 'ajax_cards' ) );
 	}
 
 	/**
@@ -67,45 +65,57 @@ class LLM_Magazine_Index_Shortcode {
 		unset( $atts );
 		self::enqueue();
 
-		$default_known = 'it';
-		$payload       = self::payload_for_known( $default_known );
-		$grid_id       = function_exists( 'wp_unique_id' ) ? wp_unique_id( 'llm-mag-index-grid-' ) : uniqid( 'llm-mag-index-grid-', false );
+		$uid    = function_exists( 'wp_unique_id' ) ? wp_unique_id( 'llm-mi-' ) : uniqid( 'llm-mi-', false );
+		$groups = self::section_groups();
+
+		// Raccoglie tutte le righe da tutti i gruppi.
+		$all_sections = array();
+		foreach ( $groups as $group ) {
+			$section = self::build_section( $group, $uid );
+			if ( $section ) {
+				$all_sections[] = $section;
+			}
+		}
 
 		ob_start();
 		?>
-		<div
-			class="llm-mag-index llm-ui-scope"
-			data-llm-mag-index
-			data-ajax-url="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>"
-			data-action="<?php echo esc_attr( self::AJAX_ACTION ); ?>"
-			data-nonce="<?php echo esc_attr( wp_create_nonce( self::NONCE_ACTION ) ); ?>"
-			data-known="<?php echo esc_attr( $default_known ); ?>"
-			role="region"
-			aria-label="<?php echo esc_attr( __( 'Seleziona la lingua', 'llm-con-tabelle' ) ); ?>"
-		>
-			<div class="llm-mag-index__langs" role="tablist" aria-label="<?php echo esc_attr( __( 'Lingua', 'llm-con-tabelle' ) ); ?>">
-				<?php foreach ( self::section_groups() as $group ) : ?>
-					<?php
-					$known     = $group['known'];
-					$is_active = ( $known === $default_known );
-					$flag      = LLM_Languages::flag_emoji( $known );
-					?>
-					<button
-						type="button"
-						class="llm-mag-index__lang<?php echo $is_active ? ' is-active' : ''; ?>"
-						data-known="<?php echo esc_attr( $known ); ?>"
-						aria-pressed="<?php echo $is_active ? 'true' : 'false'; ?>"
-						aria-controls="<?php echo esc_attr( $grid_id ); ?>"
+		<div class="llm-mag-index llm-ui-scope" data-llm-mag-index>
+			<nav class="llm-mag-index__langs" aria-label="<?php echo esc_attr( __( 'Jump to section', 'llm-con-tabelle' ) ); ?>">
+				<?php foreach ( $all_sections as $i => $section ) : ?>
+					<a
+						href="#<?php echo esc_attr( $section['anchor_id'] ); ?>"
+						class="llm-mag-index__lang<?php echo 0 === $i ? ' is-active' : ''; ?>"
+						data-llm-mag-anchor
 					>
-						<?php if ( $flag ) : ?>
-							<span class="llm-mag-index__lang-flag" aria-hidden="true"><?php echo esc_html( $flag ); ?></span>
+						<?php if ( $section['flag'] ) : ?>
+							<span class="llm-mag-index__lang-flag" aria-hidden="true"><?php echo esc_html( $section['flag'] ); ?></span>
 						<?php endif; ?>
-						<span class="llm-mag-index__lang-label"><?php echo esc_html( $group['label'] ); ?></span>
-					</button>
+						<span class="llm-mag-index__lang-label"><?php echo esc_html( $section['label'] ); ?></span>
+					</a>
 				<?php endforeach; ?>
-			</div>
-			<div class="llm-mag-index__rows" id="<?php echo esc_attr( $grid_id ); ?>" data-llm-mag-grid>
-				<?php echo self::render_grid_from_payload( $payload ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML già escapato. ?>
+			</nav>
+
+			<div class="llm-mag-index__rows">
+				<?php foreach ( $all_sections as $i => $section ) : ?>
+					<?php if ( $i > 0 ) : ?>
+						<hr class="llm-mag-index__divider" aria-hidden="true">
+					<?php endif; ?>
+					<div
+						class="llm-mag-index__section"
+						id="<?php echo esc_attr( $section['anchor_id'] ); ?>"
+					>
+						<?php foreach ( $section['rows'] as $row ) : ?>
+							<div class="llm-mag-index__row" data-target="<?php echo esc_attr( $row['target'] ); ?>">
+								<h3 class="llm-mag-index__row-title"><?php echo esc_html( $row['heading'] ); ?></h3>
+								<div class="llm-mag-index__grid">
+									<?php foreach ( $row['cards'] as $card ) : ?>
+										<?php echo self::render_card_html( $card ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+									<?php endforeach; ?>
+								</div>
+							</div>
+						<?php endforeach; ?>
+					</div>
+				<?php endforeach; ?>
 			</div>
 		</div>
 		<?php
@@ -113,35 +123,15 @@ class LLM_Magazine_Index_Shortcode {
 	}
 
 	/**
-	 * AJAX: JSON con le card per la lingua selezionata.
+	 * Costruisce una sezione (gruppo lingua) con tutte le sue righe.
+	 *
+	 * @param array{known:string,ui:string,targets:string[],label:string} $group Gruppo.
+	 * @param string                                                       $uid   Prefisso id univoco.
+	 * @return array{anchor_id:string,flag:string,label:string,rows:array}|null
 	 */
-	public static function ajax_cards() {
-		check_ajax_referer( self::NONCE_ACTION, 'nonce' );
-
-		$known   = isset( $_POST['known'] ) ? sanitize_key( wp_unslash( $_POST['known'] ) ) : 'it';
-		$payload = self::payload_for_known( $known );
-		if ( null === $payload ) {
-			wp_send_json_error(
-				array( 'message' => __( 'Lingua non valida.', 'llm-con-tabelle' ) ),
-				400
-			);
-		}
-
-		wp_send_json_success( $payload );
-	}
-
-	/**
-	 * @param string $known Lingua conosciuta.
-	 * @return array{known:string,rows:array<int,array{target:string,heading:string,cards:array}>,empty:string}|null
-	 */
-	private static function payload_for_known( $known ) {
-		$group = self::group_for_known( $known );
-		if ( ! $group ) {
-			return null;
-		}
-
-		$known   = $group['known'];
-		$ui      = $group['ui'];
+	private static function build_section( $group, $uid ) {
+		$known   = sanitize_key( $group['known'] );
+		$ui      = sanitize_key( $group['ui'] );
 		$targets = array_map( 'sanitize_key', (array) $group['targets'] );
 		$rows    = array();
 
@@ -152,8 +142,8 @@ class LLM_Magazine_Index_Shortcode {
 			$row_cards = array();
 			$mag_id    = LLM_Magazine::find_homepage_id( $known, $target );
 			if ( $mag_id ) {
-				$pair_url = class_exists( 'LLM_Home_Redirect' ) ? LLM_Home_Redirect::pair_url( $known, $target ) : '';
-				$card     = self::card_data( $mag_id, $pair_url, $ui, $known, $target );
+				$pair_url  = class_exists( 'LLM_Home_Redirect' ) ? LLM_Home_Redirect::pair_url( $known, $target ) : '';
+				$card      = self::card_data( $mag_id, $pair_url, $ui, $known, $target );
 				if ( $card ) {
 					$row_cards[] = $card;
 				}
@@ -171,14 +161,15 @@ class LLM_Magazine_Index_Shortcode {
 			);
 		}
 
+		if ( empty( $rows ) ) {
+			return null;
+		}
+
 		return array(
-			'known' => $known,
-			'rows'  => $rows,
-			'empty' => sprintf(
-				/* translators: %s: known language label */
-				__( 'Nessuna rivista di prima pagina per chi conosce %s.', 'llm-con-tabelle' ),
-				self::lang_name_in_ui( $known, $ui )
-			),
+			'anchor_id' => $uid . '-' . $known,
+			'flag'      => LLM_Languages::flag_emoji( $known ),
+			'label'     => $group['label'],
+			'rows'      => $rows,
 		);
 	}
 
@@ -197,34 +188,6 @@ class LLM_Magazine_Index_Shortcode {
 			'es' => 'Stories to Learn Spanish',
 		);
 		return isset( $map[ $target ] ) ? $map[ $target ] : 'Stories';
-	}
-
-	/**
-	 * @param array{rows?:array,empty?:string,cards?:array} $payload Payload JSON.
-	 * @return string
-	 */
-	private static function render_grid_from_payload( $payload ) {
-		$rows = isset( $payload['rows'] ) && is_array( $payload['rows'] ) ? $payload['rows'] : array();
-		if ( empty( $rows ) ) {
-			$empty = isset( $payload['empty'] ) ? (string) $payload['empty'] : '';
-			return '<p class="llm-mag-index__empty">' . esc_html( $empty ) . '</p>';
-		}
-		$html = '';
-		foreach ( $rows as $row ) {
-			$target  = isset( $row['target'] ) ? sanitize_key( (string) $row['target'] ) : '';
-			$heading = isset( $row['heading'] ) ? (string) $row['heading'] : '';
-			$cards   = isset( $row['cards'] ) && is_array( $row['cards'] ) ? $row['cards'] : array();
-			$html   .= '<div class="llm-mag-index__row" data-target="' . esc_attr( $target ) . '">';
-			if ( $heading ) {
-				$html .= '<h3 class="llm-mag-index__row-title">' . esc_html( $heading ) . '</h3>';
-			}
-			$html .= '<div class="llm-mag-index__grid">';
-			foreach ( $cards as $card ) {
-				$html .= self::render_card_html( $card );
-			}
-			$html .= '</div></div>';
-		}
-		return $html;
 	}
 
 	/**

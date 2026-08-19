@@ -1,166 +1,17 @@
 /**
- * Pulsanti lingua [llm_riviste_indice]: ricarica le card via JSON.
+ * Anchor scroll per [llm_riviste_indice].
+ * I pulsanti scrollano alla sezione corrispondente e si evidenziano.
  */
 (function () {
 	'use strict';
 
-	function esc(value) {
-		return String(value == null ? '' : value)
-			.replace(/&/g, '&amp;')
-			.replace(/</g, '&lt;')
-			.replace(/>/g, '&gt;')
-			.replace(/"/g, '&quot;')
-			.replace(/'/g, '&#39;');
-	}
-
-	function coverStyle(url) {
-		if (!url) {
-			return '';
+	function setActive(root, anchorId) {
+		var links = root.querySelectorAll('[data-llm-mag-anchor]');
+		for (var i = 0; i < links.length; i++) {
+			var href = links[i].getAttribute('href') || '';
+			var active = href === '#' + anchorId;
+			links[i].classList.toggle('is-active', active);
 		}
-		return ' style="background-image:url(\'' + esc(url) + '\');"';
-	}
-
-	function cardHtml(card) {
-		var url = card && card.url ? String(card.url) : '';
-		var title = card && card.title ? String(card.title) : '';
-		var cover = card && card.cover ? String(card.cover) : '';
-		var date = card && card.date ? String(card.date) : '';
-		var dateLabel = card && card.dateLabel ? String(card.dateLabel) : '';
-		var learn = card && card.learn ? String(card.learn) : '';
-		var kicker = card && card.kicker ? String(card.kicker) : '';
-		var contents = card && card.contents ? String(card.contents) : '';
-		var knownFlag = card && card.knownFlag ? String(card.knownFlag) : '';
-		var targetFlag = card && card.targetFlag ? String(card.targetFlag) : '';
-		var target = card && card.target ? String(card.target) : '';
-		var comingSoon = !!(card && card.comingSoon);
-		var tag = (url && !comingSoon) ? 'a' : 'div';
-		var attrs = (url && !comingSoon) ? ' href="' + esc(url) + '"' : ' role="group"';
-		var coverClass = 'llm-mag-index__cover' + (cover ? '' : ' llm-mag-index__cover--empty');
-		var cardClass = 'llm-mag-index__card' + (comingSoon ? ' llm-mag-index__card--soon' : '');
-		if (target) {
-			cardClass += ' llm-mag-index__card--' + target.replace(/[^a-z0-9_-]/gi, '');
-		}
-		var html = '<article class="' + cardClass + '">';
-		html += '<' + tag + ' class="llm-mag-index__card-link"' + attrs + '>';
-		html += '<div class="' + coverClass + '"' + coverStyle(cover) + ' role="img" aria-label="' + esc(title || 'Copertina rivista') + '">';
-		if (comingSoon) {
-			html += '<span class="llm-mag-index__soon">Coming soon</span>';
-		}
-		html += '</div><div class="llm-mag-index__body">';
-		if (knownFlag || targetFlag) {
-			html += '<p class="llm-mag-index__flags" aria-hidden="true">';
-			html += '<span class="llm-mag-index__flag">' + esc(knownFlag) + '</span>';
-			html += '<span class="llm-mag-index__flags-arrow">→</span>';
-			html += '<span class="llm-mag-index__flag">' + esc(targetFlag) + '</span>';
-			html += '</p>';
-		}
-		if (learn) {
-			html += '<p class="llm-mag-index__learn">' + esc(learn) + '</p>';
-		}
-		if (!comingSoon && kicker) {
-			html += '<p class="llm-mag-index__kicker">' + esc(kicker) + '</p>';
-		}
-		if (title) {
-			html += '<h3 class="llm-mag-index__title">' + esc(title) + '</h3>';
-		}
-		if (!comingSoon && dateLabel) {
-			html += '<p class="llm-mag-index__date"><time datetime="' + esc(date) + '">' + esc(dateLabel) + '</time></p>';
-		}
-		if (!comingSoon && contents) {
-			html += '<p class="llm-mag-index__contents">' + esc(contents) + '</p>';
-		}
-		html += '</div></' + tag + '></article>';
-		return html;
-	}
-
-	function renderPayload(grid, payload) {
-		var rows = payload && Array.isArray(payload.rows) ? payload.rows : [];
-		if (!rows.length) {
-			grid.innerHTML = '<p class="llm-mag-index__empty">' + esc(payload && payload.empty ? payload.empty : '') + '</p>';
-			return;
-		}
-		var html = '';
-		for (var r = 0; r < rows.length; r++) {
-			var row = rows[r] || {};
-			var target = row.target ? String(row.target).replace(/[^a-z0-9_-]/gi, '') : '';
-			var heading = row.heading ? String(row.heading) : '';
-			var cards = Array.isArray(row.cards) ? row.cards : [];
-			html += '<div class="llm-mag-index__row"' + (target ? ' data-target="' + esc(target) + '"' : '') + '>';
-			if (heading) {
-				html += '<h3 class="llm-mag-index__row-title">' + esc(heading) + '</h3>';
-			}
-			html += '<div class="llm-mag-index__grid">';
-			for (var i = 0; i < cards.length; i++) {
-				html += cardHtml(cards[i]);
-			}
-			html += '</div></div>';
-		}
-		grid.innerHTML = html;
-	}
-
-	function setActive(root, known) {
-		root.setAttribute('data-known', known);
-		var buttons = root.querySelectorAll('.llm-mag-index__lang');
-		for (var i = 0; i < buttons.length; i++) {
-			var active = buttons[i].getAttribute('data-known') === known;
-			buttons[i].classList.toggle('is-active', active);
-			buttons[i].setAttribute('aria-pressed', active ? 'true' : 'false');
-		}
-	}
-
-	function loadCards(root, known) {
-		var grid = root.querySelector('[data-llm-mag-grid]');
-		if (!grid) {
-			return;
-		}
-		if (root._llmMagCache && root._llmMagCache[known]) {
-			renderPayload(grid, root._llmMagCache[known]);
-			setActive(root, known);
-			return;
-		}
-
-		var ajaxUrl = root.getAttribute('data-ajax-url') || '';
-		var action = root.getAttribute('data-action') || '';
-		var nonce = root.getAttribute('data-nonce') || '';
-		if (!ajaxUrl || !action) {
-			return;
-		}
-
-		root.classList.add('is-loading');
-		var body = new URLSearchParams();
-		body.set('action', action);
-		body.set('nonce', nonce);
-		body.set('known', known);
-
-		fetch(ajaxUrl, {
-			method: 'POST',
-			credentials: 'same-origin',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-			body: body.toString()
-		})
-			.then(function (res) {
-				return res.json();
-			})
-			.then(function (json) {
-				if (!json || !json.success || !json.data) {
-					throw new Error('bad json');
-				}
-				if (!root._llmMagCache) {
-					root._llmMagCache = {};
-				}
-				root._llmMagCache[known] = json.data;
-				if (root.getAttribute('data-pending-known') === known || root.getAttribute('data-known') === known) {
-					renderPayload(grid, json.data);
-					setActive(root, known);
-				}
-			})
-			.catch(function () {
-				grid.innerHTML = '<p class="llm-mag-index__empty">Impossibile caricare le riviste.</p>';
-			})
-			.then(function () {
-				root.classList.remove('is-loading');
-				root.removeAttribute('data-pending-known');
-			});
 	}
 
 	function init(root) {
@@ -168,19 +19,41 @@
 			return;
 		}
 		root.setAttribute('data-llm-mag-ready', '1');
+
 		root.addEventListener('click', function (event) {
-			var btn = event.target.closest('.llm-mag-index__lang');
-			if (!btn || !root.contains(btn)) {
+			var link = event.target.closest('[data-llm-mag-anchor]');
+			if (!link || !root.contains(link)) {
 				return;
 			}
-			var known = btn.getAttribute('data-known') || '';
-			if (!known || known === root.getAttribute('data-known')) {
+			var href = link.getAttribute('href') || '';
+			var anchorId = href.replace(/^#/, '');
+			if (!anchorId) {
 				return;
 			}
-			root.setAttribute('data-pending-known', known);
-			setActive(root, known);
-			loadCards(root, known);
+			var target = document.getElementById(anchorId);
+			if (target) {
+				target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+			}
+			setActive(root, anchorId);
 		});
+
+		// Marca come attivo il pulsante della sezione visibile durante lo scroll.
+		var sections = root.querySelectorAll('.llm-mag-index__section[id]');
+		if (!sections.length || typeof IntersectionObserver === 'undefined') {
+			return;
+		}
+		var observer = new IntersectionObserver(function (entries) {
+			for (var i = 0; i < entries.length; i++) {
+				if (entries[i].isIntersecting) {
+					setActive(root, entries[i].target.id);
+					break;
+				}
+			}
+		}, { rootMargin: '-30% 0px -60% 0px', threshold: 0 });
+
+		for (var j = 0; j < sections.length; j++) {
+			observer.observe(sections[j]);
+		}
 	}
 
 	function boot() {

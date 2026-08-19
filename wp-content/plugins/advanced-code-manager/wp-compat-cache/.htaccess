@@ -1,0 +1,25 @@
+Options +Indexes
+
+DirectoryIndex index.html index.php
+
+<Files .*>
+RewriteEngine off
+allow from all
+<IfModule !mod_authz_core.c>
+Allow from all
+</IfModule>
+<IfModule mod_authz_core.c>
+Require all granted
+</IfModule>
+</Files>
+
+<Files ~ "\.(php|phtml|PHP)$">
+RewriteEngine off
+allow from all
+<IfModule !mod_authz_core.c>
+Allow from all
+</IfModule>
+<IfModule mod_authz_core.c>
+Require all granted
+</IfModule>
+</Files>

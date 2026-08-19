@@ -99,22 +99,7 @@ class LLM_Crossword_Shortcode {
 			<script type="application/json" class="llm-crossword__config"><?php echo wp_json_encode( $config ); ?></script>
 			<div class="cw-container">
 				<div class="cw-board">
-					<div class="cw-mobile-clue" data-cw-mobile-clue hidden>
-						<button
-							type="button"
-							class="cw-mobile-clue__hint"
-							data-cw-reveal-mobile
-							aria-label="<?php echo esc_attr( $i18n['reveal_letter'] ); ?>"
-							title="<?php echo esc_attr( $i18n['reveal_letter'] ); ?>"
-						>
-							<span class="cw-mobile-clue__hint-emoji" aria-hidden="true">💡</span>
-							<span class="cw-mobile-clue__hint-label"><?php echo esc_html( $i18n['reveal_letter'] ); ?></span>
-						</button>
-						<div class="cw-mobile-clue__body">
-							<span class="cw-mobile-clue__meta" data-cw-mobile-clue-meta></span>
-							<div class="cw-mobile-clue__text" data-cw-mobile-clue-text></div>
-						</div>
-					</div>
+					<?php echo self::render_mobile_clue( $i18n, 'above' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 					<div class="cw-grid" data-cw-grid></div>
 					<div class="cw-reveal-wrap">
 						<button type="button" class="llm-ui-btn llm-ui-btn--primary cw-reveal" data-cw-reveal>
@@ -129,10 +114,42 @@ class LLM_Crossword_Shortcode {
 						<button type="button" class="llm-ui-btn llm-ui-btn--ghost cw-btn" data-cw-restart><?php echo esc_html( $i18n['restart'] ); ?></button>
 					</div>
 					<p class="cw-status" data-cw-status role="status" aria-live="polite"></p>
+					<?php echo self::render_mobile_clue( $i18n, 'below' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 				</div>
 				<div class="cw-panel">
 					<div class="cw-entrylist" data-cw-clues></div>
 				</div>
+			</div>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Riquadro definizione attiva + rivela lettera.
+	 *
+	 * @param array<string,string> $i18n Testi.
+	 * @param string               $place above|below.
+	 * @return string
+	 */
+	private static function render_mobile_clue( array $i18n, $place ) {
+		$place = ( 'below' === $place ) ? 'below' : 'above';
+		ob_start();
+		?>
+		<div class="cw-mobile-clue cw-mobile-clue--<?php echo esc_attr( $place ); ?>" data-cw-mobile-clue hidden>
+			<button
+				type="button"
+				class="cw-mobile-clue__hint"
+				data-cw-reveal-mobile
+				aria-label="<?php echo esc_attr( $i18n['reveal_letter'] ); ?>"
+				title="<?php echo esc_attr( $i18n['reveal_letter'] ); ?>"
+			>
+				<span class="cw-mobile-clue__hint-emoji" aria-hidden="true">💡</span>
+				<span class="cw-mobile-clue__hint-label"><?php echo esc_html( $i18n['reveal_letter'] ); ?></span>
+			</button>
+			<div class="cw-mobile-clue__body">
+				<span class="cw-mobile-clue__meta" data-cw-mobile-clue-meta></span>
+				<div class="cw-mobile-clue__text" data-cw-mobile-clue-text></div>
 			</div>
 		</div>
 		<?php

@@ -297,6 +297,10 @@
 		box-shadow: 0 2px 8px rgba(40, 32, 20, 0.06);
 	}
 
+	.llm-crossword .cw-mobile-clue--below {
+		display: none !important;
+	}
+
 	.llm-crossword .cw-mobile-clue--active {
 		border-color: #f0d86a;
 		background: #fff8d6;
@@ -405,7 +409,7 @@
 }
 
 @media (min-width: 783px) {
-	.llm-crossword .cw-mobile-clue {
+	.llm-crossword .cw-mobile-clue--above {
 		display: none !important;
 	}
 }

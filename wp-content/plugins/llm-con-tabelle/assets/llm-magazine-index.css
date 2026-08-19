@@ -12,9 +12,10 @@
 	margin: 0;
 }
 
-.llm-mag-index.is-loading .llm-mag-index__rows {
-	opacity: 0.55;
-	pointer-events: none;
+.llm-mag-index__divider {
+	border: none;
+	border-top: 2px solid #e3d8c8;
+	margin: 1.5rem 0 0;
 }
 
 .llm-mag-index__langs {
@@ -102,7 +103,15 @@
 	flex-direction: column;
 	flex: 1 1 auto;
 	align-self: stretch;
+	gap: 0;
+}
+
+.llm-mag-index__section {
+	display: flex;
+	flex-direction: column;
 	gap: 1.75rem;
+	padding-top: 0.25rem;
+	scroll-margin-top: 80px;
 }
 
 .llm-mag-index__row {

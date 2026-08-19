@@ -81,10 +81,8 @@
 		var checkBtn = root.querySelector('[data-cw-check]');
 		var restartBtn = root.querySelector('[data-cw-restart]');
 		var revealBtn = root.querySelector('[data-cw-reveal]');
-		var revealBtnMobile = root.querySelector('[data-cw-reveal-mobile]');
-		var mobileClueEl = root.querySelector('[data-cw-mobile-clue]');
-		var mobileClueMeta = root.querySelector('[data-cw-mobile-clue-meta]');
-		var mobileClueText = root.querySelector('[data-cw-mobile-clue-text]');
+		var revealBtnsMobile = root.querySelectorAll('[data-cw-reveal-mobile]');
+		var mobileClueEls = root.querySelectorAll('[data-cw-mobile-clue]');
 		if (!gridEl || !clueListEl) {
 			return;
 		}
@@ -115,6 +113,8 @@
 
 		function buildGrid() {
 			gridEl.innerHTML = '';
+			root.style.setProperty('--cw-cols', String(cols));
+			root.style.setProperty('--cw-rows', String(rows));
 			gridEl.style.gridTemplateColumns = 'repeat(' + cols + ', var(--cw-cell-size))';
 			gridEl.style.gridTemplateRows = 'repeat(' + rows + ', var(--cw-cell-size))';
 
@@ -235,28 +235,33 @@
 		}
 
 		function updateMobileClue(entry) {
-			if (!mobileClueEl) {
+			if (!mobileClueEls.length) {
 				return;
 			}
-			mobileClueEl.hidden = false;
-			if (!entry) {
+			for (var i = 0; i < mobileClueEls.length; i++) {
+				var mobileClueEl = mobileClueEls[i];
+				var mobileClueMeta = mobileClueEl.querySelector('[data-cw-mobile-clue-meta]');
+				var mobileClueText = mobileClueEl.querySelector('[data-cw-mobile-clue-text]');
+				mobileClueEl.hidden = false;
+				if (!entry) {
+					if (mobileClueMeta) {
+						mobileClueMeta.textContent = '';
+					}
+					if (mobileClueText) {
+						mobileClueText.textContent = t('mobile_clue_empty') || t('start_hint');
+					}
+					mobileClueEl.classList.remove('cw-mobile-clue--active');
+					continue;
+				}
+				var dirLabel = entry.direction === 'across' ? t('across') : t('down');
 				if (mobileClueMeta) {
-					mobileClueMeta.textContent = '';
+					mobileClueMeta.textContent = entry.number + ' · ' + dirLabel;
 				}
 				if (mobileClueText) {
-					mobileClueText.textContent = t('mobile_clue_empty') || t('start_hint');
+					mobileClueText.innerHTML = clueText(entry);
 				}
-				mobileClueEl.classList.remove('cw-mobile-clue--active');
-				return;
+				mobileClueEl.classList.add('cw-mobile-clue--active');
 			}
-			var dirLabel = entry.direction === 'across' ? t('across') : t('down');
-			if (mobileClueMeta) {
-				mobileClueMeta.textContent = entry.number + ' · ' + dirLabel;
-			}
-			if (mobileClueText) {
-				mobileClueText.innerHTML = clueText(entry);
-			}
-			mobileClueEl.classList.add('cw-mobile-clue--active');
 		}
 
 		function highlightWord(input, direction, opts) {
@@ -721,13 +726,15 @@
 		if (revealBtn) {
 			revealBtn.addEventListener('click', revealLetter);
 		}
-		if (revealBtnMobile) {
-			revealBtnMobile.addEventListener('mousedown', function (e) {
-				e.preventDefault();
-			});
-			revealBtnMobile.addEventListener('click', function (e) {
-				e.preventDefault();
-				revealLetter();
+		if (revealBtnsMobile.length) {
+			Array.prototype.forEach.call(revealBtnsMobile, function (btn) {
+				btn.addEventListener('mousedown', function (e) {
+					e.preventDefault();
+				});
+				btn.addEventListener('click', function (e) {
+					e.preventDefault();
+					revealLetter();
+				});
 			});
 		}
 	}
