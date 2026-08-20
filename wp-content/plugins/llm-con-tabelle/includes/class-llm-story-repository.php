@@ -40,18 +40,21 @@ class LLM_Story_Repository {
 	}
 
 	/**
-	 * Prime N frasi hanno tutte l’analisi grammaticale (appunti) non vuota.
+	 * Prime N frasi: presenza appunti e media parole dell’analisi grammaticale.
 	 *
 	 * @param int $story_id ID post storia.
 	 * @param int $limit    Quante frasi controllare (default 5).
-	 * @return bool|null true = sì, false = no, null = nessuna frase.
+	 * @return array{status:string,avg_words:int} status: yes|no|none.
 	 */
-	public static function first_phrases_have_grammar( $story_id, $limit = 5 ) {
+	public static function analyze_first_phrases_notes( $story_id, $limit = 5 ) {
 		global $wpdb;
 		$story_id = absint( $story_id );
 		$limit    = max( 1, absint( $limit ) );
 		if ( ! $story_id ) {
-			return null;
+			return array(
+				'status'    => 'none',
+				'avg_words' => 0,
+			);
 		}
 		$table = LLM_Tabelle_Database::table( 'llm_story_phrases' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -63,14 +66,61 @@ class LLM_Story_Repository {
 			)
 		);
 		if ( ! is_array( $rows ) || array() === $rows ) {
+			return array(
+				'status'    => 'none',
+				'avg_words' => 0,
+			);
+		}
+
+		$has_all     = true;
+		$word_counts = array();
+		foreach ( $rows as $grammar ) {
+			$n = self::count_note_words( $grammar );
+			if ( 0 === $n ) {
+				$has_all = false;
+			}
+			$word_counts[] = $n;
+		}
+
+		$avg = 0;
+		if ( $has_all && ! empty( $word_counts ) ) {
+			$avg = (int) round( array_sum( $word_counts ) / count( $word_counts ) );
+		}
+
+		return array(
+			'status'    => $has_all ? 'yes' : 'no',
+			'avg_words' => $avg,
+		);
+	}
+
+	/**
+	 * @param mixed $text Analisi grammaticale.
+	 * @return int
+	 */
+	public static function count_note_words( $text ) {
+		$plain = html_entity_decode( wp_strip_all_tags( (string) $text ), ENT_QUOTES, 'UTF-8' );
+		$plain = preg_replace( '/\s+/u', ' ', $plain );
+		$plain = is_string( $plain ) ? trim( $plain ) : '';
+		if ( '' === $plain ) {
+			return 0;
+		}
+		$parts = preg_split( '/\s+/u', $plain, -1, PREG_SPLIT_NO_EMPTY );
+		return is_array( $parts ) ? count( $parts ) : 0;
+	}
+
+	/**
+	 * Prime N frasi hanno tutte l’analisi grammaticale (appunti) non vuota.
+	 *
+	 * @param int $story_id ID post storia.
+	 * @param int $limit    Quante frasi controllare (default 5).
+	 * @return bool|null true = sì, false = no, null = nessuna frase.
+	 */
+	public static function first_phrases_have_grammar( $story_id, $limit = 5 ) {
+		$stats = self::analyze_first_phrases_notes( $story_id, $limit );
+		if ( 'none' === $stats['status'] ) {
 			return null;
 		}
-		foreach ( $rows as $grammar ) {
-			if ( '' === trim( (string) $grammar ) ) {
-				return false;
-			}
-		}
-		return true;
+		return 'yes' === $stats['status'];
 	}
 
 	/**

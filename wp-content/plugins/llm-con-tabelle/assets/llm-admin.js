@@ -360,6 +360,40 @@
 
 		llmQuickEditInit();
 
+		$( document ).on( 'click', '#llm-calc-phrase-notes', function ( e ) {
+			e.preventDefault();
+			e.stopPropagation();
+			var $btn = $( this );
+			if ( $btn.prop( 'disabled' ) ) {
+				return;
+			}
+			$btn.prop( 'disabled', true );
+			var $status = $( '#llm-calc-phrase-notes-status' );
+			$status.text( ( window.llmAdmin && llmAdmin.calcNotesWorking ) ? llmAdmin.calcNotesWorking : 'Calcolo…' );
+			$.ajax( {
+				url:      ( window.llmAdmin && llmAdmin.ajaxUrl ) ? llmAdmin.ajaxUrl : window.ajaxurl,
+				type:     'POST',
+				dataType: 'json',
+				data: {
+					action: ( window.llmAdmin && llmAdmin.calcNotesAction ) ? llmAdmin.calcNotesAction : 'llm_story_calc_phrase_notes',
+					nonce:  ( window.llmAdmin && llmAdmin.calcNotesNonce ) ? llmAdmin.calcNotesNonce : '',
+				},
+			} )
+				.done( function ( res ) {
+					if ( res && res.success ) {
+						window.location.reload();
+						return;
+					}
+					$btn.prop( 'disabled', false );
+					var msg = ( res && res.data && res.data.message ) ? res.data.message : ( ( window.llmAdmin && llmAdmin.calcNotesErr ) ? llmAdmin.calcNotesErr : 'Errore' );
+					$status.text( msg );
+				} )
+				.fail( function () {
+					$btn.prop( 'disabled', false );
+					$status.text( ( window.llmAdmin && llmAdmin.calcNotesErr ) ? llmAdmin.calcNotesErr : 'Errore' );
+				} );
+		} );
+
 		// ---- Editor completo (solo se presente) ----
 		if ( ! $( '#llm-phrases-list' ).length ) {
 			return;

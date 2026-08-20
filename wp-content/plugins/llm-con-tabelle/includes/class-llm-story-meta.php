@@ -22,6 +22,9 @@ class LLM_Story_Meta {
 	const STORY_CARD_TEXT      = '_llm_story_card_text';
 	const STORY_CEFR_LEVEL     = '_llm_story_cefr_level';
 	const STORY_GRAMMAR_TOPICS = '_llm_story_grammar_topics';
+	/** yes | no | none — calcolato dal pulsante in lista storie. */
+	const PHRASE_NOTES_STATUS    = '_llm_phrase_notes_status';
+	const PHRASE_NOTES_AVG_WORDS = '_llm_phrase_notes_avg_words';
 
 	public static function init() {
 		add_action( 'init', array( __CLASS__, 'register_meta' ), 11 );

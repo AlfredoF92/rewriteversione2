@@ -30,7 +30,7 @@
 }
 
 .column-llm_notes {
-	width: 8.5em;
+	width: 11em;
 }
 
 .llm-col-notes {
@@ -59,6 +59,23 @@
 .llm-col-notes--empty {
 	color: #c3c4c7;
 	font-weight: 400;
+}
+
+.llm-col-notes__words {
+	margin-left: 0.15em;
+	font-weight: 600;
+	color: #1e7e34;
+}
+
+#llm-calc-phrase-notes {
+	margin-left: 6px;
+	text-transform: uppercase;
+}
+
+.llm-calc-notes-status {
+	margin-left: 6px;
+	font-style: italic;
+	color: #646970;
 }
 
 /* ============================================================

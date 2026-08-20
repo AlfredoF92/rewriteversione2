@@ -13,6 +13,8 @@ class LLM_Admin_Story {
 
 	const NONCE_ACTION = 'llm_story_save';
 	const NONCE_NAME   = 'llm_story_nonce';
+	const CALC_NOTES_ACTION = 'llm_story_calc_phrase_notes';
+	const CALC_NOTES_NONCE  = 'llm_story_calc_phrase_notes';
 
 	public static function init() {
 		add_action( 'add_meta_boxes', array( __CLASS__, 'meta_boxes' ) );
@@ -25,6 +27,7 @@ class LLM_Admin_Story {
 		add_action( 'quick_edit_custom_box', array( __CLASS__, 'quick_edit_box' ), 10, 2 );
 		add_action( 'restrict_manage_posts', array( __CLASS__, 'story_list_filters' ), 10, 2 );
 		add_action( 'pre_get_posts', array( __CLASS__, 'filter_story_list_query' ) );
+		add_action( 'wp_ajax_' . self::CALC_NOTES_ACTION, array( __CLASS__, 'ajax_calc_phrase_notes' ) );
 	}
 
 	public static function enqueue( $hook ) {
@@ -55,9 +58,14 @@ class LLM_Admin_Story {
 				'llm-admin-story',
 				'llmAdmin',
 				array(
-					'selectImage' => __( 'Scegli immagine', 'llm-con-tabelle' ),
-					'changeImage' => __( 'Cambia immagine', 'llm-con-tabelle' ),
-					'useImage'    => __( 'Usa questa immagine', 'llm-con-tabelle' ),
+					'selectImage'      => __( 'Scegli immagine', 'llm-con-tabelle' ),
+					'changeImage'      => __( 'Cambia immagine', 'llm-con-tabelle' ),
+					'useImage'         => __( 'Usa questa immagine', 'llm-con-tabelle' ),
+					'ajaxUrl'          => admin_url( 'admin-ajax.php' ),
+					'calcNotesAction'  => self::CALC_NOTES_ACTION,
+					'calcNotesNonce'   => wp_create_nonce( self::CALC_NOTES_NONCE ),
+					'calcNotesWorking' => __( 'Calcolo…', 'llm-con-tabelle' ),
+					'calcNotesErr'     => __( 'Calcolo non riuscito.', 'llm-con-tabelle' ),
 				)
 			);
 			return;
@@ -864,7 +872,9 @@ class LLM_Admin_Story {
 		foreach ( $codes as $code => $label ) {
 			echo '<option value="' . esc_attr( $code ) . '"' . selected( $ft, $code, false ) . '>' . esc_html( $label . ' (' . $code . ')' ) . '</option>';
 		}
-		echo '</select>';
+		echo '</select> ';
+		echo '<button type="button" id="llm-calc-phrase-notes" class="button button-primary">' . esc_html__( 'Calcola parole appunti', 'llm-con-tabelle' ) . '</button>';
+		echo ' <span id="llm-calc-phrase-notes-status" class="llm-calc-notes-status" aria-live="polite"></span>';
 	}
 
 	/**
@@ -978,22 +988,7 @@ class LLM_Admin_Story {
 				echo esc_html( (string) count( LLM_Story_Repository::get_phrases( $post_id ) ) );
 				break;
 			case 'llm_notes':
-				$has_notes = LLM_Story_Repository::first_phrases_have_grammar( $post_id, 5 );
-				if ( null === $has_notes ) {
-					echo '<span class="llm-col-notes llm-col-notes--empty">—</span>';
-					break;
-				}
-				if ( $has_notes ) {
-					echo '<span class="llm-col-notes llm-col-notes--yes" title="' . esc_attr__( 'Le prime 5 frasi hanno l’analisi grammaticale.', 'llm-con-tabelle' ) . '">';
-					echo '<span class="dashicons dashicons-yes-alt" aria-hidden="true"></span> ';
-					echo esc_html__( 'Sì', 'llm-con-tabelle' );
-					echo '</span>';
-					break;
-				}
-				echo '<span class="llm-col-notes llm-col-notes--no" title="' . esc_attr__( 'Manca l’analisi grammaticale in almeno una delle prime 5 frasi.', 'llm-con-tabelle' ) . '">';
-				echo '<span class="dashicons dashicons-warning" aria-hidden="true"></span> ';
-				echo esc_html__( 'No', 'llm-con-tabelle' );
-				echo '</span>';
+				self::render_notes_column( $post_id );
 				break;
 			case 'llm_coins':
 				$c = (int) get_post_meta( $post_id, LLM_Story_Meta::COIN_COST, true );
@@ -1001,5 +996,80 @@ class LLM_Admin_Story {
 				echo esc_html( sprintf( '%d / %d', $c, $r ) );
 				break;
 		}
+	}
+
+	/**
+	 * Colonna appunti: legge i valori salvati dal pulsante Calcola.
+	 *
+	 * @param int $post_id ID storia.
+	 */
+	private static function render_notes_column( $post_id ) {
+		$status = (string) get_post_meta( $post_id, LLM_Story_Meta::PHRASE_NOTES_STATUS, true );
+		$avg    = (int) get_post_meta( $post_id, LLM_Story_Meta::PHRASE_NOTES_AVG_WORDS, true );
+
+		if ( '' === $status ) {
+			echo '<span class="llm-col-notes llm-col-notes--empty">—</span>';
+			return;
+		}
+
+		if ( 'none' === $status ) {
+			echo '<span class="llm-col-notes llm-col-notes--empty">—</span>';
+			return;
+		}
+
+		if ( 'yes' === $status ) {
+			echo '<span class="llm-col-notes llm-col-notes--yes" title="' . esc_attr__( 'Le prime 5 frasi hanno l’analisi grammaticale. Media parole delle 5.', 'llm-con-tabelle' ) . '">';
+			echo '<span class="dashicons dashicons-yes-alt" aria-hidden="true"></span> ';
+			echo esc_html__( 'Sì', 'llm-con-tabelle' );
+			echo ' <span class="llm-col-notes__words">' . esc_html( sprintf( /* translators: %d: average word count */ _n( '%d parola', '%d parole', $avg, 'llm-con-tabelle' ), $avg ) ) . '</span>';
+			echo '</span>';
+			return;
+		}
+
+		echo '<span class="llm-col-notes llm-col-notes--no" title="' . esc_attr__( 'Manca l’analisi grammaticale in almeno una delle prime 5 frasi.', 'llm-con-tabelle' ) . '">';
+		echo '<span class="dashicons dashicons-warning" aria-hidden="true"></span> ';
+		echo esc_html__( 'No', 'llm-con-tabelle' );
+		echo '</span>';
+	}
+
+	/**
+	 * Ricalcola presenza appunti e media parole per tutte le storie.
+	 */
+	public static function ajax_calc_phrase_notes() {
+		$pto = get_post_type_object( LLM_STORY_CPT );
+		if ( ! $pto || ! current_user_can( $pto->cap->edit_posts ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permesso negato.', 'llm-con-tabelle' ) ), 403 );
+		}
+		check_ajax_referer( self::CALC_NOTES_NONCE, 'nonce' );
+
+		$ids = get_posts(
+			array(
+				'post_type'              => LLM_STORY_CPT,
+				'post_status'            => array( 'publish', 'draft', 'pending', 'private', 'future' ),
+				'posts_per_page'         => -1,
+				'fields'                 => 'ids',
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
+			)
+		);
+		if ( ! is_array( $ids ) ) {
+			$ids = array();
+		}
+
+		$updated = 0;
+		foreach ( $ids as $id ) {
+			$id    = (int) $id;
+			$stats = LLM_Story_Repository::analyze_first_phrases_notes( $id, 5 );
+			update_post_meta( $id, LLM_Story_Meta::PHRASE_NOTES_STATUS, $stats['status'] );
+			update_post_meta( $id, LLM_Story_Meta::PHRASE_NOTES_AVG_WORDS, (int) $stats['avg_words'] );
+			++$updated;
+		}
+
+		wp_send_json_success(
+			array(
+				'updated' => $updated,
+			)
+		);
 	}
 }
