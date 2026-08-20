@@ -951,8 +951,9 @@ class LLM_Admin_Story {
 		$new = array();
 		foreach ( $columns as $key => $label ) {
 			if ( 'cb' === $key ) {
-				$new[ $key ]            = $label;
-				$new['llm_thumbnail']   = __( 'Anteprima', 'llm-con-tabelle' );
+				$new[ $key ]          = $label;
+				$new['llm_id']        = __( 'ID', 'llm-con-tabelle' );
+				$new['llm_thumbnail'] = __( 'Anteprima', 'llm-con-tabelle' );
 				continue;
 			}
 			$new[ $key ] = $label;
@@ -968,6 +969,9 @@ class LLM_Admin_Story {
 
 	public static function column_content( $column, $post_id ) {
 		switch ( $column ) {
+			case 'llm_id':
+				echo '<span class="llm-col-id">' . esc_html( (string) (int) $post_id ) . '</span>';
+				break;
 			case 'llm_thumbnail':
 				$thumb_id  = (int) get_post_thumbnail_id( $post_id );
 				$thumb_url = $thumb_id ? wp_get_attachment_image_url( $thumb_id, array( 60, 60 ) ) : '';

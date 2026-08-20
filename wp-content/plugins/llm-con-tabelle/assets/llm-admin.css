@@ -8,6 +8,16 @@
 	width: 72px;
 }
 
+.column-llm_id {
+	width: 4.5em;
+}
+
+.llm-col-id {
+	font-variant-numeric: tabular-nums;
+	font-weight: 700;
+	color: #1d2327;
+}
+
 .llm-col-thumb {
 	display: flex;
 	align-items: center;
