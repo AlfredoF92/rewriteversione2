@@ -29,6 +29,38 @@
 	font-size: 18px;
 }
 
+.column-llm_notes {
+	width: 8.5em;
+}
+
+.llm-col-notes {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.2em;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.llm-col-notes .dashicons {
+	font-size: 18px;
+	width: 18px;
+	height: 18px;
+	line-height: 18px;
+}
+
+.llm-col-notes--yes {
+	color: #1e7e34;
+}
+
+.llm-col-notes--no {
+	color: #d63638;
+}
+
+.llm-col-notes--empty {
+	color: #c3c4c7;
+	font-weight: 400;
+}
+
 /* ============================================================
    Quick edit — immagine anteprima
    ============================================================ */

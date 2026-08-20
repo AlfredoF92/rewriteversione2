@@ -40,6 +40,40 @@ class LLM_Story_Repository {
 	}
 
 	/**
+	 * Prime N frasi hanno tutte l’analisi grammaticale (appunti) non vuota.
+	 *
+	 * @param int $story_id ID post storia.
+	 * @param int $limit    Quante frasi controllare (default 5).
+	 * @return bool|null true = sì, false = no, null = nessuna frase.
+	 */
+	public static function first_phrases_have_grammar( $story_id, $limit = 5 ) {
+		global $wpdb;
+		$story_id = absint( $story_id );
+		$limit    = max( 1, absint( $limit ) );
+		if ( ! $story_id ) {
+			return null;
+		}
+		$table = LLM_Tabelle_Database::table( 'llm_story_phrases' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT phrase_grammar FROM {$table} WHERE story_id = %d ORDER BY sort_order ASC, id ASC LIMIT %d",
+				$story_id,
+				$limit
+			)
+		);
+		if ( ! is_array( $rows ) || array() === $rows ) {
+			return null;
+		}
+		foreach ( $rows as $grammar ) {
+			if ( '' === trim( (string) $grammar ) ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * Una sola frase per indice (stesso ordinamento di get_phrases).
 	 *
 	 * @param int $story_id ID storia.

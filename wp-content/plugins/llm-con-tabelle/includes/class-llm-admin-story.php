@@ -947,9 +947,10 @@ class LLM_Admin_Story {
 			}
 			$new[ $key ] = $label;
 			if ( 'title' === $key ) {
-				$new['llm_langs']   = __( 'Lingue', 'llm-con-tabelle' );
-				$new['llm_phrases'] = __( 'Frasi (DB)', 'llm-con-tabelle' );
-				$new['llm_coins']   = __( 'Coin', 'llm-con-tabelle' );
+				$new['llm_langs']    = __( 'Lingue', 'llm-con-tabelle' );
+				$new['llm_phrases']  = __( 'Frasi (DB)', 'llm-con-tabelle' );
+				$new['llm_notes']    = __( 'Appunti frasi?', 'llm-con-tabelle' );
+				$new['llm_coins']    = __( 'Coin', 'llm-con-tabelle' );
 			}
 		}
 		return $new;
@@ -975,6 +976,24 @@ class LLM_Admin_Story {
 				break;
 			case 'llm_phrases':
 				echo esc_html( (string) count( LLM_Story_Repository::get_phrases( $post_id ) ) );
+				break;
+			case 'llm_notes':
+				$has_notes = LLM_Story_Repository::first_phrases_have_grammar( $post_id, 5 );
+				if ( null === $has_notes ) {
+					echo '<span class="llm-col-notes llm-col-notes--empty">—</span>';
+					break;
+				}
+				if ( $has_notes ) {
+					echo '<span class="llm-col-notes llm-col-notes--yes" title="' . esc_attr__( 'Le prime 5 frasi hanno l’analisi grammaticale.', 'llm-con-tabelle' ) . '">';
+					echo '<span class="dashicons dashicons-yes-alt" aria-hidden="true"></span> ';
+					echo esc_html__( 'Sì', 'llm-con-tabelle' );
+					echo '</span>';
+					break;
+				}
+				echo '<span class="llm-col-notes llm-col-notes--no" title="' . esc_attr__( 'Manca l’analisi grammaticale in almeno una delle prime 5 frasi.', 'llm-con-tabelle' ) . '">';
+				echo '<span class="dashicons dashicons-warning" aria-hidden="true"></span> ';
+				echo esc_html__( 'No', 'llm-con-tabelle' );
+				echo '</span>';
 				break;
 			case 'llm_coins':
 				$c = (int) get_post_meta( $post_id, LLM_Story_Meta::COIN_COST, true );
