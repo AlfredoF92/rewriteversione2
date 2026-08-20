@@ -46,6 +46,46 @@ class LLM_Story_Phrase_Game {
 		add_action( 'wp_ajax_nopriv_llm_phrase_game_check', array( __CLASS__, 'ajax_check' ) );
 		add_action( 'wp_ajax_llm_phrase_game_restart', array( __CLASS__, 'ajax_restart' ) );
 		add_action( 'wp_ajax_nopriv_llm_phrase_game_restart', array( __CLASS__, 'ajax_restart' ) );
+		add_action( 'template_redirect', array( __CLASS__, 'maybe_sync_visitor_langs' ), 6 );
+	}
+
+	/**
+	 * Allinea lingua conosciuta e da imparare alla coppia della storia.
+	 */
+	public static function maybe_sync_visitor_langs() {
+		if ( is_admin() || wp_doing_ajax() || wp_doing_cron() ) {
+			return;
+		}
+		if ( is_customize_preview() || is_preview() ) {
+			return;
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! empty( $_GET['elementor-preview'] ) ) {
+			return;
+		}
+		if ( ! is_singular( LLM_STORY_CPT ) ) {
+			return;
+		}
+		if ( ! class_exists( 'LLM_Visitor_Lang' ) || ! class_exists( 'LLM_Languages' ) ) {
+			return;
+		}
+
+		$story_id = get_queried_object_id();
+		if ( ! $story_id ) {
+			return;
+		}
+
+		$known  = sanitize_key( (string) get_post_meta( $story_id, LLM_Story_Meta::KNOWN_LANG, true ) );
+		$target = sanitize_key( (string) get_post_meta( $story_id, LLM_Story_Meta::TARGET_LANG, true ) );
+		if ( ! LLM_Languages::is_valid( $known ) || ! LLM_Languages::is_valid( $target ) || $known === $target ) {
+			return;
+		}
+
+		if ( LLM_Visitor_Lang::stored_known() === $known && LLM_Visitor_Lang::stored_learning() === $target ) {
+			return;
+		}
+
+		LLM_Visitor_Lang::set_pair( $known, $target );
 	}
 
 	/**
@@ -172,6 +212,7 @@ class LLM_Story_Phrase_Game {
 		$listen_target_label   = LLM_Phrase_Game_I18n::get( 'listen_target_label' );
 
 		ob_start();
+		echo self::render_story_hero( $story_id, count( $phrases ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato.
 		?>
 		<div id="<?php echo esc_attr( $uid ); ?>" class="llm-phrase-game" data-story-id="<?php echo esc_attr( (string) $story_id ); ?>">
 			<div class="llm-phrase-game__story-wrap">
@@ -326,6 +367,297 @@ class LLM_Story_Phrase_Game {
 		</div>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Hero editoriale sopra il gioco (HTML+CSS; non modifica .llm-phrase-game).
+	 *
+	 * @param int $story_id     ID storia.
+	 * @param int $phrase_count Numero frasi.
+	 * @return string
+	 */
+	private static function render_story_hero( $story_id, $phrase_count ) {
+		$story_id     = absint( $story_id );
+		$phrase_count = max( 0, (int) $phrase_count );
+		if ( ! $story_id ) {
+			return '';
+		}
+
+		$known  = sanitize_key( (string) get_post_meta( $story_id, LLM_Story_Meta::KNOWN_LANG, true ) );
+		$target = sanitize_key( (string) get_post_meta( $story_id, LLM_Story_Meta::TARGET_LANG, true ) );
+		$ui     = $known ? $known : ( class_exists( 'LLM_Phrase_Game_I18n' ) ? LLM_Phrase_Game_I18n::lang() : 'it' );
+
+		$title_known  = get_the_title( $story_id );
+		$title_target = trim( (string) get_post_meta( $story_id, LLM_Story_Meta::TITLE_TARGET, true ) );
+		$main_title   = $title_target !== '' ? $title_target : $title_known;
+		$subtitle     = ( $title_target !== '' && $title_known !== '' && strcasecmp( $title_target, $title_known ) !== 0 )
+			? $title_known
+			: '';
+
+		$lede = trim( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_CARD_TEXT, true ) );
+		if ( '' === $lede ) {
+			$lede = trim( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_INTRO, true ) );
+		}
+		if ( '' === $lede ) {
+			$lede = trim( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_PLOT, true ) );
+		}
+
+		$cefr      = (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_CEFR_LEVEL, true );
+		$cefr_code = '';
+		if ( $cefr && preg_match( '/\b([ABC][12])\b/i', $cefr, $m ) ) {
+			$cefr_code = strtoupper( $m[1] );
+		}
+
+		$cat_names = array();
+		$raw_cats  = get_the_terms( $story_id, 'category' );
+		if ( ! empty( $raw_cats ) && ! is_wp_error( $raw_cats ) ) {
+			$skip_slugs = array( 'uncategorized', 'senza-categoria' );
+			foreach ( $raw_cats as $cat ) {
+				if ( in_array( $cat->slug, $skip_slugs, true ) ) {
+					continue;
+				}
+				if ( preg_match( '/^[a-z]{2,3}-[a-z]{2,10}$/', $cat->slug ) ) {
+					continue;
+				}
+				$name = $cat->name;
+				if ( class_exists( 'LLM_Category_Translations' ) ) {
+					$name = LLM_Category_Translations::get_translated_name( $cat, $ui );
+				}
+				if ( '' !== trim( $name ) ) {
+					$cat_names[] = $name;
+				}
+			}
+		}
+		$cat_line = implode( ' • ', $cat_names );
+
+		$thumb_id    = get_post_thumbnail_id( $story_id );
+		$thumb_url   = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'large' ) : '';
+		$count_word  = self::hero_phrase_word( $ui, $phrase_count );
+		$level_label = self::hero_level_label( $ui, $cefr_code, $target );
+		$target_flag = class_exists( 'LLM_Languages' ) ? LLM_Languages::flag_emoji( $target ) : '';
+
+		ob_start();
+		?>
+		<header class="llm-story-hero<?php echo $target ? ' llm-story-hero--target-' . esc_attr( $target ) : ''; ?>">
+			<div class="llm-story-hero__panel">
+				<div class="llm-story-hero__copy">
+					<?php if ( $phrase_count > 0 || $level_label || $cat_line ) : ?>
+					<div class="llm-story-hero__kicker">
+						<?php if ( $phrase_count > 0 ) : ?>
+							<span class="llm-story-hero__stats"><?php echo esc_html( (string) $phrase_count . ' ' . $count_word ); ?></span>
+						<?php endif; ?>
+						<?php if ( $level_label ) : ?>
+							<span class="llm-story-hero__level"><?php echo esc_html( $level_label ); ?></span>
+						<?php endif; ?>
+						<?php if ( $cat_line ) : ?>
+							<span class="llm-story-hero__cat"><?php echo esc_html( $cat_line ); ?></span>
+						<?php endif; ?>
+					</div>
+					<hr class="llm-story-hero__divider" />
+					<?php endif; ?>
+					<?php if ( $main_title ) : ?>
+						<div class="llm-story-hero__title-block">
+							<?php if ( $target_flag ) : ?>
+								<span class="llm-story-hero__learn-flag" aria-hidden="true"><?php echo esc_html( $target_flag ); ?></span>
+							<?php endif; ?>
+							<h1 class="llm-story-hero__title"><?php echo esc_html( $main_title ); ?></h1>
+						</div>
+					<?php endif; ?>
+					<?php if ( $subtitle ) : ?>
+						<p class="llm-story-hero__subtitle"><?php echo esc_html( $subtitle ); ?></p>
+					<?php endif; ?>
+					<?php if ( $lede ) : ?>
+						<p class="llm-story-hero__lede"><?php echo esc_html( $lede ); ?></p>
+					<?php endif; ?>
+				</div>
+			</div>
+			<div
+				class="llm-story-hero__media<?php echo $thumb_url ? '' : ' llm-story-hero__media--empty'; ?>"
+				<?php if ( $thumb_url ) : ?>
+					style="background-image:url('<?php echo esc_url( $thumb_url ); ?>');"
+					role="img"
+					aria-label="<?php echo esc_attr( $main_title ); ?>"
+				<?php else : ?>
+					aria-hidden="true"
+				<?php endif; ?>
+			></div>
+		</header>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Posizione 1-based della storia nella rivista della coppia, 0 se assente.
+	 *
+	 * @param int $story_id ID storia.
+	 * @return int
+	 */
+	private static function story_ordinal_in_magazine( $story_id ) {
+		$story_id = absint( $story_id );
+		if ( ! $story_id || ! class_exists( 'LLM_Magazine' ) ) {
+			return 0;
+		}
+
+		$known  = sanitize_key( (string) get_post_meta( $story_id, LLM_Story_Meta::KNOWN_LANG, true ) );
+		$target = sanitize_key( (string) get_post_meta( $story_id, LLM_Story_Meta::TARGET_LANG, true ) );
+		if ( ! $known || ! $target ) {
+			return 0;
+		}
+
+		$candidates = array();
+		$home       = LLM_Magazine::find_homepage_id( $known, $target );
+		if ( $home ) {
+			$candidates[] = $home;
+		}
+
+		$q = new WP_Query(
+			array(
+				'post_type'              => LLM_Magazine::CPT,
+				'post_status'            => array( 'publish', 'draft', 'private' ),
+				'posts_per_page'         => 12,
+				'fields'                 => 'ids',
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => true,
+				'update_post_term_cache' => false,
+				'meta_query'             => array(
+					array(
+						'key'   => LLM_Magazine::META_KNOWN,
+						'value' => $known,
+					),
+					array(
+						'key'   => LLM_Magazine::META_TARGET,
+						'value' => $target,
+					),
+				),
+			)
+		);
+		foreach ( $q->posts as $mid ) {
+			$candidates[] = (int) $mid;
+		}
+		$candidates = array_values( array_unique( array_filter( $candidates ) ) );
+
+		foreach ( $candidates as $mid ) {
+			foreach ( array( LLM_Magazine::get_story_ids( $mid ), LLM_Magazine::get_music_ids( $mid ) ) as $list ) {
+				foreach ( $list as $i => $sid ) {
+					if ( (int) $sid === $story_id ) {
+						return (int) $i + 1;
+					}
+				}
+			}
+		}
+
+		return 0;
+	}
+
+	/**
+	 * @param string $ui    Lingua UI.
+	 * @param int    $count Numero frasi.
+	 * @return string
+	 */
+	private static function hero_phrase_word( $ui, $count ) {
+		$count = (int) $count;
+		$map   = array(
+			'it' => $count === 1 ? 'frase' : 'frasi',
+			'en' => $count === 1 ? 'phrase' : 'phrases',
+			'pl' => $count === 1 ? 'zdanie' : 'zdań',
+			'es' => $count === 1 ? 'frase' : 'frases',
+		);
+		$ui    = sanitize_key( (string) $ui );
+		return isset( $map[ $ui ] ) ? $map[ $ui ] : $map['it'];
+	}
+
+	/**
+	 * Etichetta livello: "livello B1 polacco".
+	 *
+	 * @param string $ui        Lingua UI.
+	 * @param string $cefr_code A1–C2 oppure ''.
+	 * @param string $target    Lingua da imparare.
+	 * @return string
+	 */
+	private static function hero_level_label( $ui, $cefr_code, $target ) {
+		$ui     = sanitize_key( (string) $ui );
+		$target = sanitize_key( (string) $target );
+		$word   = self::hero_ui_string( $ui, 'level' );
+		$lang   = self::hero_target_lang_name( $ui, $target );
+		if ( '' !== $lang ) {
+			$lang = function_exists( 'mb_strtoupper' ) ? mb_strtoupper( $lang, 'UTF-8' ) : strtoupper( $lang );
+		}
+		$cefr   = strtoupper( sanitize_key( (string) $cefr_code ) );
+
+		$parts = array_filter(
+			array(
+				$word,
+				$cefr,
+				$lang,
+			)
+		);
+		return implode( ' ', $parts );
+	}
+
+	/**
+	 * Nome della lingua target nella lingua UI (minuscolo in italiano).
+	 *
+	 * @param string $ui     Lingua UI.
+	 * @param string $target Codice target.
+	 * @return string
+	 */
+	private static function hero_target_lang_name( $ui, $target ) {
+		$names = array(
+			'it' => array(
+				'en' => 'inglese',
+				'it' => 'italiano',
+				'pl' => 'polacco',
+				'es' => 'spagnolo',
+			),
+			'en' => array(
+				'en' => 'English',
+				'it' => 'Italian',
+				'pl' => 'Polish',
+				'es' => 'Spanish',
+			),
+			'pl' => array(
+				'en' => 'angielski',
+				'it' => 'włoski',
+				'pl' => 'polski',
+				'es' => 'hiszpański',
+			),
+			'es' => array(
+				'en' => 'inglés',
+				'it' => 'italiano',
+				'pl' => 'polaco',
+				'es' => 'español',
+			),
+		);
+		$ui     = sanitize_key( (string) $ui );
+		$target = sanitize_key( (string) $target );
+		if ( isset( $names[ $ui ][ $target ] ) ) {
+			return $names[ $ui ][ $target ];
+		}
+		if ( isset( $names['it'][ $target ] ) ) {
+			return $names['it'][ $target ];
+		}
+		return '';
+	}
+
+	/**
+	 * @param string $ui  Lingua UI.
+	 * @param string $key level.
+	 * @return string
+	 */
+	private static function hero_ui_string( $ui, $key ) {
+		$ui  = sanitize_key( (string) $ui );
+		$set = array(
+			'level' => array(
+				'it' => 'livello',
+				'en' => 'level',
+				'pl' => 'poziom',
+				'es' => 'nivel',
+			),
+		);
+		if ( ! isset( $set[ $key ] ) ) {
+			return '';
+		}
+		return isset( $set[ $key ][ $ui ] ) ? $set[ $key ][ $ui ] : $set[ $key ]['it'];
 	}
 
 	/**
@@ -540,6 +872,18 @@ class LLM_Story_Phrase_Game {
 		);
 
 		wp_enqueue_style( 'llm-phrase-game' );
+		wp_enqueue_style(
+			'llm-story-hero-fonts',
+			'https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:ital,wght@0,600;0,700;0,800;1,400&family=Playfair+Display:ital,wght@0,400;0,600;1,400;1,600&display=swap',
+			array(),
+			null
+		);
+		wp_enqueue_style(
+			'llm-story-hero',
+			LLM_TABELLE_URL . 'assets/llm-story-hero.css',
+			array( 'llm-story-hero-fonts' ),
+			LLM_TABELLE_VERSION
+		);
 		wp_enqueue_script( 'llm-phrase-game' );
 		wp_enqueue_script( 'llm-learning-modes' );
 		wp_localize_script( 'llm-learning-modes', 'llmLearningModes', LLM_Learning_Modes::script_data() );

@@ -17,6 +17,146 @@ class LLM_Magazine_Shortcode {
 			add_shortcode( $pair['shortcode'], array( __CLASS__, 'render_homepage' ) );
 		}
 		add_shortcode( 'llm_rivista_primapagina', array( __CLASS__, 'render_generic' ) );
+		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'maybe_enqueue_fonts' ) );
+		add_action( 'template_redirect', array( __CLASS__, 'maybe_sync_visitor_langs' ), 5 );
+	}
+
+	/**
+	 * Click card: forza la coppia. Link diretto alla rivista: imposta solo se manca.
+	 */
+	public static function maybe_sync_visitor_langs() {
+		if ( is_admin() || wp_doing_ajax() || wp_doing_cron() ) {
+			return;
+		}
+		if ( is_customize_preview() || is_preview() ) {
+			return;
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! empty( $_GET['elementor-preview'] ) ) {
+			return;
+		}
+		if ( ! class_exists( 'LLM_Visitor_Lang' ) || ! class_exists( 'LLM_Languages' ) ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$force_known = isset( $_GET['llm_set_known'] ) ? sanitize_key( wp_unslash( $_GET['llm_set_known'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$force_learn = isset( $_GET['llm_set_learn'] ) ? sanitize_key( wp_unslash( $_GET['llm_set_learn'] ) ) : '';
+
+		if (
+			LLM_Languages::is_valid( $force_known )
+			&& LLM_Languages::is_valid( $force_learn )
+			&& $force_known !== $force_learn
+		) {
+			LLM_Visitor_Lang::set_pair( $force_known, $force_learn );
+			$clean = remove_query_arg( array( 'llm_set_known', 'llm_set_learn' ) );
+			wp_safe_redirect( $clean );
+			exit;
+		}
+
+		$stored_known = LLM_Visitor_Lang::stored_known();
+		$stored_learn = LLM_Visitor_Lang::stored_learning();
+		if ( '' !== $stored_known && '' !== $stored_learn ) {
+			return;
+		}
+
+		$pair = self::pair_from_current_request();
+		if ( ! $pair ) {
+			return;
+		}
+
+		LLM_Visitor_Lang::set_pair( $pair['known'], $pair['target'] );
+	}
+
+	/**
+	 * Coppia della rivista nella richiesta corrente.
+	 *
+	 * @return array{known:string,target:string}|null
+	 */
+	private static function pair_from_current_request() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$req_id = isset( $_GET['llm_rivista'] ) ? absint( wp_unslash( $_GET['llm_rivista'] ) ) : 0;
+		if ( $req_id ) {
+			$known  = LLM_Magazine::get_known( $req_id );
+			$target = LLM_Magazine::get_target( $req_id );
+			if ( LLM_Languages::is_valid( $known ) && LLM_Languages::is_valid( $target ) && $known !== $target ) {
+				return array(
+					'known'  => $known,
+					'target' => $target,
+				);
+			}
+		}
+
+		if ( class_exists( 'LLM_Home_Redirect' ) ) {
+			$page_id = get_queried_object_id();
+			$pairs   = (array) get_option( LLM_Home_Redirect::OPT_PAIRS, array() );
+			foreach ( $pairs as $key => $dest_id ) {
+				if ( (int) $dest_id !== (int) $page_id ) {
+					continue;
+				}
+				$parts = explode( '_', (string) $key, 2 );
+				if ( 2 !== count( $parts ) ) {
+					continue;
+				}
+				$known  = sanitize_key( $parts[0] );
+				$target = sanitize_key( $parts[1] );
+				if ( LLM_Languages::is_valid( $known ) && LLM_Languages::is_valid( $target ) && $known !== $target ) {
+					return array(
+						'known'  => $known,
+						'target' => $target,
+					);
+				}
+			}
+		}
+
+		$post = get_post();
+		if ( ! $post ) {
+			return null;
+		}
+		$content = (string) $post->post_content;
+		if ( preg_match( '/\[rivista-primapagina-([a-z]+)-([a-z]+)\]/', $content, $m ) ) {
+			$known  = LLM_Magazine::slug_to_code( $m[1] );
+			$target = LLM_Magazine::slug_to_code( $m[2] );
+			if ( $known && $target && $known !== $target ) {
+				return array(
+					'known'  => $known,
+					'target' => $target,
+				);
+			}
+		}
+
+		if ( preg_match( '/\[llm_rivista_primapagina([^\]]*)\]/', $content, $gm ) ) {
+			$attrs  = $gm[1];
+			$known  = preg_match( '/known=["\']([a-z]+)["\']/', $attrs, $km ) ? sanitize_key( $km[1] ) : '';
+			$target = preg_match( '/target=["\']([a-z]+)["\']/', $attrs, $tm ) ? sanitize_key( $tm[1] ) : '';
+			if ( LLM_Languages::is_valid( $known ) && LLM_Languages::is_valid( $target ) && $known !== $target ) {
+				return array(
+					'known'  => $known,
+					'target' => $target,
+				);
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Carica i font in <head> se la pagina contiene lo shortcode rivista.
+	 */
+	public static function maybe_enqueue_fonts() {
+		if ( ! is_singular() ) {
+			return;
+		}
+		$post = get_post();
+		if ( ! $post || ! is_a( $post, 'WP_Post' ) ) {
+			return;
+		}
+		$content = (string) $post->post_content;
+		if ( false === strpos( $content, 'rivista-primapagina' ) && false === strpos( $content, 'llm_rivista_primapagina' ) ) {
+			return;
+		}
+		self::enqueue();
 	}
 
 	/**
@@ -168,10 +308,10 @@ class LLM_Magazine_Shortcode {
 		$sec_cross  = $crossword_id ? ++$sec : 0;
 		$sec_story  = ! empty( $story_ids ) ? ++$sec : 0;
 		$sec_music  = ! empty( $music_ids ) ? ++$sec : 0;
-		$sec_quiz   = ! empty( $quiz_qs ) ? ++$sec : 0;
 		$sec_video  = ! empty( $videos ) ? ++$sec : 0;
 		$has_idiom  = $idiom && ( ! empty( $idiom['phrase'] ) || ! empty( $idiom['explanation'] ) || ! empty( $idiom['category'] ) );
 		$sec_idiom  = $has_idiom ? ++$sec : 0;
+		$sec_quiz   = ! empty( $quiz_qs ) ? ++$sec : 0;
 
 		// Totale frasi per il badge hero.
 		$total_phrases = 0;
@@ -183,42 +323,35 @@ class LLM_Magazine_Shortcode {
 		}
 
 		$cefr_level   = self::magazine_cefr( array_merge( $story_ids, $music_ids ) );
-		$author_name  = get_the_author_meta( 'display_name', (int) $post->post_author );
 		$welcome_name = '';
 		if ( is_user_logged_in() ) {
 			$current      = wp_get_current_user();
 			$welcome_name = $current && $current->display_name ? $current->display_name : '';
 		}
-		$learn_tagline = self::learn_tagline( $target );
+		$learn_tagline   = self::learn_tagline( $target );
+		$change_lang_url = home_url( '/language-to-learn/' );
 
 		ob_start();
 		?>
 		<div class="llm-magazine llm-ui-scope llm-magazine--target-<?php echo esc_attr( sanitize_key( $target ) ); ?>" data-magazine-id="<?php echo esc_attr( (string) $mag_id ); ?>">
 
-			<div class="llm-magazine__welcome">
-				<span class="llm-magazine__welcome-brand">
-					<?php
-					if ( $welcome_name ) {
-						echo esc_html( sprintf( /* translators: %s: user display name */ __( 'Bentornato su LoveRewrite, %s', 'llm-con-tabelle' ), $welcome_name ) );
-					} else {
-						esc_html_e( 'Bentornato su LoveRewrite', 'llm-con-tabelle' );
-					}
-					?>
-				</span>
-				<?php if ( $author_name ) : ?>
-					<span class="llm-magazine__welcome-sep" aria-hidden="true">|</span>
-					<span class="llm-magazine__welcome-credit">
+			<div class="llm-magazine__welcome-wrap">
+				<div class="llm-magazine__welcome">
+					<p class="llm-magazine__welcome-text">
 						<?php
-						echo esc_html(
-							sprintf(
-								/* translators: %s: editor display name */
-								__( 'Edizione a cura di %s', 'llm-con-tabelle' ),
-								$author_name
-							)
-						);
+						if ( $welcome_name ) {
+							echo esc_html( sprintf( /* translators: %s: user display name */ __( 'Ciao %s,', 'llm-con-tabelle' ), $welcome_name ) );
+						} else {
+							esc_html_e( 'Ciao,', 'llm-con-tabelle' );
+						}
 						?>
-					</span>
-				<?php endif; ?>
+						<?php if ( $known_flag ) : ?>
+							<span class="llm-magazine__welcome-flag" aria-hidden="true"><?php echo esc_html( $known_flag ); ?></span>
+						<?php endif; ?>
+						<span class="llm-magazine__welcome-brand"><?php esc_html_e( 'Bentornato su LoveRewrite', 'llm-con-tabelle' ); ?></span>
+					</p>
+					<a class="llm-magazine__welcome-change" href="<?php echo esc_url( $change_lang_url ); ?>"><?php esc_html_e( 'Cambia lingua', 'llm-con-tabelle' ); ?></a>
+				</div>
 			</div>
 
 			<!-- ═══ HERO ═══ -->
@@ -310,7 +443,7 @@ class LLM_Magazine_Shortcode {
 						<div class="llm-magazine__cover-overlay" aria-hidden="true"></div>
 						<p class="llm-magazine__cover-ribbon"><?php echo esc_html( $learn_tagline ); ?></p>
 						<?php if ( $title ) : ?>
-							<h1 class="llm-magazine__cover-title"><?php echo esc_html( strtoupper( $title ) ); ?></h1>
+							<h1 class="llm-magazine__cover-title"><?php echo esc_html( $title ); ?></h1>
 						<?php endif; ?>
 					</div>
 				</div>
@@ -342,8 +475,7 @@ class LLM_Magazine_Shortcode {
 								<?php if ( $crossword_id ) : ?>
 									<section class="llm-magazine__section llm-magazine__section--crossword">
 										<header class="llm-magazine__section-head">
-											<span class="llm-magazine__section-num"><?php echo esc_html( sprintf( '%02d', $sec_cross ) ); ?></span>
-											<h2 class="llm-magazine__section-title"><?php esc_html_e( 'Cruciverba del giorno', 'llm-con-tabelle' ); ?></h2>
+											<?php echo self::render_section_head( $sec_cross, __( 'Crucitarsio - Gioca con le parole', 'llm-con-tabelle' ), __( 'Amplia il vocabolario, tutte le parole sono estratte dalle frasi da imparare', 'llm-con-tabelle' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 										</header>
 										<?php echo do_shortcode( '[llm_crossword id="' . (int) $crossword_id . '"]' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 									</section>
@@ -356,8 +488,7 @@ class LLM_Magazine_Shortcode {
 								<?php if ( ! empty( $story_ids ) ) : ?>
 									<section class="llm-magazine__section llm-magazine__section--stories">
 										<header class="llm-magazine__section-head">
-											<span class="llm-magazine__section-num"><?php echo esc_html( sprintf( '%02d', $sec_story ) ); ?></span>
-											<h2 class="llm-magazine__section-title"><?php esc_html_e( 'Storie del giorno', 'llm-con-tabelle' ); ?></h2>
+											<?php echo self::render_section_head( $sec_story, __( 'Storie e curiosità', 'llm-con-tabelle' ), __( 'Storie, cultura, attualità e dialoghi per imparare', 'llm-con-tabelle' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 										</header>
 										<div class="llm-magazine__stories">
 											<?php foreach ( $story_ids as $i => $story_id ) : ?>
@@ -369,10 +500,8 @@ class LLM_Magazine_Shortcode {
 
 								<?php if ( ! empty( $music_ids ) ) : ?>
 									<section class="llm-magazine__section llm-magazine__section--music">
-										<p class="llm-magazine__section-kicker"><?php esc_html_e( 'SUONA E IMPARA', 'llm-con-tabelle' ); ?></p>
 										<header class="llm-magazine__section-head">
-											<span class="llm-magazine__section-num"><?php echo esc_html( sprintf( '%02d', $sec_music ) ); ?></span>
-											<h2 class="llm-magazine__section-title"><?php esc_html_e( 'Brani musicali', 'llm-con-tabelle' ); ?></h2>
+											<?php echo self::render_section_head( $sec_music, __( 'Brani musicali', 'llm-con-tabelle' ), __( 'Scopri canzoni indimenticabili, impara i versi e poi ascolta il brano.', 'llm-con-tabelle' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 										</header>
 										<div class="llm-magazine__music">
 											<?php foreach ( $music_ids as $story_id ) : ?>
@@ -387,28 +516,26 @@ class LLM_Magazine_Shortcode {
 					</div><!-- /.llm-magazine__row--top -->
 				<?php endif; ?>
 
-				<!-- RIGA 3: Quiz (sx) + Video/Espressione (dx) -->
+				<!-- RIGA 3: Video + espressione; quiz compatto sotto i video -->
 				<?php if ( ! empty( $quiz_qs ) || ! empty( $videos ) || $has_idiom ) : ?>
-					<div class="llm-magazine__row llm-magazine__row--bottom">
+					<?php
+					$has_bottom_left  = ! empty( $videos ) || ! empty( $quiz_qs );
+					$has_bottom_right = $has_idiom;
+					$bottom_class     = 'llm-magazine__row llm-magazine__row--bottom';
+					if ( $has_bottom_left && $has_bottom_right ) {
+						$bottom_class .= ' llm-magazine__row--bottom-split';
+					} else {
+						$bottom_class .= ' llm-magazine__row--bottom-single';
+					}
+					?>
+					<div class="<?php echo esc_attr( $bottom_class ); ?>">
 
-						<?php if ( ! empty( $quiz_qs ) ) : ?>
-							<section class="llm-magazine__section llm-magazine__section--quiz">
-								<header class="llm-magazine__section-head">
-									<span class="llm-magazine__section-num"><?php echo esc_html( sprintf( '%02d', $sec_quiz ) ); ?></span>
-									<h2 class="llm-magazine__section-title"><?php esc_html_e( 'Quiz del giorno', 'llm-con-tabelle' ); ?></h2>
-								</header>
-								<?php echo self::render_quiz( $mag_id, $quiz_qs ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-							</section>
-						<?php endif; ?>
-
-						<?php if ( ! empty( $videos ) || $has_idiom ) : ?>
-							<div class="llm-magazine__section-group">
-
+						<?php if ( $has_bottom_left ) : ?>
+							<div class="llm-magazine__col llm-magazine__col--bottom-left">
 								<?php if ( ! empty( $videos ) ) : ?>
 									<section class="llm-magazine__section llm-magazine__section--videos">
 										<header class="llm-magazine__section-head">
-											<span class="llm-magazine__section-num"><?php echo esc_html( sprintf( '%02d', $sec_video ) ); ?></span>
-											<h2 class="llm-magazine__section-title"><?php esc_html_e( 'Video da ascoltare', 'llm-con-tabelle' ); ?></h2>
+											<?php echo self::render_section_head( $sec_video, __( 'Video da ascoltare', 'llm-con-tabelle' ), __( 'Una selezione di video per allenare l\'ascolto e imparare dai madrelingua.', 'llm-con-tabelle' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 										</header>
 										<div class="llm-magazine__videos">
 											<?php foreach ( $videos as $video ) : ?>
@@ -418,17 +545,26 @@ class LLM_Magazine_Shortcode {
 									</section>
 								<?php endif; ?>
 
-								<?php if ( $has_idiom ) : ?>
-									<section class="llm-magazine__section llm-magazine__section--idiom">
+								<?php if ( ! empty( $quiz_qs ) ) : ?>
+									<section class="llm-magazine__section llm-magazine__section--quiz">
 										<header class="llm-magazine__section-head">
-											<span class="llm-magazine__section-num"><?php echo esc_html( sprintf( '%02d', $sec_idiom ) ); ?></span>
-											<h2 class="llm-magazine__section-title"><?php esc_html_e( 'Espressione del giorno', 'llm-con-tabelle' ); ?></h2>
+											<?php echo self::render_section_head( $sec_quiz, __( 'Quiz veloce', 'llm-con-tabelle' ), __( 'piccoli quiz per immergerti nella cultura di questa lingua', 'llm-con-tabelle' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 										</header>
-										<?php echo self::render_idiom( $idiom ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+										<?php echo self::render_quiz( $mag_id, $quiz_qs ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 									</section>
 								<?php endif; ?>
+							</div>
+						<?php endif; ?>
 
-							</div><!-- /.llm-magazine__section-group -->
+						<?php if ( $has_bottom_right ) : ?>
+							<div class="llm-magazine__col llm-magazine__col--bottom-right">
+								<section class="llm-magazine__section llm-magazine__section--idiom">
+									<header class="llm-magazine__section-head">
+										<?php echo self::render_section_head( $sec_idiom, __( 'Espressioni da conoscere', 'llm-con-tabelle' ), __( 'Espressioni autentiche da capire, ascoltare e usare nelle conversazioni.', 'llm-con-tabelle' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+									</header>
+									<?php echo self::render_idiom( $idiom ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+								</section>
+							</div>
 						<?php endif; ?>
 
 					</div><!-- /.llm-magazine__row--bottom -->
@@ -488,22 +624,14 @@ class LLM_Magazine_Shortcode {
 		ob_start();
 		?>
 		<article class="llm-magazine__idiom">
-			<?php if ( ! empty( $idiom['category'] ) ) : ?>
-				<p class="llm-magazine__idiom-category"><?php echo esc_html( $idiom['category'] ); ?></p>
-			<?php endif; ?>
 			<?php if ( ! empty( $idiom['phrase'] ) ) : ?>
 				<p class="llm-magazine__idiom-phrase"><?php echo esc_html( $idiom['phrase'] ); ?></p>
 			<?php endif; ?>
 			<?php if ( $has_explain ) : ?>
-				<details class="llm-magazine__idiom-details">
-					<summary class="llm-magazine__idiom-summary llm-ui-btn llm-ui-btn--secondary">
-						<?php esc_html_e( 'Che cosa significa?', 'llm-con-tabelle' ); ?>
-					</summary>
-					<div class="llm-magazine__idiom-explain">
-						<span class="llm-magazine__idiom-label"><?php esc_html_e( 'Significato', 'llm-con-tabelle' ); ?></span>
-						<p class="llm-magazine__idiom-text"><?php echo nl2br( esc_html( $idiom['explanation'] ) ); ?></p>
-					</div>
-				</details>
+				<p class="llm-magazine__idiom-meaning"><?php echo nl2br( esc_html( $idiom['explanation'] ) ); ?></p>
+			<?php endif; ?>
+			<?php if ( ! empty( $idiom['category'] ) ) : ?>
+				<p class="llm-magazine__idiom-category"><?php echo esc_html( $idiom['category'] ); ?></p>
 			<?php endif; ?>
 		</article>
 		<?php
@@ -524,16 +652,25 @@ class LLM_Magazine_Shortcode {
 		$title = isset( $video['title'] ) ? (string) $video['title'] : '';
 		$desc  = isset( $video['description'] ) ? (string) $video['description'] : '';
 		$embed = 'https://www.youtube-nocookie.com/embed/' . rawurlencode( $yt_id );
+		$thumb = 'https://i.ytimg.com/vi/' . rawurlencode( $yt_id ) . '/mqdefault.jpg';
 
 		ob_start();
 		?>
-		<article class="llm-magazine__video">
-			<?php if ( $title ) : ?>
-				<h4 class="llm-magazine__video-title"><?php echo esc_html( $title ); ?></h4>
-			<?php endif; ?>
-			<?php if ( $desc ) : ?>
-				<p class="llm-magazine__video-desc"><?php echo esc_html( $desc ); ?></p>
-			<?php endif; ?>
+		<details class="llm-magazine__video">
+			<summary class="llm-magazine__video-summary">
+				<span class="llm-magazine__video-thumb">
+					<img src="<?php echo esc_url( $thumb ); ?>" alt="" width="160" height="90" loading="lazy">
+					<span class="llm-magazine__video-play" aria-hidden="true"></span>
+				</span>
+				<span class="llm-magazine__video-copy">
+					<?php if ( $title ) : ?>
+						<span class="llm-magazine__video-title"><?php echo esc_html( $title ); ?></span>
+					<?php endif; ?>
+					<?php if ( $desc ) : ?>
+						<span class="llm-magazine__video-desc"><?php echo esc_html( $desc ); ?></span>
+					<?php endif; ?>
+				</span>
+			</summary>
 			<div class="llm-magazine__video-frame">
 				<iframe
 					src="<?php echo esc_url( $embed ); ?>"
@@ -544,7 +681,7 @@ class LLM_Magazine_Shortcode {
 					referrerpolicy="strict-origin-when-cross-origin"
 				></iframe>
 			</div>
-		</article>
+		</details>
 		<?php
 		return (string) ob_get_clean();
 	}
@@ -630,7 +767,8 @@ class LLM_Magazine_Shortcode {
 		}
 		$all_phrases     = LLM_Story_Repository::get_phrases( $story_id );
 		$phrase_count    = count( $all_phrases );
-		$preview_phrases = array_slice( $all_phrases, 0, 3 );
+		$preview_phrases = array_slice( $all_phrases, 0, 2 );
+		$preview_more    = $phrase_count > 2;
 
 		if ( '' === trim( $card_text ) ) {
 			$card_text = has_excerpt( $story_id ) ? get_the_excerpt( $story_id ) : '';
@@ -699,10 +837,6 @@ class LLM_Magazine_Shortcode {
 						<h4 class="llm-magazine__card-title"><?php echo esc_html( $title_known ); ?></h4>
 					<?php endif; ?>
 
-					<?php if ( $card_text && ! $is_music ) : ?>
-						<p class="llm-magazine__card-intro"><?php echo esc_html( wp_strip_all_tags( $card_text ) ); ?></p>
-					<?php endif; ?>
-
 					<?php if ( ! empty( $preview_phrases ) ) : ?>
 						<ul class="llm-magazine__card-phrases">
 							<?php foreach ( $preview_phrases as $phrase ) : ?>
@@ -713,6 +847,9 @@ class LLM_Magazine_Shortcode {
 									<span class="llm-magazine__card-phrase-iface"><?php echo esc_html( wp_strip_all_tags( $phrase['interface'] ) ); ?></span>
 								</li>
 							<?php endforeach; ?>
+							<?php if ( $preview_more ) : ?>
+								<li class="llm-magazine__card-phrases-more" aria-hidden="true">...</li>
+							<?php endif; ?>
 						</ul>
 					<?php endif; ?>
 				</div>
@@ -793,12 +930,41 @@ class LLM_Magazine_Shortcode {
 		return isset( $map[ $target ] ) ? $map[ $target ] : __( 'Impara una frase alla volta', 'llm-con-tabelle' );
 	}
 
+	/**
+	 * Numero + titolo + sottotitolo di sezione.
+	 *
+	 * @param int    $num   Numero sezione.
+	 * @param string $title Titolo.
+	 * @param string $lede  Sottotitolo.
+	 * @return string
+	 */
+	private static function render_section_head( $num, $title, $lede = '' ) {
+		ob_start();
+		?>
+		<span class="llm-magazine__section-num"><?php echo esc_html( sprintf( '%02d', (int) $num ) ); ?></span>
+		<div class="llm-magazine__section-head-text">
+			<h2 class="llm-magazine__section-title"><?php echo esc_html( $title ); ?></h2>
+			<?php if ( '' !== trim( (string) $lede ) ) : ?>
+				<p class="llm-magazine__section-lede"><?php echo esc_html( $lede ); ?></p>
+			<?php endif; ?>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
 	private static function enqueue() {
+		add_action( 'wp_head', array( __CLASS__, 'print_font_preconnect' ), 2 );
+		wp_enqueue_style(
+			'llm-magazine-fonts',
+			'https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Bebas+Neue&family=Elms+Sans:ital,wght@0,100..900;1,100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Roboto+Slab:wght@100..900&display=swap',
+			array(),
+			null
+		);
 		wp_enqueue_style( 'llm-ui' );
 		wp_enqueue_style(
 			'llm-magazine',
 			LLM_TABELLE_URL . 'assets/llm-magazine.css',
-			array( 'llm-ui' ),
+			array( 'llm-ui', 'llm-magazine-fonts' ),
 			LLM_TABELLE_VERSION
 		);
 		wp_enqueue_script(
@@ -808,5 +974,18 @@ class LLM_Magazine_Shortcode {
 			LLM_TABELLE_VERSION,
 			true
 		);
+	}
+
+	/**
+	 * Preconnect Google Fonts (solo quando la rivista è in pagina).
+	 */
+	public static function print_font_preconnect() {
+		static $done = false;
+		if ( $done ) {
+			return;
+		}
+		$done = true;
+		echo '<link rel="preconnect" href="https://fonts.googleapis.com">' . "\n";
+		echo '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' . "\n";
 	}
 }

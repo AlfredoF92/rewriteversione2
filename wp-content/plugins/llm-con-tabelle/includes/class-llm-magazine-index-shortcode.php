@@ -142,8 +142,17 @@ class LLM_Magazine_Index_Shortcode {
 			$row_cards = array();
 			$mag_id    = LLM_Magazine::find_homepage_id( $known, $target );
 			if ( $mag_id ) {
-				$pair_url  = class_exists( 'LLM_Home_Redirect' ) ? LLM_Home_Redirect::pair_url( $known, $target ) : '';
-				$card      = self::card_data( $mag_id, $pair_url, $ui, $known, $target );
+				$pair_url = class_exists( 'LLM_Home_Redirect' ) ? LLM_Home_Redirect::pair_url( $known, $target ) : '';
+				if ( $pair_url ) {
+					$pair_url = add_query_arg(
+						array(
+							'llm_set_known' => $known,
+							'llm_set_learn' => $target,
+						),
+						$pair_url
+					);
+				}
+				$card = self::card_data( $mag_id, $pair_url, $ui, $known, $target );
 				if ( $card ) {
 					$row_cards[] = $card;
 				}

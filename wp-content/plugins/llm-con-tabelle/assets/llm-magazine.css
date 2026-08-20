@@ -11,6 +11,8 @@
 	--llm-border: #e0ddd6;
 	--llm-bg: #f5f4ef;
 	--llm-white: #fff;
+	--llm-font-kicker: "Roboto Slab", Georgia, "Times New Roman", serif;
+	--llm-font-brand: "Playfair Display", Georgia, "Times New Roman", serif;
 
 	width: 100%;
 	max-width: none;
@@ -30,31 +32,74 @@
 /* ════════════════════════════════
    BARRA BENVENUTO
    ════════════════════════════════ */
+.llm-magazine__welcome-wrap {
+	background: #fff;
+	padding: 0.55rem 0.55rem 0.9rem;
+	box-sizing: border-box;
+}
+
 .llm-magazine__welcome {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.45rem 0.7rem;
-	padding: 0.55rem 1.15rem;
+	justify-content: space-between;
+	gap: 0.45rem 0.9rem;
+	padding: 0.7rem 1.15rem;
 	background: var(--llm-yellow);
 	color: var(--llm-dark);
 	font-size: 0.82rem;
 	font-weight: 800;
 	letter-spacing: 0.01em;
-	border-bottom: 2px solid #e0b000;
+	border: 2px solid var(--llm-dark);
+	box-sizing: border-box;
+}
+
+.llm-magazine__welcome-text {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.35rem 0.45rem;
+	margin: 0;
+	font-size: inherit;
+	font-weight: inherit;
+	line-height: 1.35;
+}
+
+.llm-magazine__welcome-flag {
+	font-size: 1.15em;
+	line-height: 1;
 }
 
 .llm-magazine__welcome-brand {
 	text-transform: none;
 }
 
-.llm-magazine__welcome-sep {
-	opacity: 0.45;
-	font-weight: 400;
+.llm-magazine__welcome-change {
+	display: inline-flex;
+	align-items: center;
+	margin: 0;
+	padding: 0.22rem 0.15rem;
+	border: 0;
+	background: transparent;
+	box-shadow: none;
+	color: var(--llm-dark);
+	font-family: inherit;
+	font-size: 0.78rem;
+	font-weight: 800;
+	letter-spacing: 0.01em;
+	line-height: 1.2;
+	text-decoration: underline;
+	text-underline-offset: 0.18em;
+	cursor: pointer;
 }
 
-.llm-magazine__welcome-credit {
-	font-weight: 700;
+.llm-magazine__welcome-change:hover,
+.llm-magazine__welcome-change:focus-visible {
+	background: transparent;
+	color: var(--llm-dark);
+	text-decoration: underline;
+	outline: 2px solid var(--llm-dark);
+	outline-offset: 3px;
 }
 
 /* ════════════════════════════════
@@ -89,26 +134,33 @@
 .llm-magazine__sidebar-brand-label,
 .llm-magazine__sidebar-num {
 	margin: 0;
-	font-weight: 900;
 	color: var(--llm-blue);
 }
 
 .llm-magazine__sidebar-brand-name {
+	font-family: var(--llm-font-brand);
 	font-size: 1.55rem;
-	line-height: 1.05;
-	letter-spacing: -0.045em;
+	font-weight: 700;
+	line-height: 1.1;
+	letter-spacing: -0.02em;
+	text-transform: none;
 }
 
 .llm-magazine__sidebar-brand-label {
-	font-size: 0.82rem;
+	font-family: var(--llm-font-kicker);
+	font-size: 0.78rem;
+	font-weight: 700;
 	line-height: 1.2;
-	letter-spacing: -0.01em;
+	letter-spacing: 0;
+	text-transform: lowercase;
 }
 
 .llm-magazine__sidebar-num {
-	font-size: 3.4rem;
-	line-height: 0.95;
-	letter-spacing: -0.04em;
+	font-family: var(--llm-font-kicker);
+	font-size: 3.2rem;
+	font-weight: 900;
+	line-height: 0.9;
+	letter-spacing: -0.03em;
 }
 
 .llm-magazine__sidebar-date {
@@ -248,8 +300,8 @@
 	font-size: clamp(1.6rem, 4.5vw, 3rem);
 	font-weight: 900;
 	line-height: 1.1;
-	letter-spacing: -0.025em;
-	text-transform: uppercase;
+	letter-spacing: -0.02em;
+	text-transform: none;
 	color: #fff;
 	text-shadow: 0 2px 16px rgba(0,0,0,0.5);
 }
@@ -299,8 +351,7 @@
 }
 
 /* Ogni riga/sezione è una "card" bianca su bg beige */
-.llm-magazine__row--top,
-.llm-magazine__row--bottom {
+.llm-magazine__row--top {
 	background: var(--llm-white);
 	border: 1.5px solid var(--llm-border);
 	border-radius: 4px;
@@ -530,33 +581,68 @@
 	background: var(--llm-yellow) !important;
 }
 
-/* Riga bottom: Quiz sx + Resto dx */
+/* Riga bottom: video + quiz (sx, compatta) | espressione (dx) */
 .llm-magazine__row--bottom {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
+	align-items: start;
+	background: transparent;
+	border: 0;
+	border-top: 1.5px solid var(--llm-dark);
+	border-radius: 0;
+	overflow: visible;
+	gap: 0;
+}
+
+.llm-magazine__row--bottom-single {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.llm-magazine__col--bottom-left,
+.llm-magazine__col--bottom-right {
+	min-width: 0;
+}
+
+.llm-magazine__col--bottom-left {
+	border-right: 1px solid var(--llm-dark);
+}
+
+.llm-magazine__row--bottom-single .llm-magazine__col--bottom-left {
+	border-right: 0;
 }
 
 .llm-magazine__row--bottom .llm-magazine__section {
-	padding: 1.5rem 1.35rem 1.75rem;
+	padding: 0.75rem 1rem 0.9rem;
 }
 
-.llm-magazine__row--bottom > .llm-magazine__section--quiz {
-	border-right: 1.5px solid var(--llm-border);
-	background: #fffbeb;
+.llm-magazine__row--bottom .llm-magazine__section-head {
+	margin-bottom: 0.55rem;
+	padding-bottom: 0.35rem;
+	border-bottom-width: 1px;
+	gap: 0.4rem;
+}
+
+.llm-magazine__row--bottom .llm-magazine__section-num {
+	font-size: 1.55rem;
+	color: var(--llm-blue);
+}
+
+.llm-magazine__row--bottom .llm-magazine__section-title {
+	font-size: 0.78rem;
+	letter-spacing: 0.06em;
+}
+
+.llm-magazine__section--quiz {
+	align-self: start;
+}
+
+.llm-magazine__section--videos + .llm-magazine__section--quiz {
+	border-top: 1px solid var(--llm-dark);
 }
 
 .llm-magazine__section-group {
 	display: flex;
 	flex-direction: column;
-}
-
-.llm-magazine__section-group .llm-magazine__section {
-	padding: 1.5rem 1.35rem 1.75rem;
-}
-
-.llm-magazine__section-group .llm-magazine__section + .llm-magazine__section {
-	border-top: 1.5px solid var(--llm-border);
-	padding-top: 1.35rem;
 }
 
 /* Sezione musica: dentro la colonna destra, sotto le storie */
@@ -576,11 +662,23 @@
 /* Header numerato di sezione */
 .llm-magazine__section-head {
 	display: flex;
-	align-items: baseline;
+	align-items: flex-start;
 	gap: 0.5rem;
 	margin-bottom: 1rem;
 	padding-bottom: 0.6rem;
 	border-bottom: 3px solid var(--llm-dark);
+}
+
+.llm-magazine__section-head-text {
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.llm-magazine__section-lede {
+	margin: 0.15rem 0 0;
+	font-size: 0.78rem;
+	line-height: 1.35;
+	color: #5a5a55;
 }
 
 /* Cruciverba: colori invertiti sull'header */
@@ -644,9 +742,9 @@
 	margin: 0;
 	font-size: clamp(1rem, 2vw, 1.25rem);
 	font-weight: 900;
-	line-height: 1.1;
-	letter-spacing: 0.02em;
-	text-transform: uppercase;
+	line-height: 1.15;
+	letter-spacing: 0;
+	text-transform: none;
 	color: var(--llm-dark);
 }
 
@@ -654,16 +752,14 @@
 	color: #fff;
 }
 
-/* Quiz section heading: ambra */
-.llm-magazine__row--bottom > .llm-magazine__section--quiz .llm-magazine__section-head {
-	border-bottom-color: #d97706;
+.llm-magazine__section--crossword .llm-magazine__section-lede {
+	color: rgba(255, 255, 255, 0.72);
 }
 
-.llm-magazine__row--bottom > .llm-magazine__section--quiz .llm-magazine__section-num {
-	color: #d97706;
+.llm-magazine__section--idiom,
+.llm-magazine__section--videos {
+	border-top: 0;
 }
-
-/* Kicker (SUONA E IMPARA) */
 .llm-magazine__section-kicker {
 	margin: 0 0 0.15rem;
 	font-size: 0.6rem;
@@ -828,9 +924,9 @@
 		border-right: 0;
 	}
 
-	.llm-magazine__row--bottom > .llm-magazine__section--quiz {
+	.llm-magazine__col--bottom-left {
 		border-right: 0;
-		border-bottom: 2px solid var(--llm-border);
+		border-bottom: 1px solid var(--llm-dark);
 	}
 }
 
@@ -1104,8 +1200,19 @@
 	font-size: 0.65rem;
 	font-style: italic;
 	font-weight: 400;
-	color: #8a8a85;
+	color: #4a4a46;
 	line-height: 1.3;
+}
+
+.llm-magazine__card-phrases-more {
+	margin: 0.1rem 0 0;
+	padding: 0;
+	list-style: none;
+	font-size: 1rem;
+	font-weight: 700;
+	line-height: 1;
+	letter-spacing: 0.12em;
+	color: #1a1a18;
 }
 
 .llm-magazine__card-title {
@@ -1289,21 +1396,29 @@
 /* —— Quiz del giorno —— */
 .llm-mag-quiz {
 	width: 100%;
-	max-width: 100%;
+	max-width: 26rem;
 	margin: 0;
 	padding: 0;
-	background: transparent;
-	border: none;
+	background: #fff;
+	border: 1.5px solid var(--llm-dark);
 	border-radius: 0;
+	overflow: hidden;
 }
 
 .llm-mag-quiz__progress {
-	margin: 0 0 0.85rem;
-	font-size: 0.78rem;
-	font-weight: 700;
-	letter-spacing: 0.02em;
+	margin: 0;
+	padding: 0.4rem 0.75rem;
+	font-size: 0.68rem;
+	font-weight: 800;
+	letter-spacing: 0.08em;
 	text-transform: uppercase;
-	color: #71717a;
+	color: var(--llm-dark);
+	background: var(--llm-yellow);
+	border-bottom: 1px solid var(--llm-dark);
+}
+
+.llm-mag-quiz__stage {
+	padding: 0.7rem 0.75rem 0.8rem;
 }
 
 .llm-mag-quiz__category {
@@ -1319,8 +1434,9 @@
 }
 
 .llm-mag-quiz__question {
-	margin: 0 0 0.7rem;
-	font-size: 0.97rem;
+	margin: 0 0 0.55rem;
+	font-family: Georgia, "Times New Roman", Times, serif;
+	font-size: 0.95rem;
 	font-weight: 700;
 	line-height: 1.35;
 	color: #18181b;
@@ -1344,11 +1460,11 @@
 	gap: 0.55rem;
 	width: 100%;
 	margin: 0;
-	padding: 0.5rem 0.65rem;
+	padding: 0.4rem 0.5rem;
 	text-align: left;
 	font: inherit;
-	font-size: 0.85rem;
-	line-height: 1.35;
+	font-size: 0.82rem;
+	line-height: 1.3;
 	color: #18181b !important;
 	background: rgba(255,255,255,0.7);
 	border: 1px solid #e4e4e7;
@@ -1576,7 +1692,7 @@
 
 @media (max-width: 480px) {
 	.llm-mag-quiz {
-		padding: 0.95rem 0.85rem 1.05rem;
+		max-width: none;
 	}
 
 	.llm-mag-quiz__question {
@@ -1594,120 +1710,165 @@
 
 /* —— Espressione del giorno —— */
 .llm-magazine__section--idiom {
-	margin-bottom: 0.5rem;
+	margin-bottom: 0;
 }
 
 .llm-magazine__idiom {
 	margin: 0;
-	padding: 1.25rem 1.3rem 1.35rem;
-	background: linear-gradient(180deg, #fafafa 0%, #fff 55%);
-	border: 1px solid #e5e5e2;
-	border-radius: 10px;
-	border-left: 4px solid #18181b;
-	max-width: 42rem;
-	box-shadow: 0 1px 2px rgba(9, 9, 11, 0.04);
+	padding: 0;
+	background: transparent;
+	border: 0;
+	border-radius: 0;
+	max-width: none;
+	box-shadow: none;
 }
 
 .llm-magazine__idiom-phrase {
-	margin: 0 0 1rem;
-	font-size: 1.4rem;
-	font-weight: 800;
-	line-height: 1.3;
-	letter-spacing: -0.015em;
+	margin: 0 0 0.55rem;
+	font-family: Georgia, "Times New Roman", Times, serif;
+	font-size: 1.45rem;
+	font-weight: 700;
+	line-height: 1.25;
+	letter-spacing: -0.01em;
 	color: #18181b;
 }
 
+.llm-magazine__idiom-meaning {
+	margin: 0 0 0.5rem;
+	padding: 0.4rem 0.55rem;
+	background: var(--llm-yellow);
+	font-family: Georgia, "Times New Roman", Times, serif;
+	font-size: 0.88rem;
+	line-height: 1.4;
+	color: #1a1a18;
+}
+
 .llm-magazine__idiom-category {
-	margin: 0 0 0.55rem;
-	font-size: 0.82rem;
+	margin: 0;
+	font-size: 0.72rem;
 	font-weight: 700;
-	line-height: 1.35;
-	color: #52525b;
-}
-
-.llm-magazine__idiom-details {
-	margin: 0.15rem 0 0;
-}
-
-.llm-magazine__idiom-summary {
-	display: inline-flex;
-	list-style: none;
-	cursor: pointer;
-	user-select: none;
-}
-
-.llm-magazine__idiom-summary::-webkit-details-marker {
-	display: none;
-}
-
-.llm-magazine__idiom-summary::marker {
-	content: '';
-}
-
-.llm-magazine__idiom-explain {
-	margin-top: 0.85rem;
-	padding: 0.85rem 0.95rem;
-	border: 1px solid #e4e4e7;
-	border-radius: 8px;
-	background: #fafafa;
-	animation: llm-mag-quiz-in 0.22s ease;
-}
-
-.llm-magazine__idiom-label {
-	display: block;
-	margin: 0 0 0.4rem;
-	font-size: 0.7rem;
-	font-weight: 800;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
-	color: #71717a;
-}
-
-.llm-magazine__idiom-text {
-	margin: 0;
-	font-size: 0.98rem;
-	line-height: 1.55;
-	color: #3f3f46;
+	color: #6b6b66;
 }
 
 /* —— Video da ascoltare —— */
 .llm-magazine__videos {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 1.1rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.45rem;
 }
 
 .llm-magazine__video {
 	margin: 0;
+	min-width: 0;
+	border-bottom: 1px solid #e0ddd6;
+	padding-bottom: 0.45rem;
+}
+
+.llm-magazine__video:last-child {
+	border-bottom: 0;
+	padding-bottom: 0;
+}
+
+.llm-magazine__video-summary {
+	display: flex;
+	align-items: center;
+	gap: 0.65rem;
+	cursor: pointer;
+	list-style: none;
+}
+
+.llm-magazine__video-summary::-webkit-details-marker {
+	display: none;
+}
+
+.llm-magazine__video-summary::marker {
+	content: '';
+}
+
+.llm-magazine__video-thumb {
+	position: relative;
+	flex: 0 0 112px;
+	width: 112px;
+	height: 64px;
+	overflow: hidden;
+	background: #18181b;
+	border: 1px solid var(--llm-dark);
+}
+
+.llm-magazine__video-thumb img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.llm-magazine__video-play {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 22px;
+	height: 22px;
+	margin: -11px 0 0 -11px;
+	border-radius: 50%;
+	background: var(--llm-red);
+	box-shadow: 0 0 0 2px #fff;
+}
+
+.llm-magazine__video-play::after {
+	content: '';
+	position: absolute;
+	top: 50%;
+	left: 53%;
+	width: 0;
+	height: 0;
+	border-style: solid;
+	border-width: 5px 0 5px 8px;
+	border-color: transparent transparent transparent #fff;
+	transform: translate(-40%, -50%);
+}
+
+.llm-magazine__video-copy {
 	display: flex;
 	flex-direction: column;
-	gap: 0.45rem;
+	gap: 0.15rem;
 	min-width: 0;
 }
 
 .llm-magazine__video-title {
 	margin: 0;
-	font-size: 1.05rem;
-	font-weight: 800;
-	line-height: 1.3;
+	font-family: Georgia, "Times New Roman", Times, serif;
+	font-size: 0.92rem;
+	font-weight: 700;
+	line-height: 1.25;
 	color: #18181b;
 }
 
 .llm-magazine__video-desc {
 	margin: 0;
-	font-size: 0.88rem;
-	line-height: 1.45;
-	color: #52525b;
+	font-size: 0.72rem;
+	line-height: 1.35;
+	color: #6b6b66;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.llm-magazine__video[open] .llm-magazine__video-frame {
+	display: block;
+	margin-top: 0.5rem;
 }
 
 .llm-magazine__video-frame {
+	display: none;
 	position: relative;
 	width: 100%;
 	aspect-ratio: 16 / 9;
-	border-radius: 10px;
 	overflow: hidden;
 	background: #18181b;
-	border: 1px solid #e5e5e2;
+	border: 1px solid var(--llm-dark);
 }
 
 .llm-magazine__video-frame iframe {
@@ -1716,13 +1877,6 @@
 	width: 100%;
 	height: 100%;
 	border: 0;
-	display: block;
-}
-
-@media (max-width: 780px) {
-	.llm-magazine__videos {
-		grid-template-columns: 1fr;
-	}
 }
 
 @media (max-width: 1100px) {
@@ -1770,4 +1924,42 @@
 		border-top: 2px solid var(--llm-dark);
 		min-width: 0;
 	}
+}
+
+/* ════════════════════════════════
+   FONT: titoli (Roboto Slab 900)
+        titoletti (Roboto Slab 700, minuscolo)
+        LoveRewrite (Playfair Display)
+   ════════════════════════════════ */
+.llm-magazine__section-title,
+.llm-magazine__cover-title,
+.llm-magazine__author-note-title,
+.llm-magazine__card-title,
+.llm-magazine__card-title--music,
+.llm-magazine__video-title,
+.llm-mag-quiz__result-title {
+	font-family: var(--llm-font-kicker);
+	font-weight: 900;
+	text-transform: none;
+	letter-spacing: 0;
+	font-style: normal;
+}
+
+.llm-magazine__section-kicker,
+.llm-magazine__section-lede,
+.llm-magazine__cover-ribbon,
+.llm-magazine__sidebar-title,
+.llm-magazine__sidebar-date,
+.llm-magazine__sidebar-langs,
+.llm-magazine__sidebar-level-label,
+.llm-magazine__sidebar-count-label,
+.llm-magazine__author-note-kicker,
+.llm-magazine__card-cta-label,
+.llm-mag-quiz__progress,
+.llm-magazine__card-kicker {
+	font-family: var(--llm-font-kicker);
+	font-weight: 700;
+	text-transform: lowercase;
+	letter-spacing: 0;
+	font-style: normal;
 }

@@ -474,6 +474,10 @@
 		if (!root || !window.llmPhraseGame) {
 			return;
 		}
+		if (root.getAttribute('data-llm-pg-ready') === '1') {
+			return;
+		}
+		root.setAttribute('data-llm-pg-ready', '1');
 
 		var cfg = window.llmPhraseGame;
 		if (window.llmGuestBrowserStore && typeof window.llmGuestBrowserStore.hydratePhraseGameCfg === 'function') {
@@ -804,11 +808,14 @@
 	var MIC_PENDING_MS = 2000;
 	var MIC_SESSION_MS = 6000;
 	var MIC_BAR_FADE_MS = 180;
+	var MIC_RESTART_GAP_MS = 400;
 	var micSessionActive = false;
 	var micSessionTimer = null;
 	var micPendingTimer = null;
+	var micRestartTimer = null;
 	var micPendingPhaseDone = false;
 	var micRecognitionStarted = false;
+	var lastCommittedSpeechKey = '';
 	var micFeedbackTimer = null;
 	var LISTEN_REPLAY_DELAY_MS = 0;
 	var MIC_FEEDBACK_DISPLAY_MS = 8000;
@@ -819,6 +826,94 @@
 
 	function normalizeSpeechSpace(text) {
 		return String(text || '').replace(/\s+/g, ' ').trim();
+	}
+
+	function speechNormKey(text) {
+		return normalizeSpeechSpace(text).toLowerCase();
+	}
+
+	function isMobileSpeechEngine() {
+		var ua = String(navigator.userAgent || '');
+		if (/Android|iPhone|iPad|iPod/i.test(ua)) {
+			return true;
+		}
+		try {
+			return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+		} catch (e) {
+			return false;
+		}
+	}
+
+	/**
+	 * Chrome Android/iOS spesso allunga "tak" in "tak tak tak…" dentro un unico risultato.
+	 * Collassa solo ripetizioni consecutive da 3 in su, così "very very" resta valido.
+	 */
+	function collapseStutterTokens(text) {
+		var raw = normalizeSpeechSpace(text);
+		if (!raw) {
+			return '';
+		}
+		var words = raw.split(' ');
+		if (words.length < 3) {
+			return raw;
+		}
+		var out = [];
+		var i = 0;
+		while (i < words.length) {
+			var key = words[i].toLowerCase();
+			var j = i + 1;
+			while (j < words.length && words[j].toLowerCase() === key) {
+				j++;
+			}
+			if (j - i >= 3) {
+				out.push(words[i]);
+			} else {
+				var k;
+				for (k = i; k < j; k++) {
+					out.push(words[k]);
+				}
+			}
+			i = j;
+		}
+		return out.join(' ');
+	}
+
+	function isStutterGrowth(shortText, longText) {
+		var s = speechNormKey(shortText);
+		var l = speechNormKey(longText);
+		if (!s || !l || l === s || l.indexOf(s) !== 0) {
+			return false;
+		}
+		var rest = l.slice(s.length).replace(/^\s+/, '');
+		if (!rest) {
+			return true;
+		}
+		while (rest) {
+			if (rest.indexOf(s) !== 0) {
+				return false;
+			}
+			rest = rest.slice(s.length).replace(/^\s+/, '');
+		}
+		return true;
+	}
+
+	function isDuplicateSpeechChunk(base, chunk) {
+		var b = speechNormKey(base);
+		var c = speechNormKey(chunk);
+		if (!c) {
+			return true;
+		}
+		if (!b) {
+			return false;
+		}
+		if (b === c) {
+			return true;
+		}
+		if (b.length >= c.length && b.slice(b.length - c.length) === c) {
+			var before = b.slice(0, b.length - c.length);
+			return !before || before.slice(-1) === ' ';
+		}
+		return false;
 	}
 
 	/**
@@ -837,21 +932,24 @@
 				out = tr;
 				continue;
 			}
-			var o = normalizeSpeechSpace(out);
-			var t = normalizeSpeechSpace(tr);
+			var o = speechNormKey(out);
+			var t = speechNormKey(tr);
+			if (t === o) {
+				continue;
+			}
+			if (isStutterGrowth(out, tr)) {
+				continue;
+			}
 			if (t.indexOf(o) === 0) {
 				out = tr;
 				continue;
 			}
-			if (o.indexOf(t) === 0) {
-				continue;
-			}
-			if (o === t) {
+			if (o.indexOf(t) === 0 || isStutterGrowth(tr, out)) {
 				continue;
 			}
 			out = out + (/\s$/.test(out) ? '' : ' ') + tr;
 		}
-		return out;
+		return collapseStutterTokens(out);
 	}
 
 	function getEngineTranscriptFromResults(results) {
@@ -861,6 +959,9 @@
 		var parts = [];
 		var i;
 		for (i = 0; i < results.length; i++) {
+			if (!results[i] || !results[i][0]) {
+				continue;
+			}
 			parts.push({
 				text: results[i][0].transcript,
 				final: !!results[i].isFinal
@@ -869,23 +970,32 @@
 		return combineEngineSegments(parts);
 	}
 
+	function writeMicTextarea(ta) {
+		if (!ta) {
+			return;
+		}
+		ta.value = collapseStutterTokens(String(speechBase || '') + String(speechSegmentTranscript || ''));
+		if (typeof ta._llmSyncClearBtn === 'function') {
+			ta._llmSyncClearBtn();
+		}
+	}
+
 	function commitMicSpeechToBase(ta) {
-		var chunk = String(speechSegmentTranscript || '');
+		var chunk = collapseStutterTokens(String(speechSegmentTranscript || ''));
+		speechSegmentTranscript = '';
 		if (!chunk) {
-			speechSegmentTranscript = '';
+			return;
+		}
+		var key = speechNormKey(chunk);
+		if (key === lastCommittedSpeechKey || isDuplicateSpeechChunk(speechBase, chunk)) {
 			return;
 		}
 		speechBase += chunk;
 		if (speechBase.length && !/\s$/.test(speechBase)) {
 			speechBase += ' ';
 		}
-		speechSegmentTranscript = '';
-		if (ta) {
-			ta.value = speechBase;
-			if (typeof ta._llmSyncClearBtn === 'function') {
-				ta._llmSyncClearBtn();
-			}
-		}
+		lastCommittedSpeechKey = key;
+		writeMicTextarea(ta);
 	}
 
 	function countNewWords(oldText, newText) {
@@ -2245,10 +2355,20 @@
 			clearTimeout(micSessionTimer);
 			micSessionTimer = null;
 		}
+		if (micRestartTimer !== null) {
+			clearTimeout(micRestartTimer);
+			micRestartTimer = null;
+		}
 		micState = 'idle';
 		speechSegmentTranscript = '';
 		if (speechRec) {
-			try { speechRec.stop(); } catch (e) { /* ignore */ }
+			try {
+				speechRec.onend = null;
+				speechRec.onresult = null;
+				speechRec.onerror = null;
+				speechRec.onstart = null;
+				speechRec.stop();
+			} catch (e) { /* ignore */ }
 			speechRec = null;
 		}
 		if (activeMicBtn) {
@@ -2444,6 +2564,7 @@
 		speechBase = textarea.value;
 		if (speechBase.length && !/\s$/.test(speechBase)) { speechBase += ' '; }
 		speechSegmentTranscript = '';
+		lastCommittedSpeechKey = '';
 		micState = 'pending';
 		micPendingPhaseDone = false;
 		micRecognitionStarted = false;
@@ -2482,7 +2603,10 @@
 			speechSegmentTranscript = '';
 			speechRec = new Rec();
 			speechRec.lang = speechLang;
-			speechRec.continuous = true;
+			speechRec.maxAlternatives = 1;
+			// Su mobile continuous:true spesso NON resta acceso: ogni parola fa onend
+			// e il riavvio immediato ricommette lo stesso risultato in loop.
+			speechRec.continuous = !isMobileSpeechEngine();
 			speechRec.interimResults = true;
 
 			speechRec.onstart = function () {
@@ -2494,12 +2618,13 @@
 			speechRec.onresult = function (ev) {
 				if (!micSessionActive) { return; }
 				var prevSegment = speechSegmentTranscript;
-				speechSegmentTranscript = getEngineTranscriptFromResults(ev.results);
-				micWordsThisPhrase += countNewWords(prevSegment, speechSegmentTranscript);
-				textarea.value = speechBase + speechSegmentTranscript;
-				if (typeof textarea._llmSyncClearBtn === 'function') {
-					textarea._llmSyncClearBtn();
+				var next = getEngineTranscriptFromResults(ev.results);
+				if (prevSegment && isStutterGrowth(prevSegment, next)) {
+					next = prevSegment;
 				}
+				speechSegmentTranscript = collapseStutterTokens(next);
+				micWordsThisPhrase += countNewWords(prevSegment, speechSegmentTranscript);
+				writeMicTextarea(textarea);
 			};
 
 			speechRec.onerror = function (ev) {
@@ -2508,13 +2633,32 @@
 					micPermissionGranted = false;
 					finishMicSession({ feedback: false });
 					showMicError(micBtn, i18n.micDenied || '');
+					return;
 				}
+				// no-speech / aborted / network: lasciare onend gestire l'eventuale riavvio.
 			};
 
 			speechRec.onend = function () {
-				if (!micSessionActive) { return; }
+				if (speechRec) {
+					speechRec.onend = null;
+					speechRec.onresult = null;
+					speechRec.onerror = null;
+				}
+				speechRec = null;
+				if (!micSessionActive) {
+					return;
+				}
 				commitMicSpeechToBase(textarea);
-				startRecognitionEngine();
+				if (micRestartTimer !== null) {
+					clearTimeout(micRestartTimer);
+				}
+				micRestartTimer = setTimeout(function () {
+					micRestartTimer = null;
+					if (!micSessionActive) {
+						return;
+					}
+					startRecognitionEngine();
+				}, isMobileSpeechEngine() ? MIC_RESTART_GAP_MS : 180);
 			};
 
 			try {
