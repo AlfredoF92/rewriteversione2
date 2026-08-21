@@ -111,6 +111,50 @@ class LLM_Story_Phrase_Game {
 	}
 
 	/**
+	 * Tema del gioco (header sempre scuro). Cookie llm_game_theme = dark|light.
+	 *
+	 * @return string
+	 */
+	private static function game_theme() {
+		$raw = isset( $_COOKIE['llm_game_theme'] ) ? sanitize_key( wp_unslash( $_COOKIE['llm_game_theme'] ) ) : 'dark';
+		return ( 'light' === $raw ) ? 'light' : 'dark';
+	}
+
+	/**
+	 * Pulsanti DARK / LIGHT: al click salvano il cookie e ricaricano.
+	 *
+	 * @param string $current dark|light.
+	 * @return string
+	 */
+	private static function render_game_theme_switcher( $current ) {
+		$current = ( 'light' === $current ) ? 'light' : 'dark';
+		ob_start();
+		?>
+		<div class="llm-game-theme" role="group" aria-label="<?php echo esc_attr( 'Versione colore gioco' ); ?>">
+			<button type="button" class="llm-game-theme__btn llm-game-theme__btn--dark<?php echo 'dark' === $current ? ' is-active' : ''; ?>" data-llm-game-theme="dark" aria-pressed="<?php echo 'dark' === $current ? 'true' : 'false'; ?>">versione DARK</button>
+			<button type="button" class="llm-game-theme__btn llm-game-theme__btn--light<?php echo 'light' === $current ? ' is-active' : ''; ?>" data-llm-game-theme="light" aria-pressed="<?php echo 'light' === $current ? 'true' : 'false'; ?>">versione LIGHT</button>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Pulsante Continua / prossima frase, con freccia.
+	 *
+	 * @param string $suffix continue1|continue2.
+	 * @return string
+	 */
+	private static function render_continue_button( $suffix ) {
+		$label = LLM_Phrase_Game_I18n::get( 'continue' );
+		return '<button type="button" class="llm-phrase-game__btn llm-phrase-game__btn--' . esc_attr( $suffix ) . ' button">'
+			. '<span class="llm-phrase-game__btn-label">' . esc_html( $label ) . '</span>'
+			. '<span class="llm-phrase-game__btn-arrow" aria-hidden="true">'
+			. '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>'
+			. '</span>'
+			. '</button>';
+	}
+
+	/**
 	 * Pulsante per svuotare la textarea (fase 1 o 2).
 	 *
 	 * @param string $suffix Suffisso classe (--1 / --2).
@@ -211,10 +255,11 @@ class LLM_Story_Phrase_Game {
 		);
 		$listen_target_label   = LLM_Phrase_Game_I18n::get( 'listen_target_label' );
 
+		$game_theme = self::game_theme();
 		ob_start();
 		echo self::render_story_hero( $story_id, count( $phrases ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato.
 		?>
-		<div id="<?php echo esc_attr( $uid ); ?>" class="llm-phrase-game" data-story-id="<?php echo esc_attr( (string) $story_id ); ?>">
+		<div id="<?php echo esc_attr( $uid ); ?>" class="llm-phrase-game llm-phrase-game--theme-<?php echo esc_attr( $game_theme ); ?>" data-story-id="<?php echo esc_attr( (string) $story_id ); ?>" data-game-theme="<?php echo esc_attr( $game_theme ); ?>">
 			<div class="llm-phrase-game__story-wrap">
 				<div class="llm-phrase-game__story" aria-live="polite"></div>
 			</div>
@@ -275,7 +320,7 @@ class LLM_Story_Phrase_Game {
 						<div class="llm-phrase-game__actions">
 							<div class="llm-phrase-game__continue-block llm-phrase-game__continue-block--1">
 								<hr class="llm-phrase-game__divider llm-phrase-game__divider--before-continue" role="presentation" aria-hidden="true" />
-								<button type="button" class="llm-phrase-game__btn llm-phrase-game__btn--continue1 button"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'continue' ) ); ?></button>
+								<?php echo self::render_continue_button( 'continue1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 							</div>
 						</div>
 					</div>
@@ -288,7 +333,7 @@ class LLM_Story_Phrase_Game {
 				<button type="button" class="llm-phrase-game__notes-toggle" aria-expanded="false" aria-controls="<?php echo esc_attr( $uid ); ?>-notes-panel">
 					<span class="llm-phrase-game__notes-toggle-emoji" aria-hidden="true">📝</span>
 					<span class="llm-phrase-game__notes-toggle-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'notes_toggle_show' ) ); ?></span>
-					<span class="llm-phrase-game__notes-toggle-arrow" aria-hidden="true">➜</span>
+					<span class="llm-phrase-game__tool-accordion-chevron" aria-hidden="true"></span>
 				</button>
 				<div class="llm-phrase-game__notes-panel" id="<?php echo esc_attr( $uid ); ?>-notes-panel" hidden></div>
 			</div>
@@ -352,7 +397,7 @@ class LLM_Story_Phrase_Game {
 					<div class="llm-phrase-game__actions">
 						<div class="llm-phrase-game__continue-block llm-phrase-game__continue-block--2">
 							<hr class="llm-phrase-game__divider llm-phrase-game__divider--before-continue" role="presentation" aria-hidden="true" />
-							<button type="button" class="llm-phrase-game__btn llm-phrase-game__btn--continue2 button"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'continue' ) ); ?></button>
+							<?php echo self::render_continue_button( 'continue2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 						</div>
 					</div>
 					</div>
@@ -364,6 +409,7 @@ class LLM_Story_Phrase_Game {
 			<button type="button" class="llm-phrase-game__restart-btn button"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'story_progress_restart' ) ); ?></button>
 		</div>
 		<?php echo self::render_learning_mode_ui( $uid ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+		<?php echo self::render_game_theme_switcher( $game_theme ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 		</div>
 		<?php
 		return (string) ob_get_clean();
@@ -394,12 +440,9 @@ class LLM_Story_Phrase_Game {
 			? $title_known
 			: '';
 
-		$lede = trim( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_CARD_TEXT, true ) );
-		if ( '' === $lede ) {
-			$lede = trim( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_INTRO, true ) );
-		}
-		if ( '' === $lede ) {
-			$lede = trim( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_PLOT, true ) );
+		$plot = trim( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_PLOT, true ) );
+		if ( '' === $plot ) {
+			$plot = trim( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_CARD_TEXT, true ) );
 		}
 
 		$cefr      = (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_CEFR_LEVEL, true );
@@ -428,33 +471,25 @@ class LLM_Story_Phrase_Game {
 				}
 			}
 		}
-		$cat_line = implode( ' • ', $cat_names );
 
-		$thumb_id    = get_post_thumbnail_id( $story_id );
-		$thumb_url   = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'large' ) : '';
-		$count_word  = self::hero_phrase_word( $ui, $phrase_count );
-		$level_label = self::hero_level_label( $ui, $cefr_code, $target );
-		$target_flag = class_exists( 'LLM_Languages' ) ? LLM_Languages::flag_emoji( $target ) : '';
+		$thumb_id      = get_post_thumbnail_id( $story_id );
+		$thumb_url     = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'large' ) : '';
+		$target_name   = self::hero_target_lang_name( $ui, $target );
+		$known_name    = self::hero_target_lang_name( $ui, $known );
+		$target_flag   = class_exists( 'LLM_Languages' ) ? LLM_Languages::flag_emoji( $target ) : '';
+		$about_label   = self::hero_ui_string( $ui, 'about' );
+		$level_label   = self::hero_ui_string( $ui, 'level' );
+		$phrases_label = self::hero_ui_string( $ui, 'phrases' );
+		$lang_label    = self::hero_ui_string( $ui, 'language' );
+		$phrases_notes = self::hero_ui_string( $ui, 'phrases_notes' );
+		$known_for     = self::hero_known_for_line( $ui, $known_name );
 
 		ob_start();
 		?>
-		<header class="llm-story-hero<?php echo $target ? ' llm-story-hero--target-' . esc_attr( $target ) : ''; ?>">
+		<div class="llm-story-pagehead">
+		<header class="llm-story-hero">
 			<div class="llm-story-hero__panel">
 				<div class="llm-story-hero__copy">
-					<?php if ( $phrase_count > 0 || $level_label || $cat_line ) : ?>
-					<div class="llm-story-hero__kicker">
-						<?php if ( $phrase_count > 0 ) : ?>
-							<span class="llm-story-hero__stats"><?php echo esc_html( (string) $phrase_count . ' ' . $count_word ); ?></span>
-						<?php endif; ?>
-						<?php if ( $level_label ) : ?>
-							<span class="llm-story-hero__level"><?php echo esc_html( $level_label ); ?></span>
-						<?php endif; ?>
-						<?php if ( $cat_line ) : ?>
-							<span class="llm-story-hero__cat"><?php echo esc_html( $cat_line ); ?></span>
-						<?php endif; ?>
-					</div>
-					<hr class="llm-story-hero__divider" />
-					<?php endif; ?>
 					<?php if ( $main_title ) : ?>
 						<div class="llm-story-hero__title-block">
 							<?php if ( $target_flag ) : ?>
@@ -465,9 +500,6 @@ class LLM_Story_Phrase_Game {
 					<?php endif; ?>
 					<?php if ( $subtitle ) : ?>
 						<p class="llm-story-hero__subtitle"><?php echo esc_html( $subtitle ); ?></p>
-					<?php endif; ?>
-					<?php if ( $lede ) : ?>
-						<p class="llm-story-hero__lede"><?php echo esc_html( $lede ); ?></p>
 					<?php endif; ?>
 				</div>
 			</div>
@@ -482,6 +514,61 @@ class LLM_Story_Phrase_Game {
 				<?php endif; ?>
 			></div>
 		</header>
+		<?php if ( $plot ) : ?>
+			<p class="llm-story-hero__plot"><?php echo esc_html( $plot ); ?></p>
+		<?php endif; ?>
+		<section class="llm-story-about" aria-label="<?php echo esc_attr( $about_label ); ?>">
+			<div class="llm-story-about__stats">
+				<?php if ( $cefr_code ) : ?>
+				<div class="llm-story-about__stat">
+					<span class="llm-story-about__stat-label"><?php echo esc_html( $level_label ); ?></span>
+					<div class="llm-story-about__stat-main">
+						<span class="llm-story-about__stat-icon llm-story-about__stat-icon--level" aria-hidden="true">
+							<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2H22l-6 4.4 2.3 7.2L12 16.8 5.7 20.8 8 13.6 2 9.2h7.6z"/></svg>
+						</span>
+						<span class="llm-story-about__stat-value"><?php echo esc_html( $cefr_code ); ?></span>
+					</div>
+					<?php if ( $target_name ) : ?>
+						<span class="llm-story-about__stat-sub"><?php echo esc_html( $target_name ); ?></span>
+					<?php endif; ?>
+				</div>
+				<?php endif; ?>
+				<?php if ( $phrase_count > 0 ) : ?>
+				<div class="llm-story-about__stat">
+					<span class="llm-story-about__stat-label"><?php echo esc_html( $phrases_label ); ?></span>
+					<div class="llm-story-about__stat-main">
+						<span class="llm-story-about__stat-icon llm-story-about__stat-icon--phrases" aria-hidden="true">
+							<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v12H7l-3 3V4zm4 5v2h8V9H8zm0 4v2h5v-2H8z"/></svg>
+						</span>
+						<span class="llm-story-about__stat-value"><?php echo esc_html( (string) $phrase_count ); ?></span>
+					</div>
+					<span class="llm-story-about__stat-sub"><?php echo esc_html( $phrases_notes ); ?></span>
+				</div>
+				<?php endif; ?>
+				<?php if ( $target_name ) : ?>
+				<div class="llm-story-about__stat">
+					<span class="llm-story-about__stat-label"><?php echo esc_html( $lang_label ); ?></span>
+					<div class="llm-story-about__stat-main">
+						<?php if ( $target_flag ) : ?>
+							<span class="llm-story-about__stat-flag" aria-hidden="true"><?php echo esc_html( $target_flag ); ?></span>
+						<?php endif; ?>
+						<span class="llm-story-about__stat-value llm-story-about__stat-value--lang"><?php echo esc_html( $target_name ); ?></span>
+					</div>
+					<?php if ( $known_for ) : ?>
+						<span class="llm-story-about__stat-sub"><?php echo esc_html( $known_for ); ?></span>
+					<?php endif; ?>
+				</div>
+				<?php endif; ?>
+			</div>
+			<?php if ( $cat_names ) : ?>
+			<div class="llm-story-about__tags">
+				<?php foreach ( $cat_names as $cat_name ) : ?>
+					<span class="llm-story-about__tag"><?php echo esc_html( $cat_name ); ?></span>
+				<?php endforeach; ?>
+			</div>
+			<?php endif; ?>
+		</section>
+		</div>
 		<?php
 		return (string) ob_get_clean();
 	}
@@ -647,17 +734,109 @@ class LLM_Story_Phrase_Game {
 	private static function hero_ui_string( $ui, $key ) {
 		$ui  = sanitize_key( (string) $ui );
 		$set = array(
-			'level' => array(
+			'level'    => array(
 				'it' => 'livello',
 				'en' => 'level',
 				'pl' => 'poziom',
 				'es' => 'nivel',
+			),
+			'about'    => array(
+				'it' => 'Riguardo',
+				'en' => 'About',
+				'pl' => 'Informacje',
+				'es' => 'Acerca de',
+			),
+			'phrases'  => array(
+				'it' => 'frasi',
+				'en' => 'phrases',
+				'pl' => 'zdania',
+				'es' => 'frases',
+			),
+			'language' => array(
+				'it' => 'lingua',
+				'en' => 'language',
+				'pl' => 'język',
+				'es' => 'idioma',
+			),
+			'pair'     => array(
+				'it' => 'lingue',
+				'en' => 'languages',
+				'pl' => 'języki',
+				'es' => 'idiomas',
+			),
+			'category' => array(
+				'it' => 'categoria',
+				'en' => 'category',
+				'pl' => 'kategoria',
+				'es' => 'categoría',
+			),
+			'grammar'  => array(
+				'it' => 'grammatica',
+				'en' => 'grammar',
+				'pl' => 'gramatyka',
+				'es' => 'gramática',
+			),
+			'phrases_notes' => array(
+				'it' => 'frasi con appunti di approfondimento',
+				'en' => 'phrases with extra notes',
+				'pl' => 'zdania z notatkami',
+				'es' => 'frases con apuntes',
 			),
 		);
 		if ( ! isset( $set[ $key ] ) ) {
 			return '';
 		}
 		return isset( $set[ $key ][ $ui ] ) ? $set[ $key ][ $ui ] : $set[ $key ]['it'];
+	}
+
+	/**
+	 * Sottotitolo riquadro lingua: "per chi conosce l'italiano".
+	 *
+	 * @param string $ui         Lingua UI.
+	 * @param string $known_name Nome della lingua nota.
+	 * @return string
+	 */
+	private static function hero_known_for_line( $ui, $known_name ) {
+		$known_name = trim( (string) $known_name );
+		if ( '' === $known_name ) {
+			return '';
+		}
+		$ui = sanitize_key( (string) $ui );
+		if ( 'it' === $ui ) {
+			$article = preg_match( '/^[aeiouàèéìòù]/iu', $known_name ) ? "l'" : 'il ';
+			return 'per chi conosce ' . $article . $known_name;
+		}
+		$map = array(
+			'en' => 'for speakers of %s',
+			'pl' => 'dla osób znających język %s',
+			'es' => 'para quien conoce el %s',
+		);
+		$tpl = isset( $map[ $ui ] ) ? $map[ $ui ] : $map['en'];
+		return sprintf( $tpl, $known_name );
+	}
+
+	/**
+	 * Temi grammaticali della storia, già spezzati.
+	 *
+	 * @param string $raw Meta grezza.
+	 * @return string[]
+	 */
+	private static function hero_grammar_topics( $raw ) {
+		$raw = trim( (string) $raw );
+		if ( '' === $raw ) {
+			return array();
+		}
+		$parts = preg_split( '/[\r\n,;]+/u', $raw );
+		$out   = array();
+		if ( is_array( $parts ) ) {
+			foreach ( $parts as $part ) {
+				$part = trim( (string) $part );
+				if ( '' !== $part ) {
+					$out[] = $part;
+				}
+			}
+		}
+		return $out;
 	}
 
 	/**
@@ -726,6 +905,14 @@ class LLM_Story_Phrase_Game {
 		</div>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Preconnect Google Fonts (Roboto + Barlow per i titoli).
+	 */
+	public static function print_font_preconnect() {
+		echo '<link rel="preconnect" href="https://fonts.googleapis.com">' . "\n";
+		echo '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' . "\n";
 	}
 
 	/**
@@ -836,9 +1023,12 @@ class LLM_Story_Phrase_Game {
 			}
 		}
 
+		if ( ! has_action( 'wp_head', array( __CLASS__, 'print_font_preconnect' ) ) ) {
+			add_action( 'wp_head', array( __CLASS__, 'print_font_preconnect' ), 2 );
+		}
 		wp_register_style(
 			'llm-phrase-game-fonts',
-			'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap',
+			'https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;700;800;900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap',
 			array(),
 			null
 		);
@@ -874,7 +1064,7 @@ class LLM_Story_Phrase_Game {
 		wp_enqueue_style( 'llm-phrase-game' );
 		wp_enqueue_style(
 			'llm-story-hero-fonts',
-			'https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:ital,wght@0,600;0,700;0,800;1,400&family=Playfair+Display:ital,wght@0,400;0,600;1,400;1,600&display=swap',
+			'https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;700;800;900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap',
 			array(),
 			null
 		);

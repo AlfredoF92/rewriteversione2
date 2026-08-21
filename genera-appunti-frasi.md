@@ -16,7 +16,8 @@ Quando l'utente dice **"Genera appunti mancanti frasi"** e fornisce uno slug o I
 & "C:\xampp\mysql\bin\mysql.exe" -u root --default-character-set=utf8mb4 localloverewrite202608 -e "SELECT id, sort_order, phrase_interface, phrase_target, phrase_grammar FROM wp_llm_story_phrases WHERE story_id = ID_QUI ORDER BY sort_order ASC, id ASC;"
 ```
 
-Lavora **solo sulle frasi con `phrase_grammar` vuoto** (a meno che l'utente non chieda di sovrascrivere tutto).
+Lavora sul campo Analisi grammaticale il campo Note/Traduzione alternativa.
+
 
 ## 3. Scrivi l'analisi grammaticale
 
@@ -24,22 +25,33 @@ Per ogni frase, scrivi l'analisi seguendo queste regole:
 
 - **Lingua**: scritto in Italiano, spiega le strutture della lingua target (es. Inglese)
 - **Struttura**: leggi `_llm_known_lang` e `_llm_target_lang` dalla storia per sapere le lingue
-- **3-4 punti**, uno per paragrafo, separati da riga vuota
-- **Formato di ogni punto**: `"parte in lingua nota" → "traduzione"` — spiegazione
+- **Formato di ogni punto**: `"parte in lingua nota" → "traduzione"` — spiegazione in lingua [`_llm_known_lang`]
 - **Tono**: amichevole e semplice, come se spiegassi a un ragazzo
-- **Lunghezza**: MASSIMO 250 parole per frase
-- **Focus**: solo i punti che un principiante non capirebbe da solo — ignora ciò che è ovvio
-- **Evidenzia sempre**: coniugazione del verbo, se è aggettivo/avverbio, strutture regolari o irregolari, differenze strutturali rispetto all'italiano
+- **Lunghezza**: MINIMO 220 parole per frase
+- **Evidenzia sempre**: Coniugazione completa del verbo (tra parentesi mettimi anche la traduzione delle varie congiugazioni). Se è sostantivo/aggettivo/avverbio, modo di dire, una struttura regolare o irregolari o qualcosa che mi fa ricordare di che tipo è quella parola o quella struttura.
+- **Pronuncia**: aiuta l'utente a capire come si pronuncia una determinata parola, un'espressione o tutta la frase, dai consigli ed esempi per aiutare l'utente a pronunciare e ricordare come si pronuncia correttamente quella parola
+- **Etimologia o curiosità**:  etimologia o curiosità sulla frase o su una determinata parola
 
-### Esempio di buona analisi (IT → EN)
+Quindi, prendi la frase dividila per punti, parola per parola o anche più parole insieme e fai un elenco di "punti" come descritto prima: 
+- **Formato di ogni punto**: `"parte in lingua nota" → "traduzione in _llm_target_lang"` — spiegazione. La spiegazione deve essere esaustiva e scritta in [`_llm_known_lang`]. E deve fare in modo di aiutare l'utente che sta imparando quella lingua, approfondire e capire magari le differenze con la propria lingua madre, eventualmente altri esempi per capire come utilizzare quella parola in altri contesti. 
 
-```
-"Mi chiamo" → "My name is" — In italiano usiamo il verbo riflessivo chiamarsi. In inglese non esiste: si dice "My name is" con aggettivo possessivo + to be. Niente riflessivo!
 
-"Buongiorno" → "Good morning" — In italiano è una parola sola, in inglese sono due parole separate. "Good" è un aggettivo e "morning" è il sostantivo. Stesso schema: good afternoon, good evening.
 
-"Ciao" → "Hi" — Entrambi informali. "Hi" è invariabile: non cambia mai in base a chi parli.
-```
+Comportati da insegnante di elementari di [`_llm_known_lang`] e devi aiutare un ragazzo che conosce [`_llm_known_lang`] ad imparare la lingua [`_llm_target_lang`]. Usa frasi semplici, concetti semplici, esempi semplici per capire la traduzione. Usa le virgolette quando utilizzi parole [`_llm_target_lang`] durante il discorso.
+
+
+Importante: come traduzione di riferimento devi prendere il campo "traduzione della frase" che si trova nel blocco frase.
+
+## 4. Scrivi la traduzione alternativa
+
+Campo traduzione alternativa / note alternative: 
+prendi in input quello che c'è già scritto, troverai già la frase alternativa con la  traduzione alternativa. Prendile e trasforma però quel campo in: 
+
+  - Un unico paragrafo di testo semplice, senza andate a capo
+   - Deve iniziare ESATTAMENTE con: Una traduzione alternativa potrebbe essere: "[frase alternativa]" che in [LINGUA CHE STAI IMPARANDO] si può tradurre in "[traduzione alternativa]"
+   - Subito dopo, uno spazio e poi le note grammaticali sulla differenza rispetto alla versione principale
+   - Massimo 75 parole per le note
+   - Nessun tag HTML e nessun markdown
 
 ## 4. Salva nel DB
 

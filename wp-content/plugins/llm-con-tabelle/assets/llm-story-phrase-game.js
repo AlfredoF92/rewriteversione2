@@ -529,6 +529,17 @@
 		var input2 = qs(root, '.llm-phrase-game__input--2');
 		var btn1 = qs(root, '.llm-phrase-game__btn--continue1');
 		var btn2 = qs(root, '.llm-phrase-game__btn--continue2');
+		function setContinueLabel(btn, text) {
+			if (!btn || !text) {
+				return;
+			}
+			var label = btn.querySelector('.llm-phrase-game__btn-label');
+			if (label) {
+				label.textContent = text;
+			} else {
+				btn.textContent = text;
+			}
+		}
 		var messageEl = qs(root, '.llm-phrase-game__message');
 		var messageSoloEl = qs(root, '.llm-phrase-game__message-solo');
 		/* Non usare il primo .message-phase2: in DOM arriva prima .message-solo (nascosto in LoveRewrite). */
@@ -3872,16 +3883,16 @@
 	}
 
 	if (!isSinglePhase && btn1 && i18n.continueToNotes) {
-		btn1.textContent = i18n.continueToNotes;
+		setContinueLabel(btn1, i18n.continueToNotes);
 	}
 
 	if (isReadGoFast && btn1 && i18n.readGoFastNext) {
-		btn1.textContent = i18n.readGoFastNext;
+		setContinueLabel(btn1, i18n.readGoFastNext);
 	}
 
 	if (isPlayInverted) {
 		if (btn1 && i18n.playInvertedNext) {
-			btn1.textContent = i18n.playInvertedNext;
+			setContinueLabel(btn1, i18n.playInvertedNext);
 		}
 		if (invertedHintBtn) {
 			invertedHintBtn.hidden = false;
@@ -4048,6 +4059,21 @@
 	document.addEventListener('DOMContentLoaded', function () {
 		document.querySelectorAll('.llm-phrase-game').forEach(function (el) {
 			init(el);
+		});
+		document.addEventListener('click', function (e) {
+			var btn = e.target.closest('[data-llm-game-theme]');
+			if (!btn) {
+				return;
+			}
+			var theme = btn.getAttribute('data-llm-game-theme');
+			if (theme !== 'light' && theme !== 'dark') {
+				return;
+			}
+			if (btn.classList.contains('is-active')) {
+				return;
+			}
+			document.cookie = 'llm_game_theme=' + encodeURIComponent(theme) + '; path=/; max-age=31536000; SameSite=Lax';
+			window.location.reload();
 		});
 	});
 })();
