@@ -166,6 +166,65 @@ class LLM_Story_Repository {
 	}
 
 	/**
+	 * Aggiorna un campo rich-text di una frase (indice 0-based).
+	 *
+	 * @param int    $story_id ID storia.
+	 * @param int    $index    Indice frase.
+	 * @param string $field    notes|grammar|alt.
+	 * @param string $value    HTML consentito.
+	 * @return bool
+	 */
+	public static function update_phrase_rich_field( $story_id, $index, $field, $value ) {
+		global $wpdb;
+		$story_id = absint( $story_id );
+		$index    = absint( $index );
+		$map      = array(
+			'notes'   => 'phrase_notes',
+			'grammar' => 'phrase_grammar',
+			'alt'     => 'phrase_alt',
+		);
+		if ( ! $story_id || ! isset( $map[ $field ] ) ) {
+			return false;
+		}
+		$col   = $map[ $field ];
+		$table = LLM_Tabelle_Database::table( 'llm_story_phrases' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$id = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM {$table} WHERE story_id = %d ORDER BY sort_order ASC, id ASC LIMIT 1 OFFSET %d",
+				$story_id,
+				$index
+			)
+		);
+		if ( ! $id ) {
+			return false;
+		}
+		$result = $wpdb->update(
+			$table,
+			array(
+				$col => self::sanitize_phrase_rich_text( $value ),
+			),
+			array(
+				'id'       => (int) $id,
+				'story_id' => $story_id,
+			),
+			array( '%s' ),
+			array( '%d', '%d' )
+		);
+		return false !== $result;
+	}
+
+	/**
+	 * @param int    $story_id ID storia.
+	 * @param int    $index    Indice frase.
+	 * @param string $grammar  HTML consentito.
+	 * @return bool
+	 */
+	public static function update_phrase_grammar( $story_id, $index, $grammar ) {
+		return self::update_phrase_rich_field( $story_id, $index, 'grammar', $grammar );
+	}
+
+	/**
 	 * Sanifica contenuto frase conservando HTML consentito (come i post: `wp_kses_post`).
 	 *
 	 * @param mixed $value Valore grezzo.

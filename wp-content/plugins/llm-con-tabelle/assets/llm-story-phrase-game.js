@@ -556,6 +556,15 @@
 		var bravoEl = qs(root, '.llm-phrase-game__bravo');
 		var labelMainEl = qs(root, '.llm-phrase-game__label-main');
 		var labelNotesEl = qs(root, '.llm-phrase-game__label-notes');
+		var notesEditBtns = root.querySelectorAll('[data-llm-edit-field]');
+		var adminEditsEl = qs(root, '.llm-phrase-game__admin-edits');
+		var notesModal = qs(root, '#llm-fe-notes-modal');
+		var notesEditorTa = qs(root, '#llm-fe-notes-editor');
+		var notesModalTitle = qs(root, '#llm-fe-notes-modal-title');
+		var notesModalStatus = qs(root, '.llm-fe-notes-modal__status');
+		var notesModalSave = qs(root, '.llm-fe-notes-modal__save');
+		var notesEditorReady = false;
+		var notesEditField = 'grammar';
 		var labelAltEl = qs(root, '.llm-phrase-game__label-alt');
 		var doneEl = qs(root, '.llm-phrase-game__done');
 		var cardEl = qs(root, '.llm-phrase-game__card');
@@ -808,6 +817,220 @@
 		if (isNaN(savedPhraseIndexOnLoad)) {
 			savedPhraseIndexOnLoad = 0;
 		}
+
+	function canEditNotes() {
+		return !!cfg.canEditNotes && notesEditBtns.length > 0 && !!notesModal && !!notesEditorTa;
+	}
+
+	function notesFieldTitle(field) {
+		if (field === 'notes') {
+			return i18n.notesEditNotes || 'Modifica Note Frase (admin)';
+		}
+		if (field === 'alt') {
+			return i18n.notesEditAlt || 'Modifica Appunti frase alternativa (admin)';
+		}
+		return i18n.notesEditGrammar || 'Modifica Appunti della frase (admin)';
+	}
+
+	function notesFieldValue(field) {
+		var p = phrases[phraseIx] || {};
+		if (field === 'notes') {
+			return p.notes || '';
+		}
+		if (field === 'alt') {
+			return p.alt || '';
+		}
+		return p.grammar || '';
+	}
+
+	function getWpEditorApi() {
+		if (window.wp && wp.oldEditor && typeof wp.oldEditor.initialize === 'function') {
+			return wp.oldEditor;
+		}
+		if (window.wp && wp.editor && typeof wp.editor.initialize === 'function') {
+			return wp.editor;
+		}
+		return null;
+	}
+
+	function grammarToEditorHtml(raw) {
+		var s = String(raw || '');
+		if (!s) {
+			return '';
+		}
+		if (/<[a-z][\s\S]*>/i.test(s)) {
+			return s;
+		}
+		return s.split(/\n\n+/).map(function (block) {
+			return '<p>' + String(block).replace(/\n/g, '<br />') + '</p>';
+		}).join('');
+	}
+
+	function setNotesModalStatus(text, isError) {
+		if (!notesModalStatus) {
+			return;
+		}
+		if (!text) {
+			notesModalStatus.hidden = true;
+			notesModalStatus.textContent = '';
+			notesModalStatus.classList.remove('is-error', 'is-ok');
+			return;
+		}
+		notesModalStatus.hidden = false;
+		notesModalStatus.textContent = text;
+		notesModalStatus.classList.toggle('is-error', !!isError);
+		notesModalStatus.classList.toggle('is-ok', !isError);
+	}
+
+	function getNotesEditorContent() {
+		if (window.tinymce) {
+			var ed = tinymce.get('llm-fe-notes-editor');
+			if (ed) {
+				return ed.getContent();
+			}
+		}
+		return notesEditorTa ? notesEditorTa.value : '';
+	}
+
+	function setNotesEditorContent(html) {
+		if (notesEditorTa) {
+			notesEditorTa.value = html || '';
+		}
+		if (window.tinymce) {
+			var ed = tinymce.get('llm-fe-notes-editor');
+			if (ed) {
+				ed.setContent(html || '');
+			}
+		}
+	}
+
+	function ensureNotesEditor() {
+		if (notesEditorReady) {
+			return true;
+		}
+		var api = getWpEditorApi();
+		if (!api) {
+			return false;
+		}
+		api.initialize('llm-fe-notes-editor', {
+			tinymce: {
+				wpautop: true,
+				plugins: 'lists,paste,tabfocus,textcolor,colorpicker,wordpress,wpautoresize,wplink,wptextpattern',
+				toolbar1: 'formatselect,bold,italic,underline,strikethrough,|,bullist,numlist,|,forecolor,backcolor,|,removeformat,|,undo,redo',
+				toolbar2: '',
+				menubar: false,
+				branding: false,
+				height: 380,
+				relative_urls: false,
+				convert_urls: false,
+				body_class: 'llm-fe-notes-tinymce'
+			},
+			quicktags: true,
+			mediaButtons: false
+		});
+		notesEditorReady = true;
+		return true;
+	}
+
+	function closeNotesModal() {
+		if (!notesModal) {
+			return;
+		}
+		notesModal.hidden = true;
+		document.body.classList.remove('llm-fe-notes-modal-open');
+		setNotesModalStatus('', false);
+		if (notesModalSave) {
+			notesModalSave.disabled = false;
+		}
+	}
+
+	function openNotesModal(field) {
+		if (!canEditNotes()) {
+			return;
+		}
+		notesEditField = (field === 'notes' || field === 'alt') ? field : 'grammar';
+		if (notesModalTitle) {
+			notesModalTitle.textContent = notesFieldTitle(notesEditField);
+		}
+		notesModal.hidden = false;
+		document.body.classList.add('llm-fe-notes-modal-open');
+		setNotesModalStatus('', false);
+		ensureNotesEditor();
+		setTimeout(function () {
+			setNotesEditorContent(grammarToEditorHtml(notesFieldValue(notesEditField)));
+			if (window.tinymce) {
+				var ed = tinymce.get('llm-fe-notes-editor');
+				if (ed) {
+					ed.focus();
+				}
+			} else if (notesEditorTa) {
+				notesEditorTa.focus();
+			}
+		}, 80);
+	}
+
+	function saveNotesFromModal() {
+		if (!canEditNotes() || !notesModalSave) {
+			return;
+		}
+		notesModalSave.disabled = true;
+		setNotesModalStatus('', false);
+		var body = new URLSearchParams();
+		body.set('action', 'llm_fe_save_phrase_notes');
+		body.set('nonce', String(cfg.editNotesNonce || ''));
+		body.set('story_id', String(storyId));
+		body.set('phrase_index', String(phraseIx));
+		body.set('field', notesEditField);
+		body.set('grammar', getNotesEditorContent());
+		fetch(ajaxUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+			body: body.toString()
+		})
+			.then(function (res) { return res.json(); })
+			.then(function (json) {
+				if (!json || !json.success) {
+					var err = (json && json.data && json.data.message) || (i18n.notesEditError || '');
+					setNotesModalStatus(err, true);
+					notesModalSave.disabled = false;
+					return;
+				}
+				setNotesModalStatus(i18n.notesEditSaved || 'Salvato nel database', false);
+				setTimeout(function () {
+					window.location.reload();
+				}, 700);
+			})
+			.catch(function () {
+				setNotesModalStatus(i18n.notesEditError || i18n.ajaxError || '', true);
+				notesModalSave.disabled = false;
+			});
+	}
+
+	if (canEditNotes()) {
+		notesEditBtns.forEach(function (btn) {
+			btn.addEventListener('click', function (e) {
+				e.preventDefault();
+				openNotesModal(btn.getAttribute('data-llm-edit-field') || 'grammar');
+			});
+		});
+		notesModal.addEventListener('click', function (e) {
+			if (e.target && e.target.getAttribute && e.target.getAttribute('data-llm-notes-close') === '1') {
+				closeNotesModal();
+			}
+		});
+		if (notesModalSave) {
+			notesModalSave.addEventListener('click', function (e) {
+				e.preventDefault();
+				saveNotesFromModal();
+			});
+		}
+		document.addEventListener('keydown', function (e) {
+			if (e.key === 'Escape' && notesModal && !notesModal.hidden) {
+				closeNotesModal();
+			}
+		});
+	}
 
 	var speechRec = null;
 	var speechBase = '';
@@ -1139,8 +1362,18 @@
 		}
 	}
 
+	function hideAdminEdits() {
+		if (!adminEditsEl) {
+			return;
+		}
+		adminEditsEl.hidden = true;
+		adminEditsEl.style.opacity = '0';
+		adminEditsEl.style.transition = '';
+	}
+
 	function prepareAnalysisStreamLayout() {
 		resetPhraseNotes();
+		hideAdminEdits();
 		if (bravoEl) {
 			bravoEl.textContent = '';
 		}
@@ -1649,6 +1882,17 @@
 				if (!alive()) { return; }
 				return sleepMs(gapMs != null ? gapMs : ELEMENT_GAP);
 			});
+		}
+
+		/* ── Pulsanti admin: fade prima dell'animazione appunti ───── */
+		if (adminEditsEl) {
+			addStep(function () {
+				if (!alive() || !adminEditsEl) { return; }
+				adminEditsEl.hidden = false;
+				adminEditsEl.style.opacity = '0';
+				adminEditsEl.style.transition = 'opacity 400ms ease';
+				return fadeReveal(adminEditsEl, 400);
+			}, 80);
 		}
 
 		/* ── Note sulla frase → prima cosa (se non vuote) ──────────── */
@@ -3214,6 +3458,7 @@
 		cancelPhase2MessageStream();
 		analysisEl.hidden = true;
 		resetPhraseNotes();
+		hideAdminEdits();
 		if (bravoEl) {
 			bravoEl.textContent = '';
 		}

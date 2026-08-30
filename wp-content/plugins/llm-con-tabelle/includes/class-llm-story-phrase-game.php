@@ -46,6 +46,7 @@ class LLM_Story_Phrase_Game {
 		add_action( 'wp_ajax_nopriv_llm_phrase_game_check', array( __CLASS__, 'ajax_check' ) );
 		add_action( 'wp_ajax_llm_phrase_game_restart', array( __CLASS__, 'ajax_restart' ) );
 		add_action( 'wp_ajax_nopriv_llm_phrase_game_restart', array( __CLASS__, 'ajax_restart' ) );
+		add_action( 'wp_ajax_llm_fe_save_phrase_notes', array( __CLASS__, 'ajax_save_phrase_notes' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_sync_visitor_langs' ), 6 );
 	}
 
@@ -286,7 +287,8 @@ class LLM_Story_Phrase_Game {
 			return '<p class="llm-phrase-game__error">' . esc_html( LLM_Phrase_Game_I18n::get( 'no_phrases' ) ) . '</p>';
 		}
 
-		$uid = 'llm-phrase-game-' . uniqid( '', false );
+		$uid          = 'llm-phrase-game-' . uniqid( '', false );
+		$is_wp_admin  = self::current_user_can_edit_notes( $story_id );
 
 		$target_code_shortcode = (string) get_post_meta( $story_id, LLM_Story_Meta::TARGET_LANG, true );
 		$mic_btn_text          = LLM_Phrase_Game_I18n::get( 'mic_button' );
@@ -387,6 +389,15 @@ class LLM_Story_Phrase_Game {
 			<div class="llm-phrase-game__phase1-feedback" hidden aria-live="polite"></div>
 			<div class="llm-phrase-game__loading-notes" hidden aria-live="polite"></div>
 			<div class="llm-phrase-game__analysis" hidden>
+					<?php if ( $is_wp_admin ) : ?>
+					<div class="llm-phrase-game__admin-edits" hidden>
+						<?php
+						self::render_admin_edit_link( 'notes', LLM_Phrase_Game_I18n::get( 'notes_edit_notes' ) );
+						self::render_admin_edit_link( 'grammar', LLM_Phrase_Game_I18n::get( 'notes_edit_grammar' ) );
+						self::render_admin_edit_link( 'alt', LLM_Phrase_Game_I18n::get( 'notes_edit_alt' ) );
+						?>
+					</div>
+					<?php endif; ?>
 					<div class="llm-phrase-game__phrase-notes-wrap" hidden>
 						<p class="llm-phrase-game__label-phrase-notes"><strong><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'label_phrase_notes' ) ); ?></strong></p>
 						<div class="llm-phrase-game__phrase-notes"></div>
@@ -466,9 +477,68 @@ class LLM_Story_Phrase_Game {
 		<?php echo self::render_game_theme_switcher( $game_theme ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 		<?php echo self::render_story_layout_switcher( $story_layout ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 			</div>
+		<?php
+		if ( self::current_user_can_edit_notes( $story_id ) ) {
+			self::render_notes_edit_modal();
+		}
+		?>
 		</div>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * @param int $story_id ID storia.
+	 * @return bool
+	 */
+	public static function current_user_can_edit_notes( $story_id = 0 ) {
+		if ( ! is_user_logged_in() ) {
+			return false;
+		}
+		$user = wp_get_current_user();
+		if ( ! $user instanceof WP_User ) {
+			return false;
+		}
+		return in_array( 'administrator', (array) $user->roles, true );
+	}
+
+	/**
+	 * Link discreto per aprire l'editor (solo markup admin).
+	 *
+	 * @param string $field notes|grammar|alt.
+	 * @param string $label Testo pulsante.
+	 */
+	private static function render_admin_edit_link( $field, $label ) {
+		$field = sanitize_key( $field );
+		if ( ! in_array( $field, array( 'notes', 'grammar', 'alt' ), true ) ) {
+			return;
+		}
+		echo '<button type="button" class="llm-game-theme__btn llm-story-layout-switch__btn llm-phrase-game__admin-edit" data-llm-edit-field="' . esc_attr( $field ) . '">' . esc_html( $label ) . '</button>';
+	}
+
+	/**
+	 * Popup editor appunti (solo chi può modificare la storia).
+	 */
+	private static function render_notes_edit_modal() {
+		?>
+		<div id="llm-fe-notes-modal" class="llm-fe-notes-modal" hidden>
+			<div class="llm-fe-notes-modal__backdrop" data-llm-notes-close="1"></div>
+			<div class="llm-fe-notes-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="llm-fe-notes-modal-title">
+				<div class="llm-fe-notes-modal__header">
+					<h2 id="llm-fe-notes-modal-title" class="llm-fe-notes-modal__title"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'notes_edit_title' ) ); ?></h2>
+					<button type="button" class="llm-fe-notes-modal__close" data-llm-notes-close="1" aria-label="<?php echo esc_attr( LLM_Phrase_Game_I18n::get( 'notes_edit_cancel' ) ); ?>">&times;</button>
+				</div>
+				<div class="llm-fe-notes-modal__body">
+					<textarea id="llm-fe-notes-editor" class="llm-fe-notes-editor" rows="18"></textarea>
+				</div>
+				<div class="llm-fe-notes-modal__footer">
+					<p class="llm-fe-notes-modal__status" hidden></p>
+					<button type="button" class="llm-fe-notes-modal__cancel button" data-llm-notes-close="1"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'notes_edit_cancel' ) ); ?></button>
+					<button type="button" class="llm-fe-notes-modal__save button button-primary"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'notes_edit_save' ) ); ?></button>
+				</div>
+			</div>
+		</div>
+		<?php
 	}
 
 	/**
@@ -1099,7 +1169,8 @@ class LLM_Story_Phrase_Game {
 			$interface_code = LLM_Phrase_Game_I18n::lang();
 		}
 
-		$media_blocks = self::media_blocks_for_script( $story_id );
+		$media_blocks    = self::media_blocks_for_script( $story_id );
+		$can_edit_notes  = self::current_user_can_edit_notes( $story_id );
 
 		$n_phrases         = count( $phrases );
 		$uid               = is_user_logged_in() ? get_current_user_id() : 0;
@@ -1232,6 +1303,12 @@ class LLM_Story_Phrase_Game {
 			array( 'llm-story-hero-fonts' ),
 			LLM_TABELLE_VERSION
 		);
+		if ( $can_edit_notes ) {
+			wp_enqueue_editor();
+			wp_enqueue_style( 'editor-buttons' );
+			wp_enqueue_style( 'dashicons' );
+		}
+
 		wp_enqueue_script( 'llm-phrase-game' );
 		wp_enqueue_script( 'llm-learning-modes' );
 		wp_localize_script( 'llm-learning-modes', 'llmLearningModes', LLM_Learning_Modes::script_data() );
@@ -1310,7 +1387,18 @@ class LLM_Story_Phrase_Game {
 			'extraCharsLower'    => LLM_Phrase_Game_I18n::get( 'extra_chars_lower' ),
 			'extraCharsUpper'    => LLM_Phrase_Game_I18n::get( 'extra_chars_upper' ),
 			'extraCharsSymbols'  => LLM_Phrase_Game_I18n::get( 'extra_chars_symbols' ),
+			'notesEdit'          => LLM_Phrase_Game_I18n::get( 'notes_edit' ),
+			'notesEditNotes'     => LLM_Phrase_Game_I18n::get( 'notes_edit_notes' ),
+			'notesEditGrammar'   => LLM_Phrase_Game_I18n::get( 'notes_edit_grammar' ),
+			'notesEditAlt'       => LLM_Phrase_Game_I18n::get( 'notes_edit_alt' ),
+			'notesEditTitle'     => LLM_Phrase_Game_I18n::get( 'notes_edit_title' ),
+			'notesEditSave'      => LLM_Phrase_Game_I18n::get( 'notes_edit_save' ),
+			'notesEditCancel'    => LLM_Phrase_Game_I18n::get( 'notes_edit_cancel' ),
+			'notesEditSaved'     => LLM_Phrase_Game_I18n::get( 'notes_edit_saved' ),
+			'notesEditError'     => LLM_Phrase_Game_I18n::get( 'notes_edit_error' ),
 			),
+			'canEditNotes'        => $can_edit_notes,
+			'editNotesNonce'      => $can_edit_notes ? wp_create_nonce( 'llm_fe_edit_notes' ) : '',
 			'gameFinished'        => $game_finished,
 			'savedPhraseIndex'    => $saved_phrase_ix,
 			'savedPhrasesCount'   => $game_finished ? $n_phrases : $saved_phrase_ix,
@@ -1607,6 +1695,37 @@ class LLM_Story_Phrase_Game {
 			}
 		}
 		wp_send_json_success();
+	}
+
+	/**
+	 * AJAX: salva analisi grammaticale dal frontend (solo chi può modificare la storia).
+	 */
+	public static function ajax_save_phrase_notes() {
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'notes_edit_error' ) ), 403 );
+		}
+		check_ajax_referer( 'llm_fe_edit_notes', 'nonce' );
+
+		$story_id = isset( $_POST['story_id'] ) ? absint( wp_unslash( $_POST['story_id'] ) ) : 0;
+		$index    = isset( $_POST['phrase_index'] ) ? absint( wp_unslash( $_POST['phrase_index'] ) ) : 0;
+		$field    = isset( $_POST['field'] ) ? sanitize_key( wp_unslash( $_POST['field'] ) ) : 'grammar';
+		$value    = isset( $_POST['grammar'] ) ? wp_unslash( $_POST['grammar'] ) : '';
+
+		if ( ! $story_id || ! self::current_user_can_edit_notes( $story_id ) ) {
+			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'notes_edit_error' ) ), 403 );
+		}
+
+		$post = get_post( $story_id );
+		if ( ! $post || LLM_STORY_CPT !== $post->post_type ) {
+			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'invalid_story' ) ), 400 );
+		}
+
+		$ok = LLM_Story_Repository::update_phrase_rich_field( $story_id, $index, $field, $value );
+		if ( ! $ok ) {
+			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'phrase_not_found' ) ), 400 );
+		}
+
+		wp_send_json_success( array( 'message' => LLM_Phrase_Game_I18n::get( 'notes_edit_saved' ) ) );
 	}
 
 	/**
