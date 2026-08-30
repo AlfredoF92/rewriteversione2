@@ -47,6 +47,7 @@ class LLM_Magazine {
 
 	public static function init() {
 		add_action( 'init', array( __CLASS__, 'register' ) );
+		add_action( 'init', array( __CLASS__, 'maybe_flush_rewrites' ), 20 );
 	}
 
 	public static function register() {
@@ -69,19 +70,74 @@ class LLM_Magazine {
 			self::CPT,
 			array(
 				'labels'             => $labels,
-				'public'             => false,
-				'publicly_queryable' => false,
+				'public'             => true,
+				'publicly_queryable' => true,
 				'show_ui'            => true,
 				'show_in_menu'       => 'edit.php?post_type=' . LLM_STORY_CPT,
-				'query_var'          => false,
-				'rewrite'            => false,
+				'menu_icon'          => 'dashicons-book-alt',
+				'query_var'          => true,
+				'rewrite'            => array(
+					'slug'       => 'llm-riviste',
+					'with_front' => false,
+				),
 				'capability_type'    => 'post',
 				'has_archive'        => false,
 				'hierarchical'       => false,
 				'supports'           => array( 'title', 'thumbnail' ),
-				'show_in_rest'       => false,
+				'show_in_rest'       => true,
 			)
 		);
+	}
+
+	/**
+	 * Permalink pubblico della rivista (vuoto se assente).
+	 *
+	 * @param int $post_id ID rivista.
+	 * @return string
+	 */
+	public static function url( $post_id ) {
+		$post_id = absint( $post_id );
+		if ( ! $post_id ) {
+			return '';
+		}
+		$link = get_permalink( $post_id );
+		return ( $link && ! is_wp_error( $link ) ) ? (string) $link : '';
+	}
+
+	/**
+	 * Link pubblico + coppia linguistica (allinea cookie visitatore).
+	 *
+	 * @param int $post_id ID rivista.
+	 * @return string
+	 */
+	public static function public_url( $post_id ) {
+		$url = self::url( $post_id );
+		if ( '' === $url ) {
+			return '';
+		}
+		$known  = self::get_known( $post_id );
+		$target = self::get_target( $post_id );
+		if ( ! $known || ! $target || $known === $target ) {
+			return $url;
+		}
+		return add_query_arg(
+			array(
+				'llm_set_known' => $known,
+				'llm_set_learn' => $target,
+			),
+			$url
+		);
+	}
+
+	/**
+	 * Una sola flush dopo il passaggio a CPT pubblico.
+	 */
+	public static function maybe_flush_rewrites() {
+		if ( '1' === (string) get_option( 'llm_magazine_public_rewrite', '' ) ) {
+			return;
+		}
+		flush_rewrite_rules( false );
+		update_option( 'llm_magazine_public_rewrite', '1', false );
 	}
 
 	/**

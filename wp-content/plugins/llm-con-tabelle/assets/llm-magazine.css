@@ -2,6 +2,13 @@
  * llm-magazine.css — rivista di prima pagina: hero editoriale + sezioni numerate.
  */
 
+body.single-llm_magazine .entry-header,
+body.single-llm_magazine .entry-title,
+body.single-llm_magazine .page-header,
+body.single-llm_magazine .elementor-widget-theme-post-title {
+	display: none !important;
+}
+
 /* ─── Variabili colore ─── */
 .llm-magazine {
 	--llm-red: #d42222;
@@ -109,7 +116,7 @@
 	display: grid;
 	grid-template-columns: 200px 1fr;
 	border-bottom: 3px solid var(--llm-dark);
-	min-height: 320px;
+	min-height: 420px;
 }
 
 /* ── Sidebar sinistra ── */
@@ -309,7 +316,7 @@
 .llm-magazine__cover {
 	position: relative;
 	flex: 1 1 auto;
-	min-height: 260px;
+	min-height: 400px;
 	background-color: #2a2620;
 	background-size: cover;
 	background-position: center center;
@@ -851,8 +858,8 @@
    ════════════════════════════════ */
 .llm-magazine__stories {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 0.6rem;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.85rem;
 }
 
 /* Prima card in evidenza: orizzontale, immagine a sinistra */
@@ -864,14 +871,14 @@
 .llm-magazine__card--featured .llm-magazine__card-link {
 	flex-direction: row;
 	align-items: stretch;
-	min-height: 168px;
+	min-height: 240px;
 }
 
 .llm-magazine__card--featured .llm-magazine__card-media {
-	flex: 0 0 46%;
-	width: 46%;
+	flex: 0 0 52%;
+	width: 52%;
 	aspect-ratio: auto;
-	min-height: 168px;
+	min-height: 240px;
 	align-self: stretch;
 }
 
@@ -939,7 +946,7 @@
 	.llm-magazine__card--featured .llm-magazine__card-media {
 		flex: 0 0 auto;
 		width: 100%;
-		aspect-ratio: 16 / 9;
+		aspect-ratio: 4 / 3;
 		min-height: 0;
 	}
 }
@@ -947,7 +954,7 @@
 @media (max-width: 600px) {
 	.llm-magazine__hero {
 		grid-template-columns: 1fr;
-		grid-template-rows: auto 260px;
+		grid-template-rows: auto 320px;
 	}
 
 	.llm-magazine__sidebar {
@@ -1074,7 +1081,7 @@
 /* Contenitore fisso: background-image centrato e ritagliato, nessun <img> interno. */
 .llm-magazine__card-media {
 	position: relative;
-	aspect-ratio: 16 / 9;
+	aspect-ratio: 4 / 3;
 	width: auto;
 	background: #f0f0ec;
 	overflow: hidden;
@@ -1881,7 +1888,7 @@
 
 @media (max-width: 1100px) {
 	.llm-magazine__stories {
-		grid-template-columns: repeat(3, minmax(0, 1fr));
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 }
 

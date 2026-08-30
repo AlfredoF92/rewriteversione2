@@ -17,8 +17,13 @@ class LLM_Magazine_Shortcode {
 			add_shortcode( $pair['shortcode'], array( __CLASS__, 'render_homepage' ) );
 		}
 		add_shortcode( 'llm_rivista_primapagina', array( __CLASS__, 'render_generic' ) );
+		add_shortcode( 'llm_rivista', array( __CLASS__, 'render_current' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'maybe_enqueue_fonts' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_sync_visitor_langs' ), 5 );
+		add_filter( 'the_content', array( __CLASS__, 'filter_singular_content' ), 8 );
+		add_filter( 'hello_elementor_page_title', array( __CLASS__, 'hide_theme_title' ) );
+		add_filter( 'template_include', array( __CLASS__, 'singular_template' ), 99 );
+		add_filter( 'elementor/theme/need_override_location', array( __CLASS__, 'elementor_skip_single' ), 10, 2 );
 	}
 
 	/**
@@ -114,6 +119,16 @@ class LLM_Magazine_Shortcode {
 		if ( ! $post ) {
 			return null;
 		}
+		if ( LLM_Magazine::CPT === $post->post_type ) {
+			$known  = LLM_Magazine::get_known( (int) $post->ID );
+			$target = LLM_Magazine::get_target( (int) $post->ID );
+			if ( LLM_Languages::is_valid( $known ) && LLM_Languages::is_valid( $target ) && $known !== $target ) {
+				return array(
+					'known'  => $known,
+					'target' => $target,
+				);
+			}
+		}
 		$content = (string) $post->post_content;
 		if ( preg_match( '/\[rivista-primapagina-([a-z]+)-([a-z]+)\]/', $content, $m ) ) {
 			$known  = LLM_Magazine::slug_to_code( $m[1] );
@@ -153,7 +168,12 @@ class LLM_Magazine_Shortcode {
 			return;
 		}
 		$content = (string) $post->post_content;
-		if ( false === strpos( $content, 'rivista-primapagina' ) && false === strpos( $content, 'llm_rivista_primapagina' ) ) {
+		if (
+			LLM_Magazine::CPT !== $post->post_type
+			&& false === strpos( $content, 'rivista-primapagina' )
+			&& false === strpos( $content, 'llm_rivista_primapagina' )
+			&& false === strpos( $content, '[llm_rivista' )
+		) {
 			return;
 		}
 		self::enqueue();
@@ -175,6 +195,89 @@ class LLM_Magazine_Shortcode {
 			'llm_rivista_primapagina'
 		);
 		return self::render_for_pair( $atts['known'], $atts['target'] );
+	}
+
+	/**
+	 * Shortcode [llm_rivista] / [llm_rivista id="123"] sulla pagina della rivista.
+	 *
+	 * @param array<string,string> $atts Attributi.
+	 * @return string
+	 */
+	public static function render_current( $atts ) {
+		$atts   = shortcode_atts(
+			array(
+				'id' => '',
+			),
+			$atts,
+			'llm_rivista'
+		);
+		$mag_id = $atts['id'] !== '' ? absint( $atts['id'] ) : 0;
+		if ( ! $mag_id && is_singular( LLM_Magazine::CPT ) ) {
+			$mag_id = get_queried_object_id();
+		}
+		if ( ! $mag_id ) {
+			return self::admin_notice( __( 'Nessuna rivista da mostrare.', 'llm-con-tabelle' ) );
+		}
+		return self::render_magazine( $mag_id );
+	}
+
+	/**
+	 * Pagina singola del CPT: mostra il layout rivista al posto del contenuto vuoto.
+	 *
+	 * @param string $content Contenuto.
+	 * @return string
+	 */
+	public static function filter_singular_content( $content ) {
+		if ( is_admin() || ! is_singular( LLM_Magazine::CPT ) ) {
+			return $content;
+		}
+		$mag_id = get_queried_object_id();
+		if ( ! $mag_id || (int) get_the_ID() !== (int) $mag_id ) {
+			return $content;
+		}
+		static $rendered = false;
+		if ( $rendered ) {
+			return $content;
+		}
+		$rendered = true;
+		return self::render_magazine( $mag_id );
+	}
+
+	/**
+	 * @param bool $show Mostra titolo tema.
+	 * @return bool
+	 */
+	public static function hide_theme_title( $show ) {
+		if ( is_singular( LLM_Magazine::CPT ) ) {
+			return false;
+		}
+		return $show;
+	}
+
+	/**
+	 * Template del plugin: Elementor Theme Builder altrimenti lascia vuota la pagina.
+	 *
+	 * @param string $template Path template.
+	 * @return string
+	 */
+	public static function singular_template( $template ) {
+		if ( ! is_singular( LLM_Magazine::CPT ) ) {
+			return $template;
+		}
+		$file = LLM_TABELLE_DIR . 'templates/single-llm_magazine.php';
+		return is_readable( $file ) ? $file : $template;
+	}
+
+	/**
+	 * @param bool   $need     Se Elementor deve sostituire il template.
+	 * @param string $location Location Elementor.
+	 * @return bool
+	 */
+	public static function elementor_skip_single( $need, $location ) {
+		if ( 'single' === $location && is_singular( LLM_Magazine::CPT ) ) {
+			return false;
+		}
+		return $need;
 	}
 
 	/**

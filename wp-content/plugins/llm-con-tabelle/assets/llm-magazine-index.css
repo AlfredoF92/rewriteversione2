@@ -146,8 +146,8 @@
 
 .llm-mag-index .llm-mag-index__grid {
 	display: grid !important;
-	grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-	gap: 1rem 0.85rem;
+	grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+	gap: 1.15rem 1rem;
 	align-items: stretch;
 	justify-items: stretch;
 }
@@ -198,7 +198,7 @@ a.llm-mag-index__card-link:focus-visible {
 .llm-mag-index__cover {
 	position: relative;
 	flex: 0 0 auto;
-	aspect-ratio: 16 / 9;
+	aspect-ratio: 4 / 3;
 	width: 100%;
 	background-color: #2a2620;
 	background-size: cover;

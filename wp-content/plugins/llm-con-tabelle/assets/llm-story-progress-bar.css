@@ -3,6 +3,15 @@
  * Nessuno sfondo sul contenitore: si integra nel layout (Elementor, card, ecc.).
  */
 
+/* Pagina storia: barra piena nascosta (loop compact resta visibile). */
+.llm-story-progress-bar:not(.llm-story-progress-bar--compact) {
+	display: none !important;
+}
+
+.elementor-widget:has(.llm-story-progress-bar:not(.llm-story-progress-bar--compact)) {
+	display: none !important;
+}
+
 .llm-story-progress-bar {
 	box-sizing: border-box;
 	width: 100%;

@@ -29,6 +29,7 @@ class LLM_Story_Phrases_Csv {
 			'Frase (lingua obiettivo)',
 			'Analisi grammaticale',
 			'Traduzione alternativa',
+			'Note sulla frase',
 		);
 	}
 
@@ -118,6 +119,7 @@ class LLM_Story_Phrases_Csv {
 					isset( $row['target'] ) ? (string) $row['target'] : '',
 					isset( $row['grammar'] ) ? (string) $row['grammar'] : '',
 					isset( $row['alt'] ) ? (string) $row['alt'] : '',
+					isset( $row['notes'] ) ? (string) $row['notes'] : '',
 				),
 				self::CSV_DELIMITER
 			);
@@ -346,13 +348,14 @@ class LLM_Story_Phrases_Csv {
 			'target'    => isset( $cells[ $header_map['target'] ] ) ? (string) $cells[ $header_map['target'] ] : '',
 			'grammar'   => isset( $cells[ $header_map['grammar'] ] ) ? (string) $cells[ $header_map['grammar'] ] : '',
 			'alt'       => isset( $cells[ $header_map['alt'] ] ) ? (string) $cells[ $header_map['alt'] ] : '',
+			'notes'     => ( isset( $header_map['notes'] ) && null !== $header_map['notes'] && isset( $cells[ $header_map['notes'] ] ) ) ? (string) $cells[ $header_map['notes'] ] : '',
 		);
 	}
 
 	/**
 	 * @param array<int,string|false> $cells
 	 * @param bool                    $first_is_header Out: true se la prima riga è solo intestazione.
-	 * @return array<string,int>|null Chiavi pos, interface, target, grammar, alt → indice colonna.
+	 * @return array<string,int|null>|null Chiavi pos, interface, target, grammar, alt, notes → indice colonna.
 	 */
 	private static function map_header_row( $cells, &$first_is_header ) {
 		$first_is_header = true;
@@ -377,6 +380,7 @@ class LLM_Story_Phrases_Csv {
 		$tg_i  = $find( array( 'lingua obiettivo', 'obiettivo' ) );
 		$gr_i  = $find( array( 'analisi grammaticale', 'grammaticale', 'grammar' ) );
 		$al_i  = $find( array( 'traduzione alternativa', 'alternativa' ) );
+		$nt_i  = $find( array( 'note sulla frase', 'phrase notes', 'phrase_notes' ) );
 
 		if ( null !== $pos_i && null !== $if_i && null !== $tg_i && null !== $gr_i && null !== $al_i ) {
 			return array(
@@ -385,6 +389,7 @@ class LLM_Story_Phrases_Csv {
 				'target'    => $tg_i,
 				'grammar'   => $gr_i,
 				'alt'       => $al_i,
+				'notes'     => $nt_i,
 			);
 		}
 
@@ -399,6 +404,7 @@ class LLM_Story_Phrases_Csv {
 				'target'    => 2,
 				'grammar'   => 3,
 				'alt'       => 4,
+				'notes'     => count( $cells ) >= 6 ? 5 : null,
 			);
 		}
 
@@ -443,6 +449,7 @@ class LLM_Story_Phrases_Csv {
 				'target'    => isset( $r['target'] ) ? LLM_Story_Repository::sanitize_phrase_rich_text( $r['target'] ) : '',
 				'grammar'   => isset( $r['grammar'] ) ? LLM_Story_Repository::sanitize_phrase_rich_text( $r['grammar'] ) : '',
 				'alt'       => isset( $r['alt'] ) ? LLM_Story_Repository::sanitize_phrase_rich_text( $r['alt'] ) : '',
+				'notes'     => isset( $r['notes'] ) ? LLM_Story_Repository::sanitize_phrase_rich_text( $r['notes'] ) : '',
 			);
 		}
 
@@ -472,6 +479,7 @@ class LLM_Story_Phrases_Csv {
 			'target'    => '',
 			'grammar'   => '',
 			'alt'       => '',
+			'notes'     => '',
 		);
 
 		$merged  = array();
@@ -491,6 +499,7 @@ class LLM_Story_Phrases_Csv {
 					'target'    => $row['target'],
 					'grammar'   => $row['grammar'],
 					'alt'       => $row['alt'],
+					'notes'     => isset( $row['notes'] ) ? $row['notes'] : '',
 					'previous_interface' => isset( $old['interface'] ) ? (string) $old['interface'] : '',
 				);
 			} else {
@@ -499,6 +508,7 @@ class LLM_Story_Phrases_Csv {
 					'target'    => isset( $old['target'] ) ? (string) $old['target'] : '',
 					'grammar'   => isset( $old['grammar'] ) ? (string) $old['grammar'] : '',
 					'alt'       => isset( $old['alt'] ) ? (string) $old['alt'] : '',
+					'notes'     => isset( $old['notes'] ) ? (string) $old['notes'] : '',
 				);
 			}
 		}

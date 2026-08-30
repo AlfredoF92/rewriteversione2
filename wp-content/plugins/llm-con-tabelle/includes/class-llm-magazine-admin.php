@@ -157,9 +157,22 @@ class LLM_Magazine_Admin {
 						<input type="text" id="llm-mag-shortcode" readonly value="<?php echo esc_attr( $shortcode ); ?>">
 						<button type="button" class="button" id="llm-mag-copy"><?php esc_html_e( 'Copia', 'llm-con-tabelle' ); ?></button>
 					</div>
+					<p class="description"><?php esc_html_e( 'Opzionale: resta sulla pagina coppia (es. /it-english/). Ogni rivista ha anche un indirizzo proprio.', 'llm-con-tabelle' ); ?></p>
 				</div>
 			<?php else : ?>
 				<p class="description" id="llm-mag-shortcode-hint"><?php esc_html_e( 'Scegli la coppia di lingue per vedere lo shortcode da usare nella pagina.', 'llm-con-tabelle' ); ?></p>
+			<?php endif; ?>
+			<?php
+			$public_url = LLM_Magazine::url( (int) $post->ID );
+			if ( $public_url && 'publish' === $post->post_status ) :
+				?>
+				<div class="llm-mag-admin__shortcode">
+					<label for="llm-mag-permalink"><?php esc_html_e( 'Link pubblico di questa rivista', 'llm-con-tabelle' ); ?></label>
+					<div class="llm-mag-admin__shortcode-row">
+						<input type="text" id="llm-mag-permalink" readonly value="<?php echo esc_attr( $public_url ); ?>">
+						<a class="button" href="<?php echo esc_url( $public_url ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Apri', 'llm-con-tabelle' ); ?></a>
+					</div>
+				</div>
 			<?php endif; ?>
 		</div>
 		<?php

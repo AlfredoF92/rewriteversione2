@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class LLM_Tabelle_Database {
 
-	const DB_VERSION = '2.2.0';
+	const DB_VERSION = '2.3.0';
 
 	const OPT_VERSION = 'llm_tabelle_db_version';
 
@@ -57,6 +57,7 @@ class LLM_Tabelle_Database {
 			phrase_target longtext NOT NULL,
 			phrase_grammar longtext NOT NULL,
 			phrase_alt longtext NOT NULL,
+			phrase_notes longtext NOT NULL,
 			PRIMARY KEY  (id),
 			KEY story_sort (story_id, sort_order)
 		) $charset_collate;";
@@ -170,7 +171,24 @@ class LLM_Tabelle_Database {
 		dbDelta( $sql_kudos );
 		dbDelta( $sql_bravo );
 
+		self::ensure_phrase_notes_column();
+
 		update_option( self::OPT_VERSION, self::DB_VERSION );
+	}
+
+	/**
+	 * Colonna note sulla frase (upgrade da tabelle già esistenti).
+	 */
+	private static function ensure_phrase_notes_column() {
+		global $wpdb;
+		$table = self::table( 'llm_story_phrases' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$col = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'phrase_notes' ) );
+		if ( $col ) {
+			return;
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "ALTER TABLE {$table} ADD COLUMN phrase_notes longtext NOT NULL" );
 	}
 
 	public static function uninstall() {

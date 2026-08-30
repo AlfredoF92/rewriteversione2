@@ -15,6 +15,8 @@ class LLM_User_Meta {
 	const LEARNING_LANG   = '_llm_learning_lang';
 	const DEMO_FLAG       = '_llm_demo_user';
 	const STRICT_ACCENTS  = '_llm_game_strict_accents';
+	const UI_THEME        = '_llm_game_theme';
+	const STORY_LAYOUT    = '_llm_story_layout';
 
 	public static function init() {
 	}

@@ -547,6 +547,8 @@
 			qs(root, '.llm-phrase-game__phase--2 .llm-phrase-game__message-phase2') ||
 			qs(root, '.llm-phrase-game__message-phase2:not(.llm-phrase-game__message-solo)');
 		var analysisEl = qs(root, '.llm-phrase-game__analysis');
+		var phraseNotesWrap = qs(root, '.llm-phrase-game__phrase-notes-wrap');
+		var phraseNotesEl = qs(root, '.llm-phrase-game__phrase-notes');
 		var grammarEl = qs(root, '.llm-phrase-game__grammar');
 		var targetShow = qs(root, '.llm-phrase-game__target');
 		var targetPeekBtn = qs(root, '.llm-phrase-game__peek-target');
@@ -1126,7 +1128,19 @@
 			});
 		}
 
+	function resetPhraseNotes() {
+		if (phraseNotesEl) {
+			phraseNotesEl.innerHTML = '';
+		}
+		if (phraseNotesWrap) {
+			phraseNotesWrap.hidden = true;
+			phraseNotesWrap.style.opacity = '';
+			phraseNotesWrap.style.transition = '';
+		}
+	}
+
 	function prepareAnalysisStreamLayout() {
+		resetPhraseNotes();
 		if (bravoEl) {
 			bravoEl.textContent = '';
 		}
@@ -1213,6 +1227,7 @@
 			notesOnly: true,
 			skipYourPhrase: true,
 			skipBravo: true,
+			notes: (p && p.notes) || '',
 			grammar: (p && p.grammar) || '',
 			/* Gioca al contrario: niente traduzione principale negli appunti (è già la frase proposta). */
 			target: isPlayInverted ? '' : ((p && p.target) || ''),
@@ -1593,6 +1608,7 @@
 		var yourText  = opts.yourText  != null ? String(opts.yourText)  : '';
 		var skipYour  = !!opts.skipYourPhrase;
 		var skipBravo = !!opts.skipBravo;
+		var notes     = opts.notes     != null ? String(opts.notes)     : '';
 		var grammar   = opts.grammar   != null ? String(opts.grammar)   : '';
 		var target    = opts.target    != null ? String(opts.target)    : '';
 		var alt       = opts.alt       != null ? String(opts.alt)       : '';
@@ -1632,6 +1648,18 @@
 			}).then(function () {
 				if (!alive()) { return; }
 				return sleepMs(gapMs != null ? gapMs : ELEMENT_GAP);
+			});
+		}
+
+		/* ── Note sulla frase → prima cosa (se non vuote) ──────────── */
+		if (notes && String(notes).replace(/<[^>]*>/g, '').trim()) {
+			addStep(function () {
+				if (!alive() || !phraseNotesWrap || !phraseNotesEl) { return; }
+				try { phraseNotesEl.innerHTML = notes; } catch (e) { phraseNotesEl.textContent = notes; }
+				phraseNotesWrap.hidden = false;
+				phraseNotesWrap.style.opacity = '0';
+				phraseNotesWrap.style.transition = 'opacity 400ms ease';
+				return fadeReveal(phraseNotesWrap, 400);
 			});
 		}
 
@@ -1786,6 +1814,42 @@
 		});
 	}
 
+	function getStoryMediaBlocks() {
+		return Array.isArray(cfg.mediaBlocks) ? cfg.mediaBlocks : [];
+	}
+
+	function createStoryPhotoEl(item) {
+		var fig = document.createElement('figure');
+		fig.className = 'llm-phrase-game__story-photo';
+		var img = document.createElement('img');
+		img.className = 'llm-phrase-game__story-photo-img';
+		img.src = item.url;
+		img.alt = item.alt || '';
+		img.loading = 'lazy';
+		img.decoding = 'async';
+		fig.appendChild(img);
+		return fig;
+	}
+
+	function appendStoryPhotosAfter(afterIndex) {
+		if (!storyEl) {
+			return;
+		}
+		var wanted = parseInt(afterIndex, 10);
+		if (isNaN(wanted)) {
+			return;
+		}
+		getStoryMediaBlocks().forEach(function (item) {
+			if (!item || !item.url) {
+				return;
+			}
+			if (parseInt(item.afterPhraseIndex, 10) !== wanted) {
+				return;
+			}
+			storyEl.appendChild(createStoryPhotoEl(item));
+		});
+	}
+
 	/* ── Blocco introduzione storia (post_content), prima delle frasi completate ── */
 	if (cfg.storyIntro && storyEl) {
 		var introWrap = document.createElement('div');
@@ -1824,19 +1888,85 @@
 		}
 	}
 
+	appendStoryPhotosAfter(-1);
+
 	if (cfg.completedStoryLines && cfg.completedStoryLines.length) {
-		cfg.completedStoryLines.forEach(function (line) {
+		cfg.completedStoryLines.forEach(function (line, lineIx) {
 			var block = document.createElement('div');
 			block.className = 'llm-phrase-game__story-line';
 			var target = typeof line === 'object' ? (line.target || '') : String(line);
 			var iface = typeof line === 'object' ? (line.interface || '') : '';
+			var phraseIndex = lineIx;
+			if (typeof line === 'object' && line.index != null && line.index !== '') {
+				var parsedIx = parseInt(line.index, 10);
+				if (!isNaN(parsedIx)) {
+					phraseIndex = parsedIx;
+				}
+			}
 			block.innerHTML = String(target);
 			if (iface) {
 				block.dataset.translation = iface;
 			}
 			storyEl.appendChild(block);
+			appendStoryPhotosAfter(phraseIndex);
 		});
 	}
+
+	function upcomingBlurSample() {
+		var first = phrases[0] || {};
+		var html = String(first.target || '');
+		var tmp = document.createElement('div');
+		tmp.innerHTML = html;
+		return String(tmp.textContent || tmp.innerText || '').replace(/\s+/g, ' ').trim();
+	}
+
+	function hideUpcomingHint() {
+		if (!storyEl) {
+			return;
+		}
+		var hint = storyEl.querySelector('.llm-phrase-game__upcoming');
+		if (hint && hint.parentNode) {
+			hint.parentNode.removeChild(hint);
+		}
+	}
+
+	function mountUpcomingHint() {
+		if (!storyEl || !phrases.length) {
+			return;
+		}
+		if (cfg.gameFinished) {
+			return;
+		}
+		if (cfg.completedStoryLines && cfg.completedStoryLines.length) {
+			return;
+		}
+		if (storyEl.querySelector('.llm-phrase-game__upcoming')) {
+			return;
+		}
+		var wrap = document.createElement('div');
+		wrap.className = 'llm-phrase-game__upcoming';
+		var blurWrap = document.createElement('div');
+		blurWrap.className = 'llm-phrase-game__upcoming-blur-wrap';
+		var blur = document.createElement('p');
+		blur.className = 'llm-phrase-game__upcoming-blur';
+		blur.setAttribute('aria-hidden', 'true');
+		blur.textContent = upcomingBlurSample();
+		if (!blur.textContent) {
+			return;
+		}
+		blurWrap.appendChild(blur);
+		var label = document.createElement('p');
+		label.className = 'llm-phrase-game__upcoming-label';
+		label.textContent = i18n.upcomingHint || '';
+		if (!label.textContent) {
+			return;
+		}
+		wrap.appendChild(blurWrap);
+		wrap.appendChild(label);
+		storyEl.appendChild(wrap);
+	}
+
+	mountUpcomingHint();
 	hydrateStoryLineTranslations();
 
 		var restartBtnEl = doneEl ? qs(doneEl, '.llm-phrase-game__restart-btn') : null;
@@ -1857,6 +1987,9 @@
 		return '';
 	}
 	storyEl && storyEl.addEventListener('click', function (e) {
+		if (e.target && e.target.closest && e.target.closest('.llm-phrase-game__story-photo')) {
+			return;
+		}
 		var line = getStoryLineElementFromEventTarget(e.target);
 		if (!line) {
 			return;
@@ -3080,6 +3213,7 @@
 		cancelAnalysisStream();
 		cancelPhase2MessageStream();
 		analysisEl.hidden = true;
+		resetPhraseNotes();
 		if (bravoEl) {
 			bravoEl.textContent = '';
 		}
@@ -3200,6 +3334,7 @@
 				runAnalysisTypestream({
 					skipYourPhrase: true,
 					skipBravo: true,
+					notes: cfg.resumeAnalysis.notes || '',
 					grammar: cfg.resumeAnalysis.grammar || '',
 					target: cfg.resumeAnalysis.target || '',
 					alt: cfg.resumeAnalysis.alt || '',
@@ -3477,6 +3612,7 @@
 					smoothScrollIntoCenter(analysisEl).then(function () {
 						runAnalysisTypestream({
 							yourText: txt,
+							notes: (p && p.notes) || '',
 							grammar: (p && p.grammar) || '',
 							target: targetRef,
 							alt: (p && p.alt) || '',
@@ -3583,6 +3719,7 @@
 						return;
 					}
 					smoothScrollStoryToCenter().then(function () {
+						hideUpcomingHint();
 						var block = document.createElement('div');
 						block.className = 'llm-phrase-game__story-line';
 						if (d.display_interface) {
@@ -3595,6 +3732,7 @@
 							return storyStreamRun === sr;
 						}, TYPE_TICK_MS).then(function () {
 							if (storyStreamRun === sr) {
+								appendStoryPhotosAfter(phraseIx);
 								advanceAfterPhrase();
 							}
 						});
@@ -3740,6 +3878,7 @@
 						return;
 					}
 					smoothScrollStoryToCenter().then(function () {
+						hideUpcomingHint();
 						var block = document.createElement('div');
 						block.className = 'llm-phrase-game__story-line';
 						if (d.display_interface) {
@@ -3752,6 +3891,7 @@
 							return storyStreamRun === sr;
 						}, TYPE_TICK_MS).then(function () {
 							if (storyStreamRun === sr) {
+								appendStoryPhotosAfter(phraseIx);
 								advanceAfterPhrase();
 							}
 						});
@@ -4059,21 +4199,6 @@
 	document.addEventListener('DOMContentLoaded', function () {
 		document.querySelectorAll('.llm-phrase-game').forEach(function (el) {
 			init(el);
-		});
-		document.addEventListener('click', function (e) {
-			var btn = e.target.closest('[data-llm-game-theme]');
-			if (!btn) {
-				return;
-			}
-			var theme = btn.getAttribute('data-llm-game-theme');
-			if (theme !== 'light' && theme !== 'dark') {
-				return;
-			}
-			if (btn.classList.contains('is-active')) {
-				return;
-			}
-			document.cookie = 'llm_game_theme=' + encodeURIComponent(theme) + '; path=/; max-age=31536000; SameSite=Lax';
-			window.location.reload();
 		});
 	});
 })();

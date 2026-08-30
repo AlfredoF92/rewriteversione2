@@ -393,6 +393,7 @@ class LLM_Admin_Story {
 					'target'    => '',
 					'grammar'   => '',
 					'alt'       => '',
+					'notes'     => '',
 				),
 			);
 		}
@@ -429,7 +430,7 @@ class LLM_Admin_Story {
 			<button type="button" class="button" id="llm-add-phrase"><?php esc_html_e( 'Aggiungi frase', 'llm-con-tabelle' ); ?></button>
 		</p>
 		<script type="text/template" id="llm-phrase-template">
-			<?php self::render_phrase_row( '{{IDX}}', array( 'interface' => '', 'target' => '', 'grammar' => '', 'alt' => '' ) ); ?>
+			<?php self::render_phrase_row( '{{IDX}}', array( 'interface' => '', 'target' => '', 'grammar' => '', 'alt' => '', 'notes' => '' ) ); ?>
 		</script>
 		<?php if ( $post->ID > 0 ) : ?>
 		<div id="llm-phrases-csv-modal" class="llm-csv-modal" hidden aria-hidden="true">
@@ -451,6 +452,7 @@ class LLM_Admin_Story {
 										<th><?php esc_html_e( 'Operazione', 'llm-con-tabelle' ); ?></th>
 										<th><?php esc_html_e( 'Frase (interfaccia)', 'llm-con-tabelle' ); ?></th>
 										<th><?php esc_html_e( 'Frase (obiettivo)', 'llm-con-tabelle' ); ?></th>
+										<th><?php esc_html_e( 'Note sulla frase', 'llm-con-tabelle' ); ?></th>
 										<th><?php esc_html_e( 'Analisi grammaticale', 'llm-con-tabelle' ); ?></th>
 										<th><?php esc_html_e( 'Traduzione alternativa', 'llm-con-tabelle' ); ?></th>
 									</tr>
@@ -502,6 +504,8 @@ class LLM_Admin_Story {
 					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][interface]" class="widefat llm-phrase-interface" rows="2"><?php echo esc_textarea( $iface ); ?></textarea>
 					<label><?php esc_html_e( 'Frase (lingua obiettivo)', 'llm-con-tabelle' ); ?></label>
 					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][target]" class="widefat" rows="2"><?php echo esc_textarea( isset( $p['target'] ) ? $p['target'] : '' ); ?></textarea>
+					<label><?php esc_html_e( 'Note sulla frase', 'llm-con-tabelle' ); ?></label>
+					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][notes]" class="widefat" rows="2"><?php echo esc_textarea( isset( $p['notes'] ) ? $p['notes'] : '' ); ?></textarea>
 					<label><?php esc_html_e( 'Analisi grammaticale', 'llm-con-tabelle' ); ?></label>
 					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][grammar]" class="widefat" rows="3"><?php echo esc_textarea( isset( $p['grammar'] ) ? $p['grammar'] : '' ); ?></textarea>
 					<label><?php esc_html_e( 'Traduzione alternativa', 'llm-con-tabelle' ); ?></label>

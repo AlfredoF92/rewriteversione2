@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       LLM CON TABELLE
  * Description:       Storie, utenti e community in tabelle MySQL (no JSON strutturato). Parallelo a LLS, senza migrazione.
- * Version:           2.2.252
+ * Version:           2.2.299
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            LLM CON TABELLE
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LLM_TABELLE_VERSION', '2.2.252' );
+define( 'LLM_TABELLE_VERSION', '2.2.299' );
 define( 'LLM_TABELLE_FILE', __FILE__ );
 define( 'LLM_TABELLE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LLM_TABELLE_URL', plugin_dir_url( __FILE__ ) );
@@ -46,6 +46,9 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-idiom.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-idiom-admin.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-meta.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-visitor-lang.php';
+if ( file_exists( LLM_TABELLE_DIR . 'includes/class-llm-visitor-theme.php' ) ) {
+	require_once LLM_TABELLE_DIR . 'includes/class-llm-visitor-theme.php';
+}
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-repository.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-phrases-csv.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-full-import.php';
@@ -72,6 +75,9 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-story-phrase-game.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-progress-bar-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-header-ui-icons.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-header-user-shortcode.php';
+if ( file_exists( LLM_TABELLE_DIR . 'includes/class-llm-nav-menu-shortcode.php' ) ) {
+	require_once LLM_TABELLE_DIR . 'includes/class-llm-nav-menu-shortcode.php';
+}
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-stat-shortcodes.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-profile-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-learning-lang-shortcode.php';
@@ -95,6 +101,9 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-community-feed-shortcode.php'
 require_once LLM_TABELLE_DIR . 'includes/class-llm-bravo-balance-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-home-redirect.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-lang-cards-shortcode.php';
+if ( file_exists( LLM_TABELLE_DIR . 'includes/class-llm-italian-english-stories-shortcode.php' ) ) {
+	require_once LLM_TABELLE_DIR . 'includes/class-llm-italian-english-stories-shortcode.php';
+}
 require_once LLM_TABELLE_DIR . 'includes/class-llm-change-lang-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-home-redirect.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-phrase-feedback.php';
@@ -136,6 +145,9 @@ function llm_tabelle_boot() {
 	LLM_Story_Meta::init();
 	LLM_User_Meta::init();
 	LLM_Visitor_Lang::init();
+	if ( class_exists( 'LLM_Visitor_Theme' ) ) {
+		LLM_Visitor_Theme::init();
+	}
 	LLM_Community::init();
 	LLM_User_Stats::init();
 	LLM_Admin_Story::init();
@@ -156,6 +168,9 @@ function llm_tabelle_boot() {
 	LLM_Continua_Storie_Loop::init();
 	LLM_Continua_Filtri_Shortcode::init();
 	LLM_Header_User_Shortcode::init();
+	if ( class_exists( 'LLM_Nav_Menu_Shortcode' ) ) {
+		LLM_Nav_Menu_Shortcode::init();
+	}
 	LLM_User_Stat_Shortcodes::init();
 	LLM_User_Profile_Shortcode::init();
 	LLM_Learning_Lang_Shortcode::init();
@@ -175,6 +190,9 @@ function llm_tabelle_boot() {
 	LLM_Story_Progress_Bar_Shortcode::init();
 	LLM_Home_Redirect::init();
 	LLM_Lang_Cards_Shortcode::init();
+	if ( class_exists( 'LLM_Italian_English_Stories_Shortcode' ) ) {
+		LLM_Italian_English_Stories_Shortcode::init();
+	}
 	LLM_Change_Lang_Shortcode::init();
 	LLM_Guest_Browser_Data_Shortcode::init();
 	LLM_Admin_Home_Redirect::init();
@@ -234,6 +252,49 @@ function llm_tabelle_enqueue_elementor_loop_typography() {
 	);
 }
 add_action( 'wp_enqueue_scripts', 'llm_tabelle_enqueue_elementor_loop_typography', 100 );
+
+/**
+ * Favicon: L Playfair Display 900, rosso logo #B71010 su nero.
+ */
+function llm_tabelle_favicon_url( $file ) {
+	return LLM_TABELLE_URL . 'assets/' . ltrim( (string) $file, '/' );
+}
+
+function llm_tabelle_site_icon_url( $url, $size = 512, $blog_id = 0 ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+	$size = (int) $size;
+	if ( $size >= 192 ) {
+		return llm_tabelle_favicon_url( 'favicon-512.png' );
+	}
+	if ( $size >= 180 ) {
+		return llm_tabelle_favicon_url( 'apple-touch-icon.png' );
+	}
+	return llm_tabelle_favicon_url( 'favicon-32.png' );
+}
+
+function llm_tabelle_print_favicon() {
+	$ver    = rawurlencode( LLM_TABELLE_VERSION );
+	$ico    = esc_url( llm_tabelle_favicon_url( 'favicon.ico' ) . '?ver=' . $ver );
+	$png32  = esc_url( llm_tabelle_favicon_url( 'favicon-32.png' ) . '?ver=' . $ver );
+	$png192 = esc_url( llm_tabelle_favicon_url( 'favicon-192.png' ) . '?ver=' . $ver );
+	$apple  = esc_url( llm_tabelle_favicon_url( 'apple-touch-icon.png' ) . '?ver=' . $ver );
+	echo '<link rel="icon" href="' . $ico . '" sizes="any" />' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo '<link rel="icon" href="' . $png32 . '" type="image/png" sizes="32x32" />' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo '<link rel="icon" href="' . $png192 . '" type="image/png" sizes="192x192" />' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo '<link rel="apple-touch-icon" href="' . $apple . '" />' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+}
+
+add_filter( 'get_site_icon_url', 'llm_tabelle_site_icon_url', 10, 3 );
+add_action( 'wp_head', 'llm_tabelle_print_favicon', 1 );
+add_action( 'admin_head', 'llm_tabelle_print_favicon', 1 );
+add_action( 'login_head', 'llm_tabelle_print_favicon', 1 );
+add_action(
+	'wp_loaded',
+	static function () {
+		remove_action( 'wp_head', 'wp_site_icon', 99 );
+		remove_action( 'admin_head', 'wp_site_icon', 99 );
+		remove_action( 'login_head', 'wp_site_icon', 99 );
+	}
+);
 
 /**
  * Elementor carica prima (ordine alfabetico): l’hook elementor/loaded è già scattato

@@ -142,17 +142,8 @@ class LLM_Magazine_Index_Shortcode {
 			$row_cards = array();
 			$mag_id    = LLM_Magazine::find_homepage_id( $known, $target );
 			if ( $mag_id ) {
-				$pair_url = class_exists( 'LLM_Home_Redirect' ) ? LLM_Home_Redirect::pair_url( $known, $target ) : '';
-				if ( $pair_url ) {
-					$pair_url = add_query_arg(
-						array(
-							'llm_set_known' => $known,
-							'llm_set_learn' => $target,
-						),
-						$pair_url
-					);
-				}
-				$card = self::card_data( $mag_id, $pair_url, $ui, $known, $target );
+				$mag_url = LLM_Magazine::public_url( $mag_id );
+				$card    = self::card_data( $mag_id, $mag_url, $ui, $known, $target );
 				if ( $card ) {
 					$row_cards[] = $card;
 				}
@@ -160,7 +151,7 @@ class LLM_Magazine_Index_Shortcode {
 			if ( empty( $row_cards ) ) {
 				continue;
 			}
-			while ( count( $row_cards ) < 4 ) {
+			while ( count( $row_cards ) < 3 ) {
 				$row_cards[] = self::coming_soon_card( $ui, $known, $target );
 			}
 			$rows[] = array(

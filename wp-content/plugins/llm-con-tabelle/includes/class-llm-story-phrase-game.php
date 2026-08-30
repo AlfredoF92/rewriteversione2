@@ -89,6 +89,24 @@ class LLM_Story_Phrase_Game {
 	}
 
 	/**
+	 * Canzone / brano musicale.
+	 *
+	 * @param int $story_id ID storia.
+	 * @return bool
+	 */
+	private static function is_song_story( $story_id ) {
+		$story_id = absint( $story_id );
+		if ( ! $story_id ) {
+			return false;
+		}
+		if ( class_exists( 'LLM_Magazine' ) && LLM_Magazine::is_music_story( $story_id ) ) {
+			return true;
+		}
+		$cefr = (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_CEFR_LEVEL, true );
+		return (bool) preg_match( '/canzone|song|brano/i', $cefr );
+	}
+
+	/**
 	 * Carica asset sulla singola storia se ci sono frasi (lo shortcode può stare nel template Elementor).
 	 * Lo script non fa nulla se in pagina non c’è .llm-phrase-game.
 	 */
@@ -111,13 +129,18 @@ class LLM_Story_Phrase_Game {
 	}
 
 	/**
-	 * Tema del gioco (header sempre scuro). Cookie llm_game_theme = dark|light.
+	 * Tema del gioco (header sempre scuro). Fonte unica: LLM_Visitor_Theme.
 	 *
 	 * @return string
 	 */
 	private static function game_theme() {
-		$raw = isset( $_COOKIE['llm_game_theme'] ) ? sanitize_key( wp_unslash( $_COOKIE['llm_game_theme'] ) ) : 'dark';
-		return ( 'light' === $raw ) ? 'light' : 'dark';
+		if ( class_exists( 'LLM_Visitor_Theme' ) ) {
+			$stored = LLM_Visitor_Theme::stored();
+			if ( '' !== $stored ) {
+				return LLM_Visitor_Theme::get();
+			}
+		}
+		return 'dark';
 	}
 
 	/**
@@ -133,6 +156,24 @@ class LLM_Story_Phrase_Game {
 		<div class="llm-game-theme" role="group" aria-label="<?php echo esc_attr( 'Versione colore gioco' ); ?>">
 			<button type="button" class="llm-game-theme__btn llm-game-theme__btn--dark<?php echo 'dark' === $current ? ' is-active' : ''; ?>" data-llm-game-theme="dark" aria-pressed="<?php echo 'dark' === $current ? 'true' : 'false'; ?>">versione DARK</button>
 			<button type="button" class="llm-game-theme__btn llm-game-theme__btn--light<?php echo 'light' === $current ? ' is-active' : ''; ?>" data-llm-game-theme="light" aria-pressed="<?php echo 'light' === $current ? 'true' : 'false'; ?>">versione LIGHT</button>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Pulsanti Due colonne / Una colonna: al click salvano cookie/profilo e ricaricano.
+	 *
+	 * @param string $current one|two.
+	 * @return string
+	 */
+	private static function render_story_layout_switcher( $current ) {
+		$current = ( 'two' === $current ) ? 'two' : 'one';
+		ob_start();
+		?>
+		<div class="llm-story-layout-switch" role="group" aria-label="<?php echo esc_attr( LLM_Phrase_Game_I18n::get( 'layout_group' ) ); ?>">
+			<button type="button" class="llm-game-theme__btn llm-story-layout-switch__btn<?php echo 'two' === $current ? ' is-active' : ''; ?>" data-llm-story-layout="two" aria-pressed="<?php echo 'two' === $current ? 'true' : 'false'; ?>"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'layout_two' ) ); ?></button>
+			<button type="button" class="llm-game-theme__btn llm-story-layout-switch__btn<?php echo 'one' === $current ? ' is-active' : ''; ?>" data-llm-story-layout="one" aria-pressed="<?php echo 'one' === $current ? 'true' : 'false'; ?>"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'layout_one' ) ); ?></button>
 		</div>
 		<?php
 		return (string) ob_get_clean();
@@ -255,11 +296,17 @@ class LLM_Story_Phrase_Game {
 		);
 		$listen_target_label   = LLM_Phrase_Game_I18n::get( 'listen_target_label' );
 
-		$game_theme = self::game_theme();
+		$game_theme   = self::game_theme();
+		$story_layout = class_exists( 'LLM_Visitor_Theme' ) ? LLM_Visitor_Theme::get_layout() : 'one';
+		$story_layout = in_array( $story_layout, array( 'one', 'two' ), true ) ? $story_layout : 'one';
 		ob_start();
-		echo self::render_story_hero( $story_id, count( $phrases ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato.
 		?>
-		<div id="<?php echo esc_attr( $uid ); ?>" class="llm-phrase-game llm-phrase-game--theme-<?php echo esc_attr( $game_theme ); ?>" data-story-id="<?php echo esc_attr( (string) $story_id ); ?>" data-game-theme="<?php echo esc_attr( $game_theme ); ?>">
+		<div id="<?php echo esc_attr( $uid ); ?>" class="llm-phrase-game llm-phrase-game--theme-<?php echo esc_attr( $game_theme ); ?> llm-story-layout llm-story-layout--<?php echo esc_attr( $story_layout ); ?>" data-story-id="<?php echo esc_attr( (string) $story_id ); ?>" data-game-theme="<?php echo esc_attr( $game_theme ); ?>">
+			<div class="llm-story-layout__body">
+			<div class="llm-story-layout__read">
+				<?php echo self::render_story_hero( $story_id, count( $phrases ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+			</div>
+			<div class="llm-story-layout__learn">
 			<div class="llm-phrase-game__story-wrap">
 				<div class="llm-phrase-game__story" aria-live="polite"></div>
 			</div>
@@ -340,6 +387,10 @@ class LLM_Story_Phrase_Game {
 			<div class="llm-phrase-game__phase1-feedback" hidden aria-live="polite"></div>
 			<div class="llm-phrase-game__loading-notes" hidden aria-live="polite"></div>
 			<div class="llm-phrase-game__analysis" hidden>
+					<div class="llm-phrase-game__phrase-notes-wrap" hidden>
+						<p class="llm-phrase-game__label-phrase-notes"><strong><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'label_phrase_notes' ) ); ?></strong></p>
+						<div class="llm-phrase-game__phrase-notes"></div>
+					</div>
 					<div class="llm-phrase-game__your-phrase-wrap" hidden>
 						<p class="llm-phrase-game__your-phrase-label"><strong><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'your_phrase_label' ) ); ?></strong></p>
 						<p class="llm-phrase-game__your-phrase-text"></p>
@@ -409,7 +460,12 @@ class LLM_Story_Phrase_Game {
 			<button type="button" class="llm-phrase-game__restart-btn button"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'story_progress_restart' ) ); ?></button>
 		</div>
 		<?php echo self::render_learning_mode_ui( $uid ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+			</div>
+			</div>
+			<div class="llm-story-layout__prefs">
 		<?php echo self::render_game_theme_switcher( $game_theme ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+		<?php echo self::render_story_layout_switcher( $story_layout ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+			</div>
 		</div>
 		<?php
 		return (string) ob_get_clean();
@@ -435,10 +491,24 @@ class LLM_Story_Phrase_Game {
 
 		$title_known  = get_the_title( $story_id );
 		$title_target = trim( (string) get_post_meta( $story_id, LLM_Story_Meta::TITLE_TARGET, true ) );
-		$main_title   = $title_target !== '' ? $title_target : $title_known;
-		$subtitle     = ( $title_target !== '' && $title_known !== '' && strcasecmp( $title_target, $title_known ) !== 0 )
-			? $title_known
-			: '';
+
+		// Titolo inglese in evidenza; traduzione sotto. Altre coppie: titolo nella lingua da imparare.
+		if ( 'en' === $target ) {
+			$main_title = $title_target !== '' ? $title_target : $title_known;
+			$subtitle   = ( $title_target !== '' && $title_known !== '' && strcasecmp( $title_target, $title_known ) !== 0 )
+				? $title_known
+				: '';
+		} elseif ( 'en' === $known ) {
+			$main_title = $title_known;
+			$subtitle   = ( $title_target !== '' && strcasecmp( $title_target, $title_known ) !== 0 )
+				? $title_target
+				: '';
+		} else {
+			$main_title = $title_target !== '' ? $title_target : $title_known;
+			$subtitle   = ( $title_target !== '' && $title_known !== '' && strcasecmp( $title_target, $title_known ) !== 0 )
+				? $title_known
+				: '';
+		}
 
 		$plot = trim( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_PLOT, true ) );
 		if ( '' === $plot ) {
@@ -450,6 +520,9 @@ class LLM_Story_Phrase_Game {
 		if ( $cefr && preg_match( '/\b([ABC][12])\b/i', $cefr, $m ) ) {
 			$cefr_code = strtoupper( $m[1] );
 		}
+
+		$is_song = self::is_song_story( $story_id );
+		$unit    = $is_song ? self::hero_verse_word( $ui, $phrase_count ) : self::hero_phrase_word( $ui, $phrase_count );
 
 		$cat_names = array();
 		$raw_cats  = get_the_terms( $story_id, 'category' );
@@ -476,12 +549,17 @@ class LLM_Story_Phrase_Game {
 		$thumb_url     = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'large' ) : '';
 		$target_name   = self::hero_target_lang_name( $ui, $target );
 		$known_name    = self::hero_target_lang_name( $ui, $known );
+		$headline_lang = ( 'en' === $target || 'en' === $known ) ? 'en' : $target;
+		$headline_flag = class_exists( 'LLM_Languages' ) ? LLM_Languages::flag_emoji( $headline_lang ) : '';
 		$target_flag   = class_exists( 'LLM_Languages' ) ? LLM_Languages::flag_emoji( $target ) : '';
 		$about_label   = self::hero_ui_string( $ui, 'about' );
+		$plot_label    = self::hero_ui_string( $ui, 'plot' );
 		$level_label   = self::hero_ui_string( $ui, 'level' );
-		$phrases_label = self::hero_ui_string( $ui, 'phrases' );
 		$lang_label    = self::hero_ui_string( $ui, 'language' );
-		$phrases_notes = self::hero_ui_string( $ui, 'phrases_notes' );
+		$phrases_label = $is_song ? self::hero_ui_string( $ui, 'duration' ) : self::hero_ui_string( $ui, 'phrases' );
+		$phrases_notes = $is_song
+			? sprintf( '%d %s', $phrase_count, $unit )
+			: self::hero_ui_string( $ui, 'phrases_notes' );
 		$known_for     = self::hero_known_for_line( $ui, $known_name );
 
 		ob_start();
@@ -492,14 +570,27 @@ class LLM_Story_Phrase_Game {
 				<div class="llm-story-hero__copy">
 					<?php if ( $main_title ) : ?>
 						<div class="llm-story-hero__title-block">
-							<?php if ( $target_flag ) : ?>
-								<span class="llm-story-hero__learn-flag" aria-hidden="true"><?php echo esc_html( $target_flag ); ?></span>
+							<?php if ( $headline_flag ) : ?>
+								<span class="llm-story-hero__learn-flag" aria-hidden="true"><?php echo esc_html( $headline_flag ); ?></span>
 							<?php endif; ?>
 							<h1 class="llm-story-hero__title"><?php echo esc_html( $main_title ); ?></h1>
 						</div>
 					<?php endif; ?>
 					<?php if ( $subtitle ) : ?>
 						<p class="llm-story-hero__subtitle"><?php echo esc_html( $subtitle ); ?></p>
+					<?php endif; ?>
+					<?php if ( $cefr_code || $phrase_count > 0 ) : ?>
+						<p class="llm-story-hero__facts">
+							<?php if ( $cefr_code ) : ?>
+								<span class="llm-story-hero__fact llm-story-hero__fact--level"><?php echo esc_html( self::hero_ui_string( $ui, 'story_level' ) . ' ' . $cefr_code ); ?></span>
+							<?php endif; ?>
+							<?php if ( $cefr_code && $phrase_count > 0 ) : ?>
+								<span class="llm-story-hero__fact-dot" aria-hidden="true">·</span>
+							<?php endif; ?>
+							<?php if ( $phrase_count > 0 ) : ?>
+								<span class="llm-story-hero__fact"><?php echo esc_html( $phrase_count . ' ' . $unit ); ?></span>
+							<?php endif; ?>
+						</p>
 					<?php endif; ?>
 				</div>
 			</div>
@@ -515,50 +606,51 @@ class LLM_Story_Phrase_Game {
 			></div>
 		</header>
 		<?php if ( $plot ) : ?>
-			<p class="llm-story-hero__plot"><?php echo esc_html( $plot ); ?></p>
+			<div class="llm-story-hero__plot-block">
+				<p class="llm-story-hero__plot-label"><?php echo esc_html( $plot_label ); ?></p>
+				<p class="llm-story-hero__plot"><?php echo esc_html( $plot ); ?></p>
+			</div>
 		<?php endif; ?>
 		<section class="llm-story-about" aria-label="<?php echo esc_attr( $about_label ); ?>">
 			<div class="llm-story-about__stats">
-				<?php if ( $cefr_code ) : ?>
 				<div class="llm-story-about__stat">
 					<span class="llm-story-about__stat-label"><?php echo esc_html( $level_label ); ?></span>
 					<div class="llm-story-about__stat-main">
 						<span class="llm-story-about__stat-icon llm-story-about__stat-icon--level" aria-hidden="true">
 							<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2H22l-6 4.4 2.3 7.2L12 16.8 5.7 20.8 8 13.6 2 9.2h7.6z"/></svg>
 						</span>
-						<span class="llm-story-about__stat-value"><?php echo esc_html( $cefr_code ); ?></span>
+						<span class="llm-story-about__stat-value"><?php echo esc_html( $cefr_code ? $cefr_code : '—' ); ?></span>
 					</div>
 					<?php if ( $target_name ) : ?>
 						<span class="llm-story-about__stat-sub"><?php echo esc_html( $target_name ); ?></span>
 					<?php endif; ?>
 				</div>
-				<?php endif; ?>
-				<?php if ( $phrase_count > 0 ) : ?>
 				<div class="llm-story-about__stat">
 					<span class="llm-story-about__stat-label"><?php echo esc_html( $phrases_label ); ?></span>
 					<div class="llm-story-about__stat-main">
-						<span class="llm-story-about__stat-icon llm-story-about__stat-icon--phrases" aria-hidden="true">
+						<span class="llm-story-about__stat-icon <?php echo $is_song ? 'llm-story-about__stat-icon--duration' : 'llm-story-about__stat-icon--phrases'; ?>" aria-hidden="true">
+							<?php if ( $is_song ) : ?>
+							<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
+							<?php else : ?>
 							<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v12H7l-3 3V4zm4 5v2h8V9H8zm0 4v2h5v-2H8z"/></svg>
+							<?php endif; ?>
 						</span>
 						<span class="llm-story-about__stat-value"><?php echo esc_html( (string) $phrase_count ); ?></span>
 					</div>
 					<span class="llm-story-about__stat-sub"><?php echo esc_html( $phrases_notes ); ?></span>
 				</div>
-				<?php endif; ?>
-				<?php if ( $target_name ) : ?>
 				<div class="llm-story-about__stat">
 					<span class="llm-story-about__stat-label"><?php echo esc_html( $lang_label ); ?></span>
 					<div class="llm-story-about__stat-main">
 						<?php if ( $target_flag ) : ?>
 							<span class="llm-story-about__stat-flag" aria-hidden="true"><?php echo esc_html( $target_flag ); ?></span>
 						<?php endif; ?>
-						<span class="llm-story-about__stat-value llm-story-about__stat-value--lang"><?php echo esc_html( $target_name ); ?></span>
+						<span class="llm-story-about__stat-value llm-story-about__stat-value--lang"><?php echo esc_html( $target_name ? $target_name : '—' ); ?></span>
 					</div>
 					<?php if ( $known_for ) : ?>
 						<span class="llm-story-about__stat-sub"><?php echo esc_html( $known_for ); ?></span>
 					<?php endif; ?>
 				</div>
-				<?php endif; ?>
 			</div>
 			<?php if ( $cat_names ) : ?>
 			<div class="llm-story-about__tags">
@@ -654,6 +746,23 @@ class LLM_Story_Phrase_Game {
 	}
 
 	/**
+	 * @param string $ui    Lingua UI.
+	 * @param int    $count Numero versi.
+	 * @return string
+	 */
+	private static function hero_verse_word( $ui, $count ) {
+		$count = (int) $count;
+		$map   = array(
+			'it' => $count === 1 ? 'verso' : 'versi',
+			'en' => $count === 1 ? 'verse' : 'verses',
+			'pl' => $count === 1 ? 'wers' : 'wersów',
+			'es' => $count === 1 ? 'verso' : 'versos',
+		);
+		$ui    = sanitize_key( (string) $ui );
+		return isset( $map[ $ui ] ) ? $map[ $ui ] : $map['it'];
+	}
+
+	/**
 	 * Etichetta livello: "livello B1 polacco".
 	 *
 	 * @param string $ui        Lingua UI.
@@ -740,11 +849,29 @@ class LLM_Story_Phrase_Game {
 				'pl' => 'poziom',
 				'es' => 'nivel',
 			),
+			'story_level' => array(
+				'it' => 'livello storia',
+				'en' => 'story level',
+				'pl' => 'poziom historii',
+				'es' => 'nivel de la historia',
+			),
+			'duration' => array(
+				'it' => 'durata',
+				'en' => 'duration',
+				'pl' => 'czas',
+				'es' => 'duración',
+			),
 			'about'    => array(
 				'it' => 'Riguardo',
 				'en' => 'About',
 				'pl' => 'Informacje',
 				'es' => 'Acerca de',
+			),
+			'plot'     => array(
+				'it' => 'Trama',
+				'en' => 'Plot',
+				'pl' => 'Fabuła',
+				'es' => 'Trama',
 			),
 			'phrases'  => array(
 				'it' => 'frasi',
@@ -916,6 +1043,31 @@ class LLM_Story_Phrase_Game {
 	}
 
 	/**
+	 * Immagini del flusso per lo script frontend.
+	 *
+	 * @param int $story_id ID storia.
+	 * @return array<int, array{url:string, alt:string, afterPhraseIndex:int}>
+	 */
+	private static function media_blocks_for_script( $story_id ) {
+		$blocks = LLM_Story_Repository::get_media_blocks( $story_id );
+		$out    = array();
+		foreach ( $blocks as $b ) {
+			$aid = isset( $b['attachment_id'] ) ? (int) $b['attachment_id'] : 0;
+			$url = $aid ? wp_get_attachment_image_url( $aid, 'medium' ) : '';
+			if ( ! is_string( $url ) || '' === $url ) {
+				continue;
+			}
+			$alt = $aid ? (string) get_post_meta( $aid, '_wp_attachment_image_alt', true ) : '';
+			$out[] = array(
+				'url'               => $url,
+				'alt'               => $alt,
+				'afterPhraseIndex'  => isset( $b['after_phrase_index'] ) ? (int) $b['after_phrase_index'] : -1,
+			);
+		}
+		return $out;
+	}
+
+	/**
 	 * @param int $story_id ID storia.
 	 */
 	public static function enqueue_assets( $story_id ) {
@@ -933,6 +1085,7 @@ class LLM_Story_Phrase_Game {
 				'target'    => isset( $row['target'] ) ? $row['target'] : '',
 				'grammar'   => isset( $row['grammar'] ) ? $row['grammar'] : '',
 				'alt'       => isset( $row['alt'] ) ? $row['alt'] : '',
+				'notes'     => isset( $row['notes'] ) ? $row['notes'] : '',
 			);
 		}
 
@@ -945,6 +1098,8 @@ class LLM_Story_Phrase_Game {
 		if ( '' === $interface_code ) {
 			$interface_code = LLM_Phrase_Game_I18n::lang();
 		}
+
+		$media_blocks = self::media_blocks_for_script( $story_id );
 
 		$n_phrases         = count( $phrases );
 		$uid               = is_user_logged_in() ? get_current_user_id() : 0;
@@ -980,6 +1135,7 @@ class LLM_Story_Phrase_Game {
 							$completed_targets[] = array(
 								'target'    => (string) $phrases[ $pi ]['target'],
 								'interface' => isset( $phrases[ $pi ]['interface'] ) ? (string) $phrases[ $pi ]['interface'] : '',
+								'index'     => (int) $pi,
 							);
 						}
 					}
@@ -992,6 +1148,7 @@ class LLM_Story_Phrase_Game {
 						$completed_targets[] = array(
 							'target'    => (string) $phrases[ $ix ]['target'],
 							'interface' => isset( $phrases[ $ix ]['interface'] ) ? (string) $phrases[ $ix ]['interface'] : '',
+							'index'     => (int) $ix,
 						);
 					}
 				}
@@ -1018,6 +1175,7 @@ class LLM_Story_Phrase_Game {
 					$completed_targets[] = array(
 						'target'    => (string) $phrases[ $ix ]['target'],
 						'interface' => isset( $phrases[ $ix ]['interface'] ) ? (string) $phrases[ $ix ]['interface'] : '',
+						'index'     => (int) $ix,
 					);
 				}
 			}
@@ -1087,6 +1245,7 @@ class LLM_Story_Phrase_Game {
 				'storyId'         => $story_id,
 				'storyTitle'      => get_the_title( $story_id ),
 				'phrases'         => $boot,
+				'mediaBlocks'     => $media_blocks,
 				'targetLangLabel' => LLM_Phrase_Game_I18n::target_lang_label_for_ui( $target_code ),
 				'targetLangCode'  => sanitize_key( $target_code ),
 				'interfaceLangLabel' => LLM_Phrase_Game_I18n::target_lang_label_for_ui( $interface_code ),
@@ -1114,6 +1273,7 @@ class LLM_Story_Phrase_Game {
 				'ajaxError'        => LLM_Phrase_Game_I18n::get( 'ajax_error' ),
 				'restartConfirm'   => LLM_Phrase_Game_I18n::get( 'story_progress_confirm' ),
 			'introLabel'       => LLM_Phrase_Game_I18n::get( 'intro_label' ),
+			'upcomingHint'     => LLM_Phrase_Game_I18n::format( 'upcoming_phrases_hint', $n_phrases ),
 			'micHint'          => LLM_Phrase_Game_I18n::get( 'mic_hint' ),
 			'micPending'       => LLM_Phrase_Game_I18n::get( 'mic_pending' ),
 			'micListening'     => LLM_Phrase_Game_I18n::get( 'mic_listening' ),
@@ -1255,6 +1415,7 @@ class LLM_Story_Phrase_Game {
 					'grammar' => isset( $row['grammar'] ) ? (string) $row['grammar'] : '',
 					'target'  => $target,
 					'alt'     => isset( $row['alt'] ) ? (string) $row['alt'] : '',
+					'notes'   => isset( $row['notes'] ) ? (string) $row['notes'] : '',
 				)
 			);
 		}

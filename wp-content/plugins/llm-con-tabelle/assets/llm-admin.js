@@ -254,7 +254,13 @@
 			var html = tpl.split( '{{IDX}}' ).join( String( i ) ).split( '{{NUM}}' ).join( String( i + 1 ) );
 			var $row = $( html );
 			var $ta  = $row.find( 'textarea' );
-			if ( $ta.length >= 4 ) {
+			if ( $ta.length >= 5 ) {
+				$ta.eq( 0 ).val( row.interface || '' );
+				$ta.eq( 1 ).val( row.target || '' );
+				$ta.eq( 2 ).val( row.notes || '' );
+				$ta.eq( 3 ).val( row.grammar || '' );
+				$ta.eq( 4 ).val( row.alt || '' );
+			} else if ( $ta.length >= 4 ) {
 				$ta.eq( 0 ).val( row.interface || '' );
 				$ta.eq( 1 ).val( row.target || '' );
 				$ta.eq( 2 ).val( row.grammar || '' );
@@ -414,7 +420,13 @@
 				var html = tpl.split( '{{IDX}}' ).join( String( i ) ).split( '{{NUM}}' ).join( String( i + 1 ) );
 				var $row = $( html );
 				var $ta  = $row.find( 'textarea' );
-				if ( $ta.length >= 4 ) {
+				if ( $ta.length >= 5 ) {
+					$ta.eq( 0 ).val( row.interface || '' );
+					$ta.eq( 1 ).val( row.target || '' );
+					$ta.eq( 2 ).val( row.notes || '' );
+					$ta.eq( 3 ).val( row.grammar || '' );
+					$ta.eq( 4 ).val( row.alt || '' );
+				} else if ( $ta.length >= 4 ) {
 					$ta.eq( 0 ).val( row.interface || '' );
 					$ta.eq( 1 ).val( row.target || '' );
 					$ta.eq( 2 ).val( row.grammar || '' );
@@ -506,6 +518,7 @@
 				$tr.append( $( '<td/>' ).append( $( '<span class="llm-csv-badge llm-csv-badge--' + row.action + '"/>' ).text( op ) ) );
 				$tr.append( $( '<td class="llm-csv-cell-text"/>' ).text( row.interface || '' ) );
 				$tr.append( $( '<td class="llm-csv-cell-text"/>' ).text( row.target || '' ) );
+				$tr.append( $( '<td class="llm-csv-cell-text"/>' ).text( row.notes || '' ) );
 				$tr.append( $( '<td class="llm-csv-cell-text"/>' ).text( row.grammar || '' ) );
 				$tr.append( $( '<td class="llm-csv-cell-text"/>' ).text( row.alt || '' ) );
 				$tb.append( $tr );
