@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class LLM_Tabelle_Database {
 
-	const DB_VERSION = '2.3.0';
+	const DB_VERSION = '2.6.0';
 
 	const OPT_VERSION = 'llm_tabelle_db_version';
 
@@ -58,6 +58,9 @@ class LLM_Tabelle_Database {
 			phrase_grammar longtext NOT NULL,
 			phrase_alt longtext NOT NULL,
 			phrase_notes longtext NOT NULL,
+			phrase_pronunciation longtext NOT NULL,
+			phrase_ipa longtext NOT NULL,
+			phrase_approx longtext NOT NULL,
 			PRIMARY KEY  (id),
 			KEY story_sort (story_id, sort_order)
 		) $charset_collate;";
@@ -105,6 +108,7 @@ class LLM_Tabelle_Database {
 			user_id bigint(20) unsigned NOT NULL,
 			story_id bigint(20) unsigned NOT NULL,
 			phrase_index int(11) NOT NULL DEFAULT 0,
+			display_phrase_index int(11) NOT NULL DEFAULT -1,
 			step tinyint(4) unsigned NOT NULL DEFAULT 1,
 			run_completions int(11) unsigned NOT NULL DEFAULT 0,
 			updated_gmt datetime NOT NULL,
@@ -116,6 +120,7 @@ class LLM_Tabelle_Database {
 			guest_id varchar(36) NOT NULL,
 			story_id bigint(20) unsigned NOT NULL,
 			phrase_index int(11) NOT NULL DEFAULT 0,
+			display_phrase_index int(11) NOT NULL DEFAULT -1,
 			step tinyint(4) unsigned NOT NULL DEFAULT 1,
 			run_completions int(11) unsigned NOT NULL DEFAULT 0,
 			updated_gmt datetime NOT NULL,
@@ -172,6 +177,9 @@ class LLM_Tabelle_Database {
 		dbDelta( $sql_bravo );
 
 		self::ensure_phrase_notes_column();
+		self::ensure_phrase_pronunciation_column();
+		self::ensure_phrase_ipa_approx_columns();
+		self::ensure_display_phrase_index_columns();
 
 		update_option( self::OPT_VERSION, self::DB_VERSION );
 	}
@@ -189,6 +197,55 @@ class LLM_Tabelle_Database {
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( "ALTER TABLE {$table} ADD COLUMN phrase_notes longtext NOT NULL" );
+	}
+
+	/**
+	 * Colonna pronuncia (upgrade da tabelle già esistenti).
+	 */
+	private static function ensure_phrase_pronunciation_column() {
+		global $wpdb;
+		$table = self::table( 'llm_story_phrases' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$col = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'phrase_pronunciation' ) );
+		if ( $col ) {
+			return;
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "ALTER TABLE {$table} ADD COLUMN phrase_pronunciation longtext NOT NULL" );
+	}
+
+	/**
+	 * IPA e pronuncia approssimata (upgrade da tabelle già esistenti).
+	 */
+	private static function ensure_phrase_ipa_approx_columns() {
+		global $wpdb;
+		$table = self::table( 'llm_story_phrases' );
+		foreach ( array( 'phrase_ipa', 'phrase_approx' ) as $col_name ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$col = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", $col_name ) );
+			if ( $col ) {
+				continue;
+			}
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN {$col_name} longtext NOT NULL" );
+		}
+	}
+
+	/**
+	 * Indice frase da mostrare (salto temporaneo), distinto dal checkpoint.
+	 */
+	private static function ensure_display_phrase_index_columns() {
+		global $wpdb;
+		foreach ( array( 'llm_user_story_game_progress', 'llm_guest_story_game_progress' ) as $suffix ) {
+			$table = self::table( $suffix );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$col = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'display_phrase_index' ) );
+			if ( $col ) {
+				continue;
+			}
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN display_phrase_index int(11) NOT NULL DEFAULT -1" );
+		}
 	}
 
 	public static function uninstall() {

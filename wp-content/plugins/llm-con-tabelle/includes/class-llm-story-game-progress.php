@@ -21,7 +21,7 @@ class LLM_Story_Game_Progress {
 	 * @param int $user_id  ID utente.
 	 * @param int $story_id ID storia.
 	 * @param int $total    Numero frasi nella storia.
-	 * @return array{phrase_index:int, step:int, finished:bool}|null Null se ospite.
+	 * @return array{phrase_index:int, step:int, finished:bool, display_phrase_index:int}|null Null se ospite.
 	 */
 	public static function resolve_for_user( $user_id, $story_id, $total ) {
 		$user_id  = absint( $user_id );
@@ -45,7 +45,8 @@ class LLM_Story_Game_Progress {
 			}
 		}
 
-		$row = self::get_row( $user_id, $story_id );
+		$row     = self::get_row( $user_id, $story_id );
+		$display = self::display_from_row( $row, $total );
 		if ( $row ) {
 			$pi = (int) $row['phrase_index'];
 			$st = (int) $row['step'];
@@ -55,48 +56,65 @@ class LLM_Story_Game_Progress {
 			if ( $pi >= 0 && $pi < $total ) {
 				// Mappa piena ma checkpoint valido ⇒ “Ricomincia storia”: si gioca di nuovo da quel punto.
 				if ( null === $first_incomplete ) {
-					return array(
-						'phrase_index' => $pi,
-						'step'         => $st,
-						'finished'     => false,
-					);
+					return self::pack_resolve( $pi, $st, false, $display );
 				}
 				if ( $pi === $first_incomplete ) {
-					return array(
-						'phrase_index' => $pi,
-						'step'         => $st,
-						'finished'     => false,
-					);
+					return self::pack_resolve( $pi, $st, false, $display );
 				}
 				self::upsert( $user_id, $story_id, $first_incomplete, self::STEP_TRANSLATE );
-				return array(
-					'phrase_index' => $first_incomplete,
-					'step'         => self::STEP_TRANSLATE,
-					'finished'     => false,
-				);
+				return self::pack_resolve( $first_incomplete, self::STEP_TRANSLATE, false, $display );
 			}
 		}
 
 		if ( null === $first_incomplete ) {
-			self::delete( $user_id, $story_id );
-			return array(
-				'phrase_index' => $total,
-				'step'         => self::STEP_TRANSLATE,
-				'finished'     => true,
-			);
+			if ( $display < 0 ) {
+				self::delete( $user_id, $story_id );
+			}
+			return self::pack_resolve( $total, self::STEP_TRANSLATE, true, $display );
 		}
 
+		return self::pack_resolve( $first_incomplete, self::STEP_TRANSLATE, false, $display );
+	}
+
+	/**
+	 * @param int  $phrase_index         Checkpoint.
+	 * @param int  $step                 STEP_TRANSLATE o STEP_REWRITE.
+	 * @param bool $finished             Storia finita.
+	 * @param int  $display_phrase_index Salto temporaneo, o -1.
+	 * @return array{phrase_index:int, step:int, finished:bool, display_phrase_index:int}
+	 */
+	private static function pack_resolve( $phrase_index, $step, $finished, $display_phrase_index ) {
 		return array(
-			'phrase_index' => $first_incomplete,
-			'step'         => self::STEP_TRANSLATE,
-			'finished'     => false,
+			'phrase_index'          => (int) $phrase_index,
+			'step'                  => (int) $step,
+			'finished'              => (bool) $finished,
+			'display_phrase_index'  => (int) $display_phrase_index,
 		);
+	}
+
+	/**
+	 * @param array<string,mixed>|null $row   Riga progresso.
+	 * @param int                      $total Numero frasi.
+	 * @return int
+	 */
+	public static function display_from_row( $row, $total = 0 ) {
+		if ( ! is_array( $row ) || ! isset( $row['display_phrase_index'] ) ) {
+			return -1;
+		}
+		$d = (int) $row['display_phrase_index'];
+		if ( $d < 0 ) {
+			return -1;
+		}
+		if ( $total > 0 && $d >= $total ) {
+			return -1;
+		}
+		return $d;
 	}
 
 	/**
 	 * @param int $user_id  ID utente.
 	 * @param int $story_id ID storia.
-	 * @return array{phrase_index:int, step:int}|null
+	 * @return array{phrase_index:int, step:int, run_completions:int, display_phrase_index:int}|null
 	 */
 	public static function get_row( $user_id, $story_id ) {
 		global $wpdb;
@@ -109,7 +127,7 @@ class LLM_Story_Game_Progress {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT phrase_index, step, run_completions FROM {$t} WHERE user_id = %d AND story_id = %d",
+				"SELECT phrase_index, step, run_completions, display_phrase_index FROM {$t} WHERE user_id = %d AND story_id = %d",
 				$user_id,
 				$story_id
 			),
@@ -119,20 +137,22 @@ class LLM_Story_Game_Progress {
 			return null;
 		}
 		return array(
-			'phrase_index'    => (int) $row['phrase_index'],
-			'step'            => (int) $row['step'],
-			'run_completions' => isset( $row['run_completions'] ) ? (int) $row['run_completions'] : 0,
+			'phrase_index'          => (int) $row['phrase_index'],
+			'step'                  => (int) $row['step'],
+			'run_completions'       => isset( $row['run_completions'] ) ? (int) $row['run_completions'] : 0,
+			'display_phrase_index'  => isset( $row['display_phrase_index'] ) ? (int) $row['display_phrase_index'] : -1,
 		);
 	}
 
 	/**
-	 * @param int      $user_id         ID utente.
-	 * @param int      $story_id        ID storia.
-	 * @param int      $phrase_index    Indice frase 0-based.
-	 * @param int      $step            STEP_TRANSLATE o STEP_REWRITE.
-	 * @param int|null $run_completions Conteggio frasi chiuse in questa «corsa»; null = mantieni valore attuale.
+	 * @param int      $user_id               ID utente.
+	 * @param int      $story_id              ID storia.
+	 * @param int      $phrase_index          Indice frase 0-based.
+	 * @param int      $step                  STEP_TRANSLATE o STEP_REWRITE.
+	 * @param int|null $run_completions       Conteggio frasi chiuse in questa «corsa»; null = mantieni valore attuale.
+	 * @param int|null $display_phrase_index  Salto temporaneo; null = mantieni valore attuale.
 	 */
-	public static function upsert( $user_id, $story_id, $phrase_index, $step, $run_completions = null ) {
+	public static function upsert( $user_id, $story_id, $phrase_index, $step, $run_completions = null, $display_phrase_index = null ) {
 		global $wpdb;
 		$user_id      = absint( $user_id );
 		$story_id     = absint( $story_id );
@@ -141,22 +161,67 @@ class LLM_Story_Game_Progress {
 		if ( ! $user_id || ! $story_id ) {
 			return;
 		}
+		$row = self::get_row( $user_id, $story_id );
 		if ( null === $run_completions ) {
-			$row = self::get_row( $user_id, $story_id );
 			$run_completions = is_array( $row ) && isset( $row['run_completions'] ) ? (int) $row['run_completions'] : 0;
+		}
+		if ( null === $display_phrase_index ) {
+			$display_phrase_index = is_array( $row ) && isset( $row['display_phrase_index'] ) ? (int) $row['display_phrase_index'] : -1;
 		}
 		$t = LLM_Tabelle_Database::table( 'llm_user_story_game_progress' );
 		$wpdb->replace(
 			$t,
 			array(
-				'user_id'         => $user_id,
-				'story_id'        => $story_id,
-				'phrase_index'    => $phrase_index,
-				'step'            => $step,
-				'run_completions' => (int) $run_completions,
-				'updated_gmt'     => current_time( 'mysql', true ),
+				'user_id'              => $user_id,
+				'story_id'             => $story_id,
+				'phrase_index'         => $phrase_index,
+				'display_phrase_index' => (int) $display_phrase_index,
+				'step'                 => $step,
+				'run_completions'      => (int) $run_completions,
+				'updated_gmt'          => current_time( 'mysql', true ),
 			),
-			array( '%d', '%d', '%d', '%d', '%d', '%s' )
+			array( '%d', '%d', '%d', '%d', '%d', '%d', '%s' )
+		);
+	}
+
+	/**
+	 * Imposta o azzera il salto di visualizzazione senza toccare il checkpoint.
+	 *
+	 * @param int $user_id               ID utente.
+	 * @param int $story_id              ID storia.
+	 * @param int $display_ix            Indice da mostrare, o -1 per azzerare.
+	 * @param int $fallback_phrase_index Checkpoint se la riga non esiste.
+	 */
+	public static function set_display_phrase_index( $user_id, $story_id, $display_ix, $fallback_phrase_index = 0 ) {
+		global $wpdb;
+		$user_id               = absint( $user_id );
+		$story_id              = absint( $story_id );
+		$display_ix            = (int) $display_ix;
+		$fallback_phrase_index = (int) $fallback_phrase_index;
+		if ( ! $user_id || ! $story_id ) {
+			return;
+		}
+		if ( $display_ix < -1 ) {
+			$display_ix = -1;
+		}
+		$row = self::get_row( $user_id, $story_id );
+		if ( ! $row ) {
+			self::upsert( $user_id, $story_id, $fallback_phrase_index, self::STEP_TRANSLATE, 0, $display_ix );
+			return;
+		}
+		$t = LLM_Tabelle_Database::table( 'llm_user_story_game_progress' );
+		$wpdb->update(
+			$t,
+			array(
+				'display_phrase_index' => $display_ix,
+				'updated_gmt'          => current_time( 'mysql', true ),
+			),
+			array(
+				'user_id'  => $user_id,
+				'story_id' => $story_id,
+			),
+			array( '%d', '%s' ),
+			array( '%d', '%d' )
 		);
 	}
 

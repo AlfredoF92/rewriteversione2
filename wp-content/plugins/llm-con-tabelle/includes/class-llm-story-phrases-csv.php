@@ -30,6 +30,9 @@ class LLM_Story_Phrases_Csv {
 			'Analisi grammaticale',
 			'Traduzione alternativa',
 			'Note sulla frase',
+			'Pronuncia',
+			'Trascrizione fonetica IPA',
+			'Pronuncia approssimata nella tua lingua',
 		);
 	}
 
@@ -120,6 +123,9 @@ class LLM_Story_Phrases_Csv {
 					isset( $row['grammar'] ) ? (string) $row['grammar'] : '',
 					isset( $row['alt'] ) ? (string) $row['alt'] : '',
 					isset( $row['notes'] ) ? (string) $row['notes'] : '',
+					isset( $row['pronunciation'] ) ? (string) $row['pronunciation'] : '',
+					isset( $row['ipa'] ) ? (string) $row['ipa'] : '',
+					isset( $row['approx'] ) ? (string) $row['approx'] : '',
 				),
 				self::CSV_DELIMITER
 			);
@@ -348,7 +354,10 @@ class LLM_Story_Phrases_Csv {
 			'target'    => isset( $cells[ $header_map['target'] ] ) ? (string) $cells[ $header_map['target'] ] : '',
 			'grammar'   => isset( $cells[ $header_map['grammar'] ] ) ? (string) $cells[ $header_map['grammar'] ] : '',
 			'alt'       => isset( $cells[ $header_map['alt'] ] ) ? (string) $cells[ $header_map['alt'] ] : '',
-			'notes'     => ( isset( $header_map['notes'] ) && null !== $header_map['notes'] && isset( $cells[ $header_map['notes'] ] ) ) ? (string) $cells[ $header_map['notes'] ] : '',
+			'notes'          => ( isset( $header_map['notes'] ) && null !== $header_map['notes'] && isset( $cells[ $header_map['notes'] ] ) ) ? (string) $cells[ $header_map['notes'] ] : '',
+			'pronunciation'  => ( isset( $header_map['pronunciation'] ) && null !== $header_map['pronunciation'] && isset( $cells[ $header_map['pronunciation'] ] ) ) ? (string) $cells[ $header_map['pronunciation'] ] : '',
+			'ipa'            => ( isset( $header_map['ipa'] ) && null !== $header_map['ipa'] && isset( $cells[ $header_map['ipa'] ] ) ) ? (string) $cells[ $header_map['ipa'] ] : '',
+			'approx'         => ( isset( $header_map['approx'] ) && null !== $header_map['approx'] && isset( $cells[ $header_map['approx'] ] ) ) ? (string) $cells[ $header_map['approx'] ] : '',
 		);
 	}
 
@@ -381,6 +390,9 @@ class LLM_Story_Phrases_Csv {
 		$gr_i  = $find( array( 'analisi grammaticale', 'grammaticale', 'grammar' ) );
 		$al_i  = $find( array( 'traduzione alternativa', 'alternativa' ) );
 		$nt_i  = $find( array( 'note sulla frase', 'phrase notes', 'phrase_notes' ) );
+		$pr_i  = $find( array( 'pronuncia', 'pronunciation', 'pronunciacion', 'pronunciación' ) );
+		$ipa_i = $find( array( 'trascrizione fonetica ipa', 'fonetica ipa', 'phrase_ipa', 'ipa' ) );
+		$ap_i  = $find( array( 'pronuncia approssimata', 'approssimata nella tua lingua', 'phrase_approx', 'approx' ) );
 
 		if ( null !== $pos_i && null !== $if_i && null !== $tg_i && null !== $gr_i && null !== $al_i ) {
 			return array(
@@ -389,7 +401,10 @@ class LLM_Story_Phrases_Csv {
 				'target'    => $tg_i,
 				'grammar'   => $gr_i,
 				'alt'       => $al_i,
-				'notes'     => $nt_i,
+				'notes'          => $nt_i,
+				'pronunciation'  => $pr_i,
+				'ipa'            => $ipa_i,
+				'approx'         => $ap_i,
 			);
 		}
 
@@ -404,7 +419,10 @@ class LLM_Story_Phrases_Csv {
 				'target'    => 2,
 				'grammar'   => 3,
 				'alt'       => 4,
-				'notes'     => count( $cells ) >= 6 ? 5 : null,
+				'notes'          => count( $cells ) >= 6 ? 5 : null,
+				'pronunciation'  => count( $cells ) >= 7 ? 6 : null,
+				'ipa'            => count( $cells ) >= 8 ? 7 : null,
+				'approx'         => count( $cells ) >= 9 ? 8 : null,
 			);
 		}
 
@@ -449,7 +467,10 @@ class LLM_Story_Phrases_Csv {
 				'target'    => isset( $r['target'] ) ? LLM_Story_Repository::sanitize_phrase_rich_text( $r['target'] ) : '',
 				'grammar'   => isset( $r['grammar'] ) ? LLM_Story_Repository::sanitize_phrase_rich_text( $r['grammar'] ) : '',
 				'alt'       => isset( $r['alt'] ) ? LLM_Story_Repository::sanitize_phrase_rich_text( $r['alt'] ) : '',
-				'notes'     => isset( $r['notes'] ) ? LLM_Story_Repository::sanitize_phrase_rich_text( $r['notes'] ) : '',
+				'notes'          => isset( $r['notes'] ) ? LLM_Story_Repository::sanitize_phrase_rich_text( $r['notes'] ) : '',
+				'pronunciation'  => isset( $r['pronunciation'] ) ? LLM_Story_Repository::sanitize_phrase_rich_text( $r['pronunciation'] ) : '',
+				'ipa'            => isset( $r['ipa'] ) ? LLM_Story_Repository::sanitize_phrase_rich_text( $r['ipa'] ) : '',
+				'approx'         => isset( $r['approx'] ) ? LLM_Story_Repository::sanitize_phrase_rich_text( $r['approx'] ) : '',
 			);
 		}
 
@@ -475,11 +496,14 @@ class LLM_Story_Phrases_Csv {
 		$max_pos   = max( $old_count, $max_csv );
 
 		$empty = array(
-			'interface' => '',
-			'target'    => '',
-			'grammar'   => '',
-			'alt'       => '',
-			'notes'     => '',
+			'interface'      => '',
+			'target'         => '',
+			'grammar'        => '',
+			'alt'            => '',
+			'notes'          => '',
+			'pronunciation'  => '',
+			'ipa'            => '',
+			'approx'         => '',
 		);
 
 		$merged  = array();
@@ -490,6 +514,15 @@ class LLM_Story_Phrases_Csv {
 
 			if ( isset( $by_pos[ $p ] ) ) {
 				$row    = $by_pos[ $p ];
+				if ( '' === trim( (string) ( isset( $row['pronunciation'] ) ? $row['pronunciation'] : '' ) ) && isset( $old['pronunciation'] ) ) {
+					$row['pronunciation'] = (string) $old['pronunciation'];
+				}
+				if ( '' === trim( (string) ( isset( $row['ipa'] ) ? $row['ipa'] : '' ) ) && isset( $old['ipa'] ) ) {
+					$row['ipa'] = (string) $old['ipa'];
+				}
+				if ( '' === trim( (string) ( isset( $row['approx'] ) ? $row['approx'] : '' ) ) && isset( $old['approx'] ) ) {
+					$row['approx'] = (string) $old['approx'];
+				}
 				$action = ( $p <= $old_count ) ? 'replace' : 'add';
 				$merged[] = $row;
 				$preview[] = array(
@@ -508,7 +541,10 @@ class LLM_Story_Phrases_Csv {
 					'target'    => isset( $old['target'] ) ? (string) $old['target'] : '',
 					'grammar'   => isset( $old['grammar'] ) ? (string) $old['grammar'] : '',
 					'alt'       => isset( $old['alt'] ) ? (string) $old['alt'] : '',
-					'notes'     => isset( $old['notes'] ) ? (string) $old['notes'] : '',
+					'notes'          => isset( $old['notes'] ) ? (string) $old['notes'] : '',
+					'pronunciation'  => isset( $old['pronunciation'] ) ? (string) $old['pronunciation'] : '',
+					'ipa'            => isset( $old['ipa'] ) ? (string) $old['ipa'] : '',
+					'approx'         => isset( $old['approx'] ) ? (string) $old['approx'] : '',
 				);
 			}
 		}

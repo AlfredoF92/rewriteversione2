@@ -246,7 +246,7 @@
 		if (isNaN(serverDone)) { serverDone = serverIx; }
 
 		var restored = false;
-		if (local) {
+		if (local && !cfg.isPhraseJump) {
 			var localIx = local.phraseIndex;
 			var localDone = local.phrasesDone;
 			if (local.finished || localDone > serverDone || localIx > serverIx) {
@@ -272,7 +272,8 @@
 			if (phrases[i]) {
 				completed.push({
 					target: phrases[i].target || '',
-					interface: phrases[i].interface || ''
+					interface: phrases[i].interface || '',
+					index: i
 				});
 			}
 		}

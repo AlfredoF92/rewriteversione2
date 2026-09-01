@@ -37,6 +37,9 @@ class LLM_Learning_Modes {
 	/** Fase unica: traduzione corretta e avanti. */
 	const MODE_RESOLVE_GO = 'resolve_go';
 
+	/** Come Risolvi e vai, ma con un secondo campo solo microfono. */
+	const MODE_WRITE_TRANSLATE = 'write_translate';
+
 	/** Fase unica senza controlli: si avanza sempre. */
 	const MODE_READ_GO_FAST = 'read_go_fast';
 
@@ -63,6 +66,11 @@ class LLM_Learning_Modes {
 				'id'          => self::MODE_RESOLVE_GO,
 				'label'       => LLM_Phrase_Game_I18n::get( 'mode_resolve_go_label' ),
 				'description' => LLM_Phrase_Game_I18n::get( 'mode_resolve_go_desc' ),
+			),
+			array(
+				'id'          => self::MODE_WRITE_TRANSLATE,
+				'label'       => LLM_Phrase_Game_I18n::get( 'mode_write_translate_label' ),
+				'description' => LLM_Phrase_Game_I18n::get( 'mode_write_translate_desc' ),
 			),
 			array(
 				'id'          => self::MODE_READ_GO_FAST,

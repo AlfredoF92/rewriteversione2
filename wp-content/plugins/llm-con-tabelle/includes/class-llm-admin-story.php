@@ -430,7 +430,7 @@ class LLM_Admin_Story {
 			<button type="button" class="button" id="llm-add-phrase"><?php esc_html_e( 'Aggiungi frase', 'llm-con-tabelle' ); ?></button>
 		</p>
 		<script type="text/template" id="llm-phrase-template">
-			<?php self::render_phrase_row( '{{IDX}}', array( 'interface' => '', 'target' => '', 'grammar' => '', 'alt' => '', 'notes' => '' ) ); ?>
+			<?php self::render_phrase_row( '{{IDX}}', array( 'interface' => '', 'target' => '', 'grammar' => '', 'alt' => '', 'notes' => '', 'pronunciation' => '', 'ipa' => '', 'approx' => '' ) ); ?>
 		</script>
 		<?php if ( $post->ID > 0 ) : ?>
 		<div id="llm-phrases-csv-modal" class="llm-csv-modal" hidden aria-hidden="true">
@@ -510,6 +510,12 @@ class LLM_Admin_Story {
 					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][grammar]" class="widefat" rows="3"><?php echo esc_textarea( isset( $p['grammar'] ) ? $p['grammar'] : '' ); ?></textarea>
 					<label><?php esc_html_e( 'Traduzione alternativa', 'llm-con-tabelle' ); ?></label>
 					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][alt]" class="widefat" rows="2"><?php echo esc_textarea( isset( $p['alt'] ) ? $p['alt'] : '' ); ?></textarea>
+					<label><?php esc_html_e( 'Pronuncia', 'llm-con-tabelle' ); ?></label>
+					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][pronunciation]" class="widefat" rows="4"><?php echo esc_textarea( isset( $p['pronunciation'] ) ? $p['pronunciation'] : '' ); ?></textarea>
+					<label><?php esc_html_e( 'Trascrizione fonetica IPA', 'llm-con-tabelle' ); ?></label>
+					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][ipa]" class="widefat" rows="2"><?php echo esc_textarea( isset( $p['ipa'] ) ? $p['ipa'] : '' ); ?></textarea>
+					<label><?php esc_html_e( 'Pronuncia approssimata nella tua lingua', 'llm-con-tabelle' ); ?></label>
+					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][approx]" class="widefat" rows="2"><?php echo esc_textarea( isset( $p['approx'] ) ? $p['approx'] : '' ); ?></textarea>
 					<button type="button" class="button-link llm-remove-phrase"><?php esc_html_e( 'Rimuovi frase', 'llm-con-tabelle' ); ?></button>
 				</div>
 			</details>

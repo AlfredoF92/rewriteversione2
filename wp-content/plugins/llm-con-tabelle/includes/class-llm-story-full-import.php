@@ -178,6 +178,10 @@ class LLM_Story_Full_Import {
 					isset( $row['target'] ) ? (string) $row['target'] : '',
 					$include_grammar && isset( $row['grammar'] ) ? (string) $row['grammar'] : '',
 					isset( $row['alt'] ) ? (string) $row['alt'] : '',
+					isset( $row['notes'] ) ? (string) $row['notes'] : '',
+					isset( $row['pronunciation'] ) ? (string) $row['pronunciation'] : '',
+					isset( $row['ipa'] ) ? (string) $row['ipa'] : '',
+					isset( $row['approx'] ) ? (string) $row['approx'] : '',
 				),
 				LLM_Story_Phrases_Csv::CSV_DELIMITER
 			);

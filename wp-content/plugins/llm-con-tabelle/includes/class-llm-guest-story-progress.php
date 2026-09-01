@@ -94,7 +94,7 @@ class LLM_Guest_Story_Progress {
 	 * @param string $guest_id ID ospite.
 	 * @param int    $story_id ID storia.
 	 * @param int    $total    Numero frasi.
-	 * @return array{phrase_index:int, step:int, finished:bool}|null
+	 * @return array{phrase_index:int, step:int, finished:bool, display_phrase_index:int}|null
 	 */
 	public static function resolve( $guest_id, $story_id, $total ) {
 		$guest_id = (string) $guest_id;
@@ -104,12 +104,14 @@ class LLM_Guest_Story_Progress {
 			return null;
 		}
 
-		$row = self::get_row( $guest_id, $story_id );
+		$row     = self::get_row( $guest_id, $story_id );
+		$display = LLM_Story_Game_Progress::display_from_row( $row, $total );
 		if ( ! $row ) {
 			return array(
-				'phrase_index' => 0,
-				'step'         => LLM_Story_Game_Progress::STEP_TRANSLATE,
-				'finished'     => false,
+				'phrase_index'         => 0,
+				'step'                 => LLM_Story_Game_Progress::STEP_TRANSLATE,
+				'finished'             => false,
+				'display_phrase_index' => -1,
 			);
 		}
 
@@ -121,9 +123,10 @@ class LLM_Guest_Story_Progress {
 
 		if ( $pi >= $total ) {
 			return array(
-				'phrase_index' => $total,
-				'step'         => LLM_Story_Game_Progress::STEP_TRANSLATE,
-				'finished'     => true,
+				'phrase_index'         => $total,
+				'step'                 => LLM_Story_Game_Progress::STEP_TRANSLATE,
+				'finished'             => true,
+				'display_phrase_index' => $display,
 			);
 		}
 
@@ -132,16 +135,17 @@ class LLM_Guest_Story_Progress {
 		}
 
 		return array(
-			'phrase_index' => $pi,
-			'step'         => $st,
-			'finished'     => false,
+			'phrase_index'         => $pi,
+			'step'                 => $st,
+			'finished'             => false,
+			'display_phrase_index' => $display,
 		);
 	}
 
 	/**
 	 * @param string $guest_id ID ospite.
 	 * @param int    $story_id ID storia.
-	 * @return array{phrase_index:int, step:int, run_completions:int}|null
+	 * @return array{phrase_index:int, step:int, run_completions:int, display_phrase_index:int}|null
 	 */
 	public static function get_row( $guest_id, $story_id ) {
 		global $wpdb;
@@ -154,7 +158,7 @@ class LLM_Guest_Story_Progress {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT phrase_index, step, run_completions FROM {$t} WHERE guest_id = %s AND story_id = %d",
+				"SELECT phrase_index, step, run_completions, display_phrase_index FROM {$t} WHERE guest_id = %s AND story_id = %d",
 				$guest_id,
 				$story_id
 			),
@@ -164,20 +168,22 @@ class LLM_Guest_Story_Progress {
 			return null;
 		}
 		return array(
-			'phrase_index'    => (int) $row['phrase_index'],
-			'step'            => (int) $row['step'],
-			'run_completions' => isset( $row['run_completions'] ) ? (int) $row['run_completions'] : 0,
+			'phrase_index'         => (int) $row['phrase_index'],
+			'step'                 => (int) $row['step'],
+			'run_completions'      => isset( $row['run_completions'] ) ? (int) $row['run_completions'] : 0,
+			'display_phrase_index' => isset( $row['display_phrase_index'] ) ? (int) $row['display_phrase_index'] : -1,
 		);
 	}
 
 	/**
-	 * @param string   $guest_id         ID ospite.
-	 * @param int      $story_id         ID storia.
-	 * @param int      $phrase_index     Indice frase 0-based (o = total se finita).
-	 * @param int      $step             STEP_TRANSLATE o STEP_REWRITE.
-	 * @param int|null $run_completions  Null = mantieni valore attuale.
+	 * @param string   $guest_id              ID ospite.
+	 * @param int      $story_id              ID storia.
+	 * @param int      $phrase_index          Indice frase 0-based (o = total se finita).
+	 * @param int      $step                  STEP_TRANSLATE o STEP_REWRITE.
+	 * @param int|null $run_completions       Null = mantieni valore attuale.
+	 * @param int|null $display_phrase_index  Salto temporaneo; null = mantieni valore attuale.
 	 */
-	public static function upsert( $guest_id, $story_id, $phrase_index, $step, $run_completions = null ) {
+	public static function upsert( $guest_id, $story_id, $phrase_index, $step, $run_completions = null, $display_phrase_index = null ) {
 		global $wpdb;
 		$guest_id     = (string) $guest_id;
 		$story_id     = absint( $story_id );
@@ -186,22 +192,67 @@ class LLM_Guest_Story_Progress {
 		if ( ! self::is_valid_id( $guest_id ) || ! $story_id ) {
 			return;
 		}
+		$row = self::get_row( $guest_id, $story_id );
 		if ( null === $run_completions ) {
-			$row             = self::get_row( $guest_id, $story_id );
 			$run_completions = is_array( $row ) && isset( $row['run_completions'] ) ? (int) $row['run_completions'] : 0;
+		}
+		if ( null === $display_phrase_index ) {
+			$display_phrase_index = is_array( $row ) && isset( $row['display_phrase_index'] ) ? (int) $row['display_phrase_index'] : -1;
 		}
 		$t = LLM_Tabelle_Database::table( 'llm_guest_story_game_progress' );
 		$wpdb->replace(
 			$t,
 			array(
-				'guest_id'        => $guest_id,
-				'story_id'        => $story_id,
-				'phrase_index'    => $phrase_index,
-				'step'            => $step,
-				'run_completions' => (int) $run_completions,
-				'updated_gmt'     => current_time( 'mysql', true ),
+				'guest_id'             => $guest_id,
+				'story_id'             => $story_id,
+				'phrase_index'         => $phrase_index,
+				'display_phrase_index' => (int) $display_phrase_index,
+				'step'                 => $step,
+				'run_completions'      => (int) $run_completions,
+				'updated_gmt'          => current_time( 'mysql', true ),
 			),
-			array( '%s', '%d', '%d', '%d', '%d', '%s' )
+			array( '%s', '%d', '%d', '%d', '%d', '%d', '%s' )
+		);
+	}
+
+	/**
+	 * Imposta o azzera il salto di visualizzazione senza toccare il checkpoint.
+	 *
+	 * @param string $guest_id              ID ospite.
+	 * @param int    $story_id              ID storia.
+	 * @param int    $display_ix            Indice da mostrare, o -1 per azzerare.
+	 * @param int    $fallback_phrase_index Checkpoint se la riga non esiste.
+	 */
+	public static function set_display_phrase_index( $guest_id, $story_id, $display_ix, $fallback_phrase_index = 0 ) {
+		global $wpdb;
+		$guest_id              = (string) $guest_id;
+		$story_id              = absint( $story_id );
+		$display_ix            = (int) $display_ix;
+		$fallback_phrase_index = (int) $fallback_phrase_index;
+		if ( ! self::is_valid_id( $guest_id ) || ! $story_id ) {
+			return;
+		}
+		if ( $display_ix < -1 ) {
+			$display_ix = -1;
+		}
+		$row = self::get_row( $guest_id, $story_id );
+		if ( ! $row ) {
+			self::upsert( $guest_id, $story_id, $fallback_phrase_index, LLM_Story_Game_Progress::STEP_TRANSLATE, 0, $display_ix );
+			return;
+		}
+		$t = LLM_Tabelle_Database::table( 'llm_guest_story_game_progress' );
+		$wpdb->update(
+			$t,
+			array(
+				'display_phrase_index' => $display_ix,
+				'updated_gmt'          => current_time( 'mysql', true ),
+			),
+			array(
+				'guest_id' => $guest_id,
+				'story_id' => $story_id,
+			),
+			array( '%d', '%s' ),
+			array( '%s', '%d' )
 		);
 	}
 

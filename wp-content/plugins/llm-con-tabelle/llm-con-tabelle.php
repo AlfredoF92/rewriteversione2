@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       LLM CON TABELLE
  * Description:       Storie, utenti e community in tabelle MySQL (no JSON strutturato). Parallelo a LLS, senza migrazione.
- * Version:           2.2.302
+ * Version:           2.2.383
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            LLM CON TABELLE
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LLM_TABELLE_VERSION', '2.2.302' );
+define( 'LLM_TABELLE_VERSION', '2.2.383' );
 define( 'LLM_TABELLE_FILE', __FILE__ );
 define( 'LLM_TABELLE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LLM_TABELLE_URL', plugin_dir_url( __FILE__ ) );
@@ -28,6 +28,7 @@ if ( ! defined( 'LLM_REDIRECTS_ENABLED' ) ) {
 }
 
 require_once LLM_TABELLE_DIR . 'includes/class-llm-tabelle-database.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-phrase-pronunciation-prompt.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-languages.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-meta.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-post-type.php';
@@ -104,6 +105,9 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-lang-cards-shortcode.php';
 if ( file_exists( LLM_TABELLE_DIR . 'includes/class-llm-italian-english-stories-shortcode.php' ) ) {
 	require_once LLM_TABELLE_DIR . 'includes/class-llm-italian-english-stories-shortcode.php';
 }
+if ( file_exists( LLM_TABELLE_DIR . 'includes/class-llm-home-page-uscite-shortcode.php' ) ) {
+	require_once LLM_TABELLE_DIR . 'includes/class-llm-home-page-uscite-shortcode.php';
+}
 require_once LLM_TABELLE_DIR . 'includes/class-llm-change-lang-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-home-redirect.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-phrase-feedback.php';
@@ -118,6 +122,8 @@ function llm_tabelle_maybe_upgrade_db() {
 	}
 }
 add_action( 'plugins_loaded', 'llm_tabelle_maybe_upgrade_db', 2 );
+add_action( 'init', array( 'LLM_Phrase_Pronunciation_Prompt', 'maybe_seed_david_first3' ), 20 );
+add_action( 'init', array( 'LLM_Phrase_Pronunciation_Prompt', 'maybe_seed_david_ipa_approx_first3' ), 21 );
 
 /**
  * Avvio.
@@ -192,6 +198,9 @@ function llm_tabelle_boot() {
 	LLM_Lang_Cards_Shortcode::init();
 	if ( class_exists( 'LLM_Italian_English_Stories_Shortcode' ) ) {
 		LLM_Italian_English_Stories_Shortcode::init();
+	}
+	if ( class_exists( 'LLM_Home_Page_Uscite_Shortcode' ) ) {
+		LLM_Home_Page_Uscite_Shortcode::init();
 	}
 	LLM_Change_Lang_Shortcode::init();
 	LLM_Guest_Browser_Data_Shortcode::init();

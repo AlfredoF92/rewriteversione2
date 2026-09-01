@@ -13,7 +13,7 @@ class LLM_Story_Repository {
 
 	/**
 	 * @param int $story_id ID post storia.
-	 * @return array<int, array{interface:string,target:string,grammar:string,alt:string,notes:string}>
+	 * @return array<int, array{interface:string,target:string,grammar:string,alt:string,notes:string,pronunciation:string}>
 	 */
 	public static function get_phrases( $story_id ) {
 		global $wpdb;
@@ -23,7 +23,7 @@ class LLM_Story_Repository {
 		}
 		$table = LLM_Tabelle_Database::table( 'llm_story_phrases' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT phrase_interface, phrase_target, phrase_grammar, phrase_alt, phrase_notes FROM {$table} WHERE story_id = %d ORDER BY sort_order ASC, id ASC", $story_id ), ARRAY_A );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT phrase_interface, phrase_target, phrase_grammar, phrase_alt, phrase_notes, phrase_pronunciation, phrase_ipa, phrase_approx FROM {$table} WHERE story_id = %d ORDER BY sort_order ASC, id ASC", $story_id ), ARRAY_A );
 		if ( ! is_array( $rows ) ) {
 			return array();
 		}
@@ -36,7 +36,7 @@ class LLM_Story_Repository {
 
 	/**
 	 * @param array<string,mixed> $r Riga DB o array già mappato.
-	 * @return array{interface:string,target:string,grammar:string,alt:string,notes:string}
+	 * @return array{interface:string,target:string,grammar:string,alt:string,notes:string,pronunciation:string}
 	 */
 	private static function map_phrase_row( $r ) {
 		if ( ! is_array( $r ) ) {
@@ -47,7 +47,10 @@ class LLM_Story_Repository {
 			'target'    => isset( $r['phrase_target'] ) ? (string) $r['phrase_target'] : ( isset( $r['target'] ) ? (string) $r['target'] : '' ),
 			'grammar'   => isset( $r['phrase_grammar'] ) ? (string) $r['phrase_grammar'] : ( isset( $r['grammar'] ) ? (string) $r['grammar'] : '' ),
 			'alt'       => isset( $r['phrase_alt'] ) ? (string) $r['phrase_alt'] : ( isset( $r['alt'] ) ? (string) $r['alt'] : '' ),
-			'notes'     => isset( $r['phrase_notes'] ) ? (string) $r['phrase_notes'] : ( isset( $r['notes'] ) ? (string) $r['notes'] : '' ),
+			'notes'          => isset( $r['phrase_notes'] ) ? (string) $r['phrase_notes'] : ( isset( $r['notes'] ) ? (string) $r['notes'] : '' ),
+			'pronunciation'  => isset( $r['phrase_pronunciation'] ) ? (string) $r['phrase_pronunciation'] : ( isset( $r['pronunciation'] ) ? (string) $r['pronunciation'] : '' ),
+			'ipa'            => isset( $r['phrase_ipa'] ) ? (string) $r['phrase_ipa'] : ( isset( $r['ipa'] ) ? (string) $r['ipa'] : '' ),
+			'approx'         => isset( $r['phrase_approx'] ) ? (string) $r['phrase_approx'] : ( isset( $r['approx'] ) ? (string) $r['approx'] : '' ),
 		);
 	}
 
@@ -140,7 +143,7 @@ class LLM_Story_Repository {
 	 *
 	 * @param int $story_id ID storia.
 	 * @param int $index    Indice 0-based.
-	 * @return array{interface:string,target:string,grammar:string,alt:string,notes:string}|null
+	 * @return array{interface:string,target:string,grammar:string,alt:string,notes:string,pronunciation:string}|null
 	 */
 	public static function get_phrase_at( $story_id, $index ) {
 		global $wpdb;
@@ -153,7 +156,7 @@ class LLM_Story_Repository {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT phrase_interface, phrase_target, phrase_grammar, phrase_alt, phrase_notes FROM {$table} WHERE story_id = %d ORDER BY sort_order ASC, id ASC LIMIT 1 OFFSET %d",
+				"SELECT phrase_interface, phrase_target, phrase_grammar, phrase_alt, phrase_notes, phrase_pronunciation, phrase_ipa, phrase_approx FROM {$table} WHERE story_id = %d ORDER BY sort_order ASC, id ASC LIMIT 1 OFFSET %d",
 				$story_id,
 				$index
 			),
@@ -170,7 +173,7 @@ class LLM_Story_Repository {
 	 *
 	 * @param int    $story_id ID storia.
 	 * @param int    $index    Indice frase.
-	 * @param string $field    notes|grammar|alt.
+	 * @param string $field    notes|grammar|alt|pronunciation.
 	 * @param string $value    HTML consentito.
 	 * @return bool
 	 */
@@ -179,9 +182,12 @@ class LLM_Story_Repository {
 		$story_id = absint( $story_id );
 		$index    = absint( $index );
 		$map      = array(
-			'notes'   => 'phrase_notes',
-			'grammar' => 'phrase_grammar',
-			'alt'     => 'phrase_alt',
+			'notes'          => 'phrase_notes',
+			'grammar'        => 'phrase_grammar',
+			'alt'            => 'phrase_alt',
+			'pronunciation'  => 'phrase_pronunciation',
+			'ipa'            => 'phrase_ipa',
+			'approx'         => 'phrase_approx',
 		);
 		if ( ! $story_id || ! isset( $map[ $field ] ) ) {
 			return false;
@@ -242,7 +248,7 @@ class LLM_Story_Repository {
 
 	/**
 	 * @param int   $story_id ID post.
-	 * @param array $phrases  Array di righe con chiavi interface, target, grammar, alt, notes (HTML consentito).
+	 * @param array $phrases  Array di righe con chiavi interface, target, grammar, alt, notes, pronunciation (HTML consentito).
 	 */
 	public static function save_phrases( $story_id, array $phrases ) {
 		global $wpdb;
@@ -266,10 +272,13 @@ class LLM_Story_Repository {
 					'phrase_interface' => isset( $row['interface'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['interface'] ) ) : '',
 					'phrase_target'    => isset( $row['target'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['target'] ) ) : '',
 					'phrase_grammar'   => isset( $row['grammar'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['grammar'] ) ) : '',
-					'phrase_alt'       => isset( $row['alt'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['alt'] ) ) : '',
-					'phrase_notes'     => isset( $row['notes'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['notes'] ) ) : '',
+					'phrase_alt'            => isset( $row['alt'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['alt'] ) ) : '',
+					'phrase_notes'          => isset( $row['notes'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['notes'] ) ) : '',
+					'phrase_pronunciation'  => isset( $row['pronunciation'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['pronunciation'] ) ) : '',
+					'phrase_ipa'            => isset( $row['ipa'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['ipa'] ) ) : '',
+					'phrase_approx'         => isset( $row['approx'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['approx'] ) ) : '',
 				),
-				array( '%d', '%d', '%s', '%s', '%s', '%s', '%s' )
+				array( '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 			);
 			++$order;
 		}
@@ -374,7 +383,10 @@ class LLM_Story_Repository {
 				'target'    => isset( $row['target'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['target'] ) ) : '',
 				'grammar'   => isset( $row['grammar'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['grammar'] ) ) : '',
 				'alt'       => isset( $row['alt'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['alt'] ) ) : '',
-				'notes'     => isset( $row['notes'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['notes'] ) ) : '',
+				'notes'          => isset( $row['notes'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['notes'] ) ) : '',
+				'pronunciation'  => isset( $row['pronunciation'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['pronunciation'] ) ) : '',
+				'ipa'            => isset( $row['ipa'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['ipa'] ) ) : '',
+				'approx'         => isset( $row['approx'] ) ? self::sanitize_phrase_rich_text( wp_unslash( $row['approx'] ) ) : '',
 			);
 		}
 		return $out;

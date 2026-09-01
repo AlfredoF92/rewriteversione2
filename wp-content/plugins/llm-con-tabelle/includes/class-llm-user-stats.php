@@ -357,7 +357,8 @@ class LLM_User_Stats {
 			$story_id,
 			0,
 			LLM_Story_Game_Progress::STEP_TRANSLATE,
-			0
+			0,
+			-1
 		);
 	}
 
@@ -385,7 +386,8 @@ class LLM_User_Stats {
 			$story_id,
 			0,
 			LLM_Story_Game_Progress::STEP_TRANSLATE,
-			0
+			0,
+			-1
 		);
 	}
 

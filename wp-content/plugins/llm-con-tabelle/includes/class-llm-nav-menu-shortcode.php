@@ -166,6 +166,15 @@ class LLM_Nav_Menu_Shortcode {
 	}
 
 	/**
+	 * Coppie visibili in menù / homepage uscite.
+	 *
+	 * @return array<int,array{known:string,target:string,url:string}>
+	 */
+	public static function directory_pairs() {
+		return self::pairs_to_show();
+	}
+
+	/**
 	 * @return array<int,array{known:string,target:string,url:string}>
 	 */
 	private static function pairs_to_show() {
