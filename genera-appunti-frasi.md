@@ -29,14 +29,16 @@ Per ogni frase, scrivi l'analisi seguendo queste regole:
 - **Tono**: amichevole e semplice, come se spiegassi a un ragazzo
 - **Lunghezza**: MINIMO 220 parole per frase (tutti i paragrafi insieme)
 - **Evidenzia sempre**: Coniugazione completa del verbo (tra parentesi mettimi anche la traduzione delle varie congiugazioni). Se è sostantivo/aggettivo/avverbio, modo di dire, una struttura regolare o irregolari o qualcosa che mi fa ricordare di che tipo è quella parola o quella struttura.
+- **Niente pronuncia**: non scrivere IPA, suoni, “come si legge”, palatali, “scandendo”, “ad alta voce”. Tutto ciò che riguarda la pronuncia va nel campo **Consigli sulla pronuncia**, non in Analisi grammaticale.
 - **Niente punteggiatura**: non spiegare virgole, punti, due punti, virgolette, punti interrogativi o qualsiasi altro segno di punteggiatura.
 - **Niente formule da “rubare”**: non usare frasi tipo "Stampino da rubare", "Questa è la frase da rubare in ogni ufficio" o simili. Se l’utente deve ricordare qualcosa, usa **solo** `Ricorda:` seguito dalla spiegazione.
 
 Ordine fisso del testo (non invertire):
 
-1. **Spiegazione** — punti `"parte in lingua nota" → "traduzione in _llm_target_lang"` — spiegazione esaustiva in [`_llm_known_lang`]. Differenze con la lingua madre, altri esempi d’uso. **Niente pronuncia e niente etimologia in mezzo.** Eventuale `Ricorda:` sta qui, ancora prima dei due paragrafi finali.
-2. **Pronuncia** — **un unico paragrafo**, sempre **alla fine** delle spiegazioni, mai durante il discorso. Deve iniziare esattamente con `Pronuncia:` Consigli sulla pronuncia in generale, per tutte le parole o per le più importanti (parole, espressioni, o tutta la frase). Per ogni parola con IPA, metti **subito accanto tra parentesi** come suonerebbe se la scrivessi nella lingua nota (`_llm_known_lang`): prima l’IPA, poi la riscrittura. Esempio per un italiano che impara l’inglese: `/ˈstɑːr.tɪd/` (startid). La riscrittura deve essere leggibile da chi conosce solo `_llm_known_lang`, senza simboli fonetici extra.
-3. **Curiosità etimologia** — **un unico paragrafo**, dopo la pronuncia, alla fine di tutto. Deve iniziare esattamente con `Curiosità etimologia:` Etimologia o curiosità sulla frase o su una parola importante.
+1. **Spiegazione** — punti `"parte in lingua nota" → "traduzione in _llm_target_lang"` — spiegazione esaustiva in [`_llm_known_lang`]. Differenze con la lingua madre, altri esempi d’uso. **Niente pronuncia in mezzo né in fondo.** Eventuale `Ricorda:` sta qui, prima del paragrafo finale.
+2. **Curiosità etimologia** — **un unico paragrafo**, alla fine di tutto. Deve iniziare esattamente con `Curiosità etimologia:` Etimologia o curiosità sulla frase o su una parola importante.
+
+Non aggiungere un paragrafo `Pronuncia:` nell’analisi grammaticale.
 
 Quindi, prendi la frase, dividila per punti, parola per parola o anche più parole insieme, e fai l’elenco dei punti come sopra. La spiegazione deve aiutare chi sta imparando, con esempi semplici.
 

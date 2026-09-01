@@ -293,6 +293,26 @@ class LLM_Story_Phrase_Game {
 	}
 
 	/**
+	 * Accordion tastiera QWERTY a schermo (caratteri della lingua + lettere).
+	 *
+	 * @param string $uid    Prefisso id univoco shortcode.
+	 * @param string $suffix '1' o '2'.
+	 * @return string
+	 */
+	private static function render_keyboard_block( $uid, $suffix ) {
+		$label    = LLM_Phrase_Game_I18n::get( 'keyboard_toggle' );
+		$panel_id = $uid . '-keyboard-' . $suffix;
+
+		return '<div class="llm-phrase-game__keyboard llm-phrase-game__keyboard--' . esc_attr( $suffix ) . '">'
+			. '<button type="button" class="llm-game-theme__btn llm-story-layout-switch__btn llm-phrase-game__helper-acc llm-phrase-game__keyboard-toggle" aria-expanded="false" aria-controls="' . esc_attr( $panel_id ) . '">'
+			. '<span class="llm-phrase-game__helper-acc-emoji" aria-hidden="true">⌨️</span>'
+			. '<span class="llm-phrase-game__helper-acc-text">' . esc_html( $label ) . '</span>'
+			. '</button>'
+			. '<div class="llm-phrase-game__keyboard-panel" id="' . esc_attr( $panel_id ) . '" hidden></div>'
+			. '</div>';
+	}
+
+	/**
 	 * @param array<string, string> $atts Attributi shortcode.
 	 * @return string
 	 */
@@ -393,9 +413,11 @@ class LLM_Story_Phrase_Game {
 					<div class="llm-phrase-game__helper-accs">
 					<?php echo self::render_random_words_block( $uid, '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 					<?php echo self::render_extra_chars_block( $uid, '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+					<?php echo self::render_keyboard_block( $uid, '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 					</div>
 					<div class="llm-phrase-game__field-trans" hidden>
 						<button type="button" class="llm-phrase-game__notes-acc llm-phrase-game__field-trans-toggle" aria-expanded="false" aria-controls="<?php echo esc_attr( $uid ); ?>-field-trans">
+							<span class="llm-phrase-game__notes-toggle-emoji" aria-hidden="true">❤️</span>
 							<span class="llm-phrase-game__notes-acc-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'view_translation' ) ); ?></span>
 							<span class="llm-phrase-game__tool-accordion-chevron" aria-hidden="true"></span>
 						</button>
@@ -405,6 +427,7 @@ class LLM_Story_Phrase_Game {
 					</div>
 					<div class="llm-phrase-game__field-pron" hidden>
 						<button type="button" class="llm-phrase-game__notes-acc llm-phrase-game__field-pron-toggle" aria-expanded="false" aria-controls="<?php echo esc_attr( $uid ); ?>-field-pron">
+							<span class="llm-phrase-game__notes-toggle-emoji" aria-hidden="true">🗣️</span>
 							<span class="llm-phrase-game__notes-acc-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'view_pronunciation' ) ); ?></span>
 							<span class="llm-phrase-game__tool-accordion-chevron" aria-hidden="true"></span>
 						</button>
@@ -494,6 +517,7 @@ class LLM_Story_Phrase_Game {
 						<p class="llm-phrase-game__story-notes-text"><?php echo esc_html( $story_intro ); ?></p>
 					</div>
 				</div>
+				<div class="llm-phrase-game__notes-item">
 				<button type="button" class="llm-phrase-game__notes-acc llm-phrase-game__notes-toggle" aria-expanded="false" aria-controls="<?php echo esc_attr( $uid ); ?>-notes-panel">
 					<span class="llm-phrase-game__notes-toggle-emoji" aria-hidden="true">❤️</span>
 					<span class="llm-phrase-game__notes-toggle-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'notes_toggle_show' ) ); ?></span>
@@ -504,6 +528,7 @@ class LLM_Story_Phrase_Game {
 						<span class="llm-phrase-game__show-field-pron-heart" aria-hidden="true">❤️</span>
 						<?php echo esc_html( LLM_Phrase_Game_I18n::get( 'show_translation_under_field' ) ); ?>
 					</button>
+				</div>
 				</div>
 				<div class="llm-phrase-game__pron-tips">
 					<button type="button" class="llm-phrase-game__notes-acc llm-phrase-game__pron-tips-toggle" aria-expanded="false" aria-controls="<?php echo esc_attr( $uid ); ?>-pron-tips">
@@ -587,6 +612,7 @@ class LLM_Story_Phrase_Game {
 						</button>
 						<?php echo self::render_random_words_block( $uid, '2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 						<?php echo self::render_extra_chars_block( $uid, '2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+						<?php echo self::render_keyboard_block( $uid, '2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 					</div>
 					<div class="llm-phrase-game__actions">
 						<div class="llm-phrase-game__continue-block llm-phrase-game__continue-block--2">
@@ -1561,6 +1587,10 @@ class LLM_Story_Phrase_Game {
 			'extraCharsLower'    => LLM_Phrase_Game_I18n::get( 'extra_chars_lower' ),
 			'extraCharsUpper'    => LLM_Phrase_Game_I18n::get( 'extra_chars_upper' ),
 			'extraCharsSymbols'  => LLM_Phrase_Game_I18n::get( 'extra_chars_symbols' ),
+			'keyboardToggle'     => LLM_Phrase_Game_I18n::get( 'keyboard_toggle' ),
+			'keyboardShift'      => LLM_Phrase_Game_I18n::get( 'keyboard_shift' ),
+			'keyboardBackspace'  => LLM_Phrase_Game_I18n::get( 'keyboard_backspace' ),
+			'keyboardSpace'      => LLM_Phrase_Game_I18n::get( 'keyboard_space' ),
 			'notesEdit'          => LLM_Phrase_Game_I18n::get( 'notes_edit' ),
 			'notesEditNotes'     => LLM_Phrase_Game_I18n::get( 'notes_edit_notes' ),
 			'notesEditGrammar'   => LLM_Phrase_Game_I18n::get( 'notes_edit_grammar' ),

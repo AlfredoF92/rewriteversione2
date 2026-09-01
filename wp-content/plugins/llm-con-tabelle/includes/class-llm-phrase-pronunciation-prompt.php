@@ -38,7 +38,7 @@ class LLM_Phrase_Pronunciation_Prompt {
 			. "- Aiuta con un suono già noto della LINGUA B (“come in…”, “non come…”).\n"
 			. "- Massimo due frasi per parola. Una riga vuota tra una parola e la successiva.\n"
 			. "- La pronuncia tra parentesi deve essere facile da leggere per chi parla LINGUA B.\n"
-			. "- Non tradurre il significato. Non usare grassetto né elenchi.\n\n"
+			. "- Non tradurre il significato. Testo semplice, senza tag HTML: la formattazione la aggiunge lo script Formatta appunti.\n\n"
 			. 'LINGUA B = ' . $lingua_b . '.';
 	}
 
