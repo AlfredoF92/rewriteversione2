@@ -142,6 +142,33 @@
 	white-space: pre-wrap;
 }
 
+.llm-phrase-game__grammar-topics {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	width: 100%;
+	margin: 0.7rem 0 0;
+}
+
+.llm-phrase-game__grammar-topics-panel {
+	width: 100%;
+	margin: 0;
+	padding: 0.45rem 0 0.15rem 1.55rem;
+	box-sizing: border-box;
+}
+
+.llm-phrase-game__grammar-topics-panel[hidden] {
+	display: none;
+}
+
+.llm-phrase-game__grammar-topics-text {
+	margin: 0;
+	font-size: 0.95rem;
+	font-weight: 400;
+	line-height: 1.6;
+	color: #1a1a1a;
+}
+
 .llm-phrase-game__upcoming {
 	display: flex;
 	align-items: flex-start;
@@ -379,17 +406,20 @@
 	margin-top: 0.85rem;
 }
 
-.llm-phrase-game--mode-write-translate .llm-phrase-game__input-shell:focus-within {
-	outline: 2px solid var(--llm-game-link, #2271b1);
-	outline-offset: 1px;
+.llm-phrase-game--mode-write-translate .llm-phrase-game__input-shell:focus-within,
+.llm-phrase-game--mode-play-inverted .llm-phrase-game__input-shell:focus-within {
+	outline: none;
 }
 
 .llm-phrase-game--mode-write-translate .llm-phrase-game__input--1,
-.llm-phrase-game--mode-write-translate .llm-phrase-game__input--voice {
+.llm-phrase-game--mode-write-translate .llm-phrase-game__input--voice,
+.llm-phrase-game--mode-play-inverted .llm-phrase-game__input--1,
+.llm-phrase-game--mode-play-inverted .llm-phrase-game__input--voice {
 	transition: filter 0.18s ease;
 }
 
-.llm-phrase-game--mode-write-translate .llm-phrase-game__input--peek-blur {
+.llm-phrase-game--mode-write-translate .llm-phrase-game__input--peek-blur,
+.llm-phrase-game--mode-play-inverted .llm-phrase-game__input--peek-blur {
 	filter: blur(7px);
 }
 
@@ -436,6 +466,7 @@
 .llm-phrase-game .llm-phrase-game__input--voice-marking {
 	color: transparent !important;
 	-webkit-text-fill-color: transparent !important;
+	caret-color: var(--llm-game-white, currentColor) !important;
 }
 
 .llm-phrase-game__input-block--tools {
@@ -741,9 +772,38 @@
 	position: relative;
 }
 
+.llm-phrase-game__listen-voices {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0;
+	width: var(--llm-tool-btn-w, 17rem);
+	max-width: 100%;
+}
+
 .llm-phrase-game__listen-cluster .llm-phrase-game__listen-target {
-	width: var(--llm-tool-btn-w, 17rem) !important;
+	width: 100% !important;
 	justify-content: center;
+}
+
+html body .llm-phrase-game button.llm-phrase-game__listen-switch[hidden],
+.llm-phrase-game button.llm-phrase-game__listen-switch[hidden],
+.llm-phrase-game__listen-switch[hidden] {
+	display: none !important;
+}
+
+@media (pointer: fine) and (min-width: 769px) {
+	html body .llm-phrase-game .llm-phrase-game__listen-target--voice-2,
+	.llm-phrase-game .llm-phrase-game__listen-target--voice-2,
+	.llm-phrase-game__listen-target--voice-2 {
+		display: none !important;
+	}
+}
+
+.llm-phrase-game__interface-row--phase2 .llm-phrase-game__listen-target-wrap--phase2 {
+	flex: 0 0 auto;
+	width: auto;
+	align-self: center;
 }
 
 .llm-phrase-game__actions {
@@ -857,6 +917,7 @@
 
 .llm-phrase-game__input-shell {
 	--llm-input-radius: 8px;
+	position: relative;
 	display: flex;
 	align-items: center;
 	gap: 0.55rem;
@@ -873,6 +934,7 @@
 		0 2px 6px rgba(0, 0, 0, 0.08),
 		0 6px 16px rgba(0, 0, 0, 0.05);
 	transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+	cursor: pointer;
 }
 
 .llm-phrase-game__input-shell .llm-phrase-game__lang-flag--write {
@@ -882,8 +944,8 @@
 	margin: 0;
 }
 
-.llm-phrase-game__input-shell:hover {
-	border-color: #b0b1b4;
+.llm-phrase-game__input-shell:hover:not(:focus-within):not(.llm-phrase-game__input-shell--listening) {
+	border-color: #8d8e92;
 	background: #f3f4f4;
 	box-shadow:
 		0 1px 0 rgba(255, 255, 255, 0.8) inset,
@@ -897,7 +959,7 @@
 		0 1px 0 rgba(255, 255, 255, 0.85) inset,
 		0 2px 8px rgba(19, 94, 150, 0.12),
 		0 8px 22px rgba(19, 94, 150, 0.08),
-		0 0 0 3px rgba(34, 113, 177, 0.14);
+		0 0 0 2px rgba(34, 113, 177, 0.22);
 	outline: none;
 }
 
@@ -915,6 +977,49 @@
 .llm-phrase-game__input-shell--listening:hover {
 	border-color: #135e96;
 	background: #ebf3f9;
+}
+
+.llm-phrase-game__stt-processing {
+	position: absolute;
+	inset: 0;
+	z-index: 3;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0.35rem 0.75rem;
+	border-radius: inherit;
+	background: color-mix(in srgb, var(--llm-game-btn-mic, #2f7fd6) 32%, transparent);
+	backdrop-filter: blur(7px);
+	-webkit-backdrop-filter: blur(7px);
+	pointer-events: none;
+}
+
+.llm-phrase-game__stt-processing[hidden] {
+	display: none !important;
+}
+
+.llm-phrase-game__stt-processing-text {
+	max-width: 100%;
+	text-align: center;
+	font-size: 0.8rem;
+	font-weight: 700;
+	line-height: 1.35;
+	letter-spacing: 0.015em;
+	color: var(--llm-game-white, #15324f);
+	filter: blur(0.45px);
+}
+
+.llm-phrase-game--theme-light .llm-phrase-game__stt-processing {
+	background: color-mix(in srgb, var(--llm-game-btn-mic, #2f7fd6) 22%, #fff);
+}
+
+.llm-phrase-game--theme-light .llm-phrase-game__stt-processing-text {
+	color: #163a62;
+}
+
+.llm-phrase-game__input-shell--processing .llm-phrase-game__input {
+	filter: blur(5px);
+	opacity: 0.5;
 }
 
 .llm-phrase-game__input,
@@ -946,16 +1051,18 @@
 	overflow-x: auto;
 	overflow-y: hidden;
 	white-space: nowrap;
-	-webkit-user-select: text;
-	user-select: text;
+	-webkit-user-select: none;
+	user-select: none;
 	background: transparent !important;
 	color: inherit;
-	caret-color: #135e96;
+	caret-color: currentColor;
+	cursor: pointer !important;
 }
 
 .llm-phrase-game__input::placeholder {
-	color: #757575;
+	color: rgba(117, 117, 117, 0.55);
 	opacity: 1;
+	font-weight: 400;
 }
 
 .llm-phrase-game__input:focus,
@@ -965,6 +1072,7 @@
 	outline: none !important;
 	border: 0 !important;
 	box-shadow: none !important;
+	caret-color: currentColor !important;
 }
 
 .llm-phrase-game__input--listening {
@@ -990,19 +1098,202 @@
 }
 
 .llm-phrase-game__mic-cluster {
-	display: inline-flex;
+	display: flex;
+	flex-wrap: nowrap;
 	align-items: center;
-	gap: 0.4rem;
+	justify-content: center;
+	gap: 0.4rem 0.5rem;
 	position: relative;
+	width: 100%;
+}
+
+.llm-phrase-game__mic-stage {
+	position: relative;
+	display: grid;
+	grid-template: 1fr / minmax(13.5rem, 16.5rem);
+	align-items: center;
+	justify-items: stretch;
+	overflow: hidden;
+	min-height: 2.55rem;
+}
+
+.llm-phrase-game__mic-stage .llm-phrase-game__mic,
+.llm-phrase-game .llm-phrase-game__mic-stage .llm-phrase-game__mic {
+	grid-area: 1 / 1;
+	margin: 0 !important;
+	width: 100%;
+	min-width: 0;
+	flex: none;
+	padding-left: 0.75rem;
+	padding-right: 0.75rem;
+}
+
+.llm-phrase-game__mic-stage .llm-phrase-game__mic.is-inactive {
+	visibility: hidden;
+	pointer-events: none;
+	z-index: 0;
+}
+
+.llm-phrase-game__mic-stage .llm-phrase-game__mic.is-active {
+	visibility: visible;
+	z-index: 1;
+}
+
+.llm-phrase-game__mic-stage .llm-phrase-game__mic.is-exit {
+	animation: llm-mic-slide-out 0.28s ease forwards;
+	z-index: 2;
+	visibility: visible;
+	pointer-events: none;
+}
+
+.llm-phrase-game__mic-stage .llm-phrase-game__mic.is-enter {
+	animation: llm-mic-slide-in 0.28s ease forwards;
+	z-index: 3;
+	visibility: visible;
+}
+
+@keyframes llm-mic-slide-out {
+	from {
+		transform: translateY(0);
+		opacity: 1;
+	}
+	to {
+		transform: translateY(118%);
+		opacity: 0;
+	}
+}
+
+@keyframes llm-mic-slide-in {
+	from {
+		transform: translateY(-118%);
+		opacity: 0;
+	}
+	to {
+		transform: translateY(0);
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.llm-phrase-game__mic-stage .llm-phrase-game__mic.is-exit,
+	.llm-phrase-game__mic-stage .llm-phrase-game__mic.is-enter {
+		animation: none;
+	}
+}
+
+html body .llm-phrase-game button.llm-phrase-game__mic-switch,
+.llm-phrase-game button.llm-phrase-game__mic-switch,
+.llm-phrase-game .llm-phrase-game__mic-switch,
+.llm-phrase-game__mic-switch {
+	-webkit-appearance: none !important;
+	appearance: none !important;
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	flex: 0 0 auto;
+	width: 2.05rem !important;
+	height: 2.05rem !important;
+	min-width: 2.05rem !important;
+	min-height: 2.05rem !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	border: 1px solid #2271b1 !important;
+	border-color: #2271b1 !important;
+	border-radius: 6px !important;
+	background: transparent !important;
+	background-color: transparent !important;
+	box-shadow: none !important;
+	outline: none !important;
+	cursor: pointer;
+	touch-action: manipulation;
+	color: #2271b1 !important;
+	filter: none !important;
+	text-decoration: none !important;
+}
+
+html body .llm-phrase-game button.llm-phrase-game__mic-switch:hover,
+html body .llm-phrase-game button.llm-phrase-game__mic-switch:focus,
+html body .llm-phrase-game button.llm-phrase-game__mic-switch:focus-visible,
+.llm-phrase-game button.llm-phrase-game__mic-switch:hover,
+.llm-phrase-game button.llm-phrase-game__mic-switch:focus-visible,
+.llm-phrase-game .llm-phrase-game__mic-switch:hover,
+.llm-phrase-game .llm-phrase-game__mic-switch:focus-visible,
+.llm-phrase-game__mic-switch:hover,
+.llm-phrase-game__mic-switch:focus-visible {
+	background: color-mix(in srgb, #2271b1 16%, transparent) !important;
+	border: 1px solid #2271b1 !important;
+	border-color: #2271b1 !important;
+	outline: none !important;
+	color: #2271b1 !important;
+	box-shadow: none !important;
+}
+
+.llm-phrase-game__mic-switch:disabled {
+	opacity: 0.45;
+	cursor: default;
+}
+
+html body .llm-phrase-game button.llm-phrase-game__listen-switch,
+.llm-phrase-game button.llm-phrase-game__listen-switch,
+.llm-phrase-game .llm-phrase-game__listen-switch {
+	border: 1px solid var(--llm-game-btn-listen, #d4a0e8) !important;
+	border-color: var(--llm-game-btn-listen, #d4a0e8) !important;
+	color: var(--llm-game-btn-listen, #d4a0e8) !important;
+}
+
+html body .llm-phrase-game button.llm-phrase-game__listen-switch:hover,
+html body .llm-phrase-game button.llm-phrase-game__listen-switch:focus,
+html body .llm-phrase-game button.llm-phrase-game__listen-switch:focus-visible,
+.llm-phrase-game button.llm-phrase-game__listen-switch:hover,
+.llm-phrase-game button.llm-phrase-game__listen-switch:focus-visible,
+.llm-phrase-game .llm-phrase-game__listen-switch:hover,
+.llm-phrase-game .llm-phrase-game__listen-switch:focus-visible {
+	background: color-mix(in srgb, var(--llm-game-btn-listen, #d4a0e8) 16%, transparent) !important;
+	border: 1px solid var(--llm-game-btn-listen, #d4a0e8) !important;
+	border-color: var(--llm-game-btn-listen, #d4a0e8) !important;
+	color: var(--llm-game-btn-listen, #d4a0e8) !important;
+}
+
+html body .llm-phrase-game .llm-phrase-game__listen-switch .llm-phrase-game__mic-switch-arrow,
+.llm-phrase-game .llm-phrase-game__listen-switch .llm-phrase-game__mic-switch-arrow {
+	border-top-color: var(--llm-game-btn-listen, #d4a0e8) !important;
+}
+
+.llm-phrase-game__listen-slow-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.05rem;
+	height: 1.05rem;
+}
+
+.llm-phrase-game__listen-slow-icon svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+	fill: currentColor;
+}
+
+.llm-phrase-game__mic-switch-pad {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+}
+
+.llm-phrase-game__mic-switch-arrow {
+	display: block;
+	width: 0;
+	height: 0;
+	border-left: 5px solid transparent;
+	border-right: 5px solid transparent;
+	border-top: 6px solid #2271b1;
+	border-top-color: #2271b1 !important;
 }
 
 .llm-phrase-game__mic-row:has(.llm-phrase-game__mic-countdown:not([hidden])) .llm-phrase-game__mic-cluster {
 	padding-top: 0.55rem;
-}
-
-.llm-phrase-game__mic-cluster .llm-phrase-game__mic,
-.llm-phrase-game .llm-phrase-game__mic-cluster .llm-phrase-game__mic {
-	margin: 0 !important;
 }
 
 .llm-phrase-game__mic-help,
@@ -1115,26 +1406,49 @@
 	display: none !important;
 }
 
-@media (max-width: 640px) {
-	.llm-phrase-game__mic-help-bubble,
-	.llm-phrase-game__listen-help-bubble {
-		left: 50%;
-		top: calc(100% + 0.45rem);
-		transform: translateX(-50%);
-		width: min(18rem, 86vw);
-	}
+.llm-phrase-game__help-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 10040;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: rgba(12, 12, 14, 0.48);
+	cursor: pointer;
+}
 
-	.llm-phrase-game__mic-help-bubble::before,
-	.llm-phrase-game__listen-help-bubble::before {
-		right: auto;
-		left: 50%;
-		top: auto;
-		bottom: 100%;
-		margin-top: 0;
-		margin-left: -6px;
-		border: 6px solid transparent;
-		border-bottom-color: #fff;
-	}
+.llm-phrase-game__help-overlay[hidden] {
+	display: none !important;
+}
+
+.llm-phrase-game__mic-help-bubble.llm-phrase-game__help-popup,
+.llm-phrase-game__listen-help-bubble.llm-phrase-game__help-popup {
+	position: fixed !important;
+	left: 50% !important;
+	top: 50% !important;
+	right: auto !important;
+	bottom: auto !important;
+	transform: translate(-50%, -50%) !important;
+	z-index: 10050 !important;
+	width: min(22rem, calc(100vw - 2.4rem)) !important;
+	max-width: calc(100vw - 2.4rem) !important;
+	max-height: min(70vh, 28rem);
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+	padding: 1rem 1.1rem !important;
+	font-size: 0.92rem !important;
+	line-height: 1.45 !important;
+	box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32) !important;
+}
+
+.llm-phrase-game__mic-help-bubble.llm-phrase-game__help-popup::before,
+.llm-phrase-game__listen-help-bubble.llm-phrase-game__help-popup::before {
+	display: none !important;
+}
+
+.llm-phrase-game__help-popup .llm-phrase-game__listen-help-play {
+	padding: 0.38rem 0.9rem !important;
+	font-size: 0.82rem !important;
 }
 
 .llm-phrase-game__listen-help-row {
@@ -1982,9 +2296,146 @@ body.llm-fe-notes-modal-open {
 		border-radius: 35px;
 	}
 
+	.llm-phrase-game__mic-stage {
+		min-height: 3.5rem;
+		grid-template-columns: minmax(14.5rem, 18rem);
+	}
+
+	html body .llm-phrase-game button.llm-phrase-game__mic-switch,
+	.llm-phrase-game button.llm-phrase-game__mic-switch,
+	.llm-phrase-game .llm-phrase-game__mic-switch,
+	.llm-phrase-game__mic-switch {
+		width: 3.5rem !important;
+		height: 3.5rem !important;
+		min-width: 3.5rem !important;
+		min-height: 3.5rem !important;
+		border-radius: 10px !important;
+	}
+
+	.llm-phrase-game__mic-switch-arrow {
+		border-left-width: 7px;
+		border-right-width: 7px;
+		border-top-width: 8px;
+	}
+
+	.llm-phrase-game__listen-cluster {
+		align-items: flex-start;
+		gap: 0.28rem;
+	}
+
+	html body .llm-phrase-game .llm-phrase-game__listen-cluster button.llm-phrase-game__mic-switch,
+	.llm-phrase-game .llm-phrase-game__listen-cluster button.llm-phrase-game__mic-switch,
+	.llm-phrase-game__listen-cluster .llm-phrase-game__mic-switch {
+		width: 1.7rem !important;
+		height: 1.7rem !important;
+		min-width: 1.7rem !important;
+		min-height: 1.7rem !important;
+		border-radius: 6px !important;
+	}
+
+	.llm-phrase-game__listen-cluster .llm-phrase-game__mic-switch-arrow {
+		border-left-width: 4px;
+		border-right-width: 4px;
+		border-top-width: 5px;
+	}
+
+	.llm-phrase-game__listen-cluster .llm-phrase-game__listen-slow-icon {
+		width: 0.85rem;
+		height: 0.85rem;
+	}
+
+	.llm-phrase-game__listen-voices {
+		gap: 0.18rem;
+	}
+
+	html body .llm-phrase-game .llm-phrase-game__listen-voices .llm-phrase-game__listen-target,
+	.llm-phrase-game .llm-phrase-game__listen-voices .llm-phrase-game__listen-target,
+	.llm-phrase-game__listen-voices .llm-phrase-game__listen-target {
+		height: 1.7rem !important;
+		min-height: 1.7rem !important;
+		padding: 0 0.5rem !important;
+		font-size: 0.62rem !important;
+		gap: 0.25rem !important;
+		border-width: 1px !important;
+	}
+
+	.llm-phrase-game__listen-voices .llm-phrase-game__listen-target-icon svg {
+		width: 0.85rem;
+		height: 0.85rem;
+	}
+
+	.llm-phrase-game__listen-voices .llm-phrase-game__listen-target-text {
+		font-size: 0.62rem;
+	}
+
 	.llm-phrase-game__mic-icon {
 		font-size: 1.55rem;
 	}
+
+	.llm-phrase-game__input,
+	.llm-phrase-game input.llm-phrase-game__input,
+	.llm-phrase-game textarea.llm-phrase-game__input {
+		caret-color: currentColor;
+	}
+
+	.llm-phrase-game__input:focus,
+	.llm-phrase-game__input:focus-visible,
+	.llm-phrase-game textarea.llm-phrase-game__input:focus,
+	.llm-phrase-game textarea.llm-phrase-game__input:focus-visible {
+		caret-color: currentColor !important;
+	}
+}
+
+.llm-phrase-game--no-osk .llm-phrase-game__input,
+.llm-phrase-game--no-osk input.llm-phrase-game__input,
+.llm-phrase-game--no-osk textarea.llm-phrase-game__input,
+.llm-phrase-game--no-osk .llm-phrase-game__input-shell .llm-phrase-game__input {
+	caret-color: currentColor;
+}
+
+.llm-phrase-game--no-osk .llm-phrase-game__input:focus,
+.llm-phrase-game--no-osk .llm-phrase-game__input:focus-visible,
+.llm-phrase-game--no-osk textarea.llm-phrase-game__input:focus,
+.llm-phrase-game--no-osk textarea.llm-phrase-game__input:focus-visible,
+.llm-phrase-game--no-osk .llm-phrase-game__input-shell .llm-phrase-game__input:focus,
+.llm-phrase-game--no-osk .llm-phrase-game__input-shell .llm-phrase-game__input:focus-visible {
+	caret-color: currentColor !important;
+}
+
+.llm-phrase-game--grow-input .llm-phrase-game__input-shell {
+	align-items: flex-start;
+}
+
+.llm-phrase-game--grow-input .llm-phrase-game__input-shell .llm-phrase-game__lang-flag--write {
+	margin-top: 0.55rem;
+}
+
+.llm-phrase-game--grow-input .llm-phrase-game__input,
+.llm-phrase-game--grow-input input.llm-phrase-game__input,
+.llm-phrase-game--grow-input textarea.llm-phrase-game__input,
+.llm-phrase-game--grow-input .llm-phrase-game__input-shell .llm-phrase-game__input {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	word-break: break-word;
+	overflow-x: hidden;
+	overflow-y: hidden;
+	height: auto;
+	max-height: none;
+}
+
+.llm-phrase-game--grow-input .llm-phrase-game__input--listening {
+	height: auto;
+	max-height: none;
+}
+
+.llm-phrase-game--grow-input .llm-phrase-game__voice-mark {
+	align-items: flex-start;
+}
+
+.llm-phrase-game--grow-input .llm-phrase-game__voice-mark-text {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	word-break: break-word;
 }
 
 /* ─── Fase unica: messaggi di esito e appunti a richiesta ────────────── */
@@ -2200,6 +2651,7 @@ body.llm-fe-notes-modal-open {
 .llm-phrase-game__pron-tips,
 .llm-phrase-game__pron-tips-panel {
 	width: 100%;
+	overflow-anchor: none;
 }
 
 .llm-phrase-game__pron-tips-text {
@@ -2233,9 +2685,17 @@ body.llm-fe-notes-modal-open {
 	margin-left: 0 !important;
 	padding: 0.42rem 0.95rem !important;
 	align-self: flex-start;
+	overflow-anchor: none;
 	font-size: 0.86rem !important;
 	line-height: 1.25 !important;
 	border-radius: 999px !important;
+}
+
+.llm-phrase-game--mode-play-inverted .llm-phrase-game__show-field-trans,
+.llm-phrase-game--mode-play-inverted .llm-phrase-game__show-field-pron,
+.llm-phrase-game--mode-play-inverted .llm-phrase-game__field-trans,
+.llm-phrase-game--mode-play-inverted .llm-phrase-game__field-pron {
+	display: none !important;
 }
 
 .llm-phrase-game__show-field-pron-heart {
@@ -2345,7 +2805,7 @@ body.llm-fe-notes-modal-open {
 	flex-wrap: wrap;
 	justify-content: center;
 	align-items: center;
-	gap: 0.35rem;
+	gap: 0.45rem;
 	width: 100%;
 	margin: 0.7rem 0 0.15rem;
 }
@@ -2386,10 +2846,15 @@ body.llm-fe-notes-modal-open {
 
 .llm-phrase-game .llm-game-theme__btn.llm-phrase-game__helper-acc,
 .llm-phrase-game__helper-acc.llm-game-theme__btn {
-	gap: 0.32rem;
+	gap: 0.4rem;
 	justify-content: center;
 	align-self: center;
 	text-transform: none !important;
+	padding: 0.3rem 0.7rem !important;
+	min-height: 1.95rem !important;
+	font-size: 0.74rem !important;
+	line-height: 1.25 !important;
+	border-radius: 8px !important;
 }
 
 .llm-phrase-game .llm-game-theme__btn.llm-phrase-game__helper-acc[aria-expanded="true"],
@@ -2397,9 +2862,27 @@ body.llm-fe-notes-modal-open {
 	background: var(--llm-chip-hover, rgba(0, 0, 0, 0.1)) !important;
 }
 
+.llm-phrase-game .llm-game-theme__btn.llm-phrase-game__helper-acc.llm-phrase-game__hint-on,
+.llm-phrase-game__helper-acc.llm-game-theme__btn.llm-phrase-game__hint-on {
+	background: #ffe566 !important;
+	border-color: #ffe566 !important;
+	color: #111 !important;
+	box-shadow: 0 0 0 3px rgba(255, 229, 102, 0.65) !important;
+	transition: none !important;
+}
+
+.llm-phrase-game .llm-phrase-game__mic.llm-phrase-game__hint-on,
+.llm-phrase-game__mic.llm-phrase-game__hint-on {
+	background: #c8efc8 !important;
+	border-color: #2f9e44 !important;
+	color: #111 !important;
+	box-shadow: 0 0 0 3px rgba(47, 158, 68, 0.5) !important;
+	transition: none !important;
+}
+
 .llm-phrase-game__helper-acc-emoji {
 	flex: 0 0 auto;
-	font-size: 0.85em;
+	font-size: 1.05em;
 	line-height: 1;
 }
 
@@ -2550,6 +3033,9 @@ body.llm-fe-notes-modal-open {
 	line-height: 1 !important;
 	text-transform: none !important;
 	cursor: pointer;
+	touch-action: none;
+	-webkit-user-select: none;
+	user-select: none;
 }
 
 .llm-phrase-game .llm-phrase-game__kb-key:hover,
@@ -2618,13 +3104,13 @@ body.llm-fe-notes-modal-open {
 	text-transform: none !important;
 }
 
-/* Gioca al contrario: niente microfono; peek originale sotto il textarea. */
-.llm-phrase-game--mode-play-inverted .llm-phrase-game__mic,
-.llm-phrase-game--mode-play-inverted .llm-phrase-game__mic-row,
-.llm-phrase-game--mode-play-inverted .llm-phrase-game__mic-status,
-.llm-phrase-game--mode-play-inverted .llm-phrase-game__mic-countdown {
-	display: none !important;
+.llm-phrase-game__keyboard-panel--voice .llm-phrase-game__kb-key--extra,
+.llm-phrase-game__keyboard-panel--voice .llm-phrase-game__keyboard-row:not(.llm-phrase-game__keyboard-row--digits):not(.llm-phrase-game__keyboard-row--space) .llm-phrase-game__kb-key:not(.llm-phrase-game__kb-key--util) {
+	opacity: 0.32;
+	pointer-events: none;
 }
+
+/* Gioca al contrario: peek originale sotto il textarea. */
 
 .llm-phrase-game__inverted-hint {
 	margin-top: 0.85rem;

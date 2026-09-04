@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       LLM CON TABELLE
  * Description:       Storie, utenti e community in tabelle MySQL (no JSON strutturato). Parallelo a LLS, senza migrazione.
- * Version:           2.2.399
+ * Version:           2.2.470
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            LLM CON TABELLE
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LLM_TABELLE_VERSION', '2.2.399' );
+define( 'LLM_TABELLE_VERSION', '2.2.470' );
 define( 'LLM_TABELLE_FILE', __FILE__ );
 define( 'LLM_TABELLE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LLM_TABELLE_URL', plugin_dir_url( __FILE__ ) );
@@ -37,6 +37,8 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-crossword.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-crossword-i18n.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-crossword-admin.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-crossword-shortcode.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-crucintarsio-generator.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-story-crossword.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-magazine.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-magazine-admin.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-magazine-shortcode.php';
@@ -46,11 +48,13 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-quiz-admin.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-idiom.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-idiom-admin.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-meta.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-user-avatars.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-visitor-lang.php';
 if ( file_exists( LLM_TABELLE_DIR . 'includes/class-llm-visitor-theme.php' ) ) {
 	require_once LLM_TABELLE_DIR . 'includes/class-llm-visitor-theme.php';
 }
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-repository.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-story-cast.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-phrases-csv.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-full-import.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-community.php';
@@ -61,17 +65,17 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-community.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-design-system.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-category-translations.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-hero-translations.php';
-require_once LLM_TABELLE_DIR . 'includes/class-llm-demo-stories.php';
-require_once LLM_TABELLE_DIR . 'includes/class-llm-demo-users.php';
-require_once LLM_TABELLE_DIR . 'includes/class-llm-demo-community.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-template-vars.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-elementor-dynamic-tags.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-phrase-game-i18n.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-settings-i18n.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-game-progress.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-user-crossword-progress.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-guest-story-progress.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-guest-browser-data-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-learning-modes.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-stt.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-phrase-tts.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-phrase-game.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-progress-bar-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-header-ui-icons.php';
@@ -81,6 +85,7 @@ if ( file_exists( LLM_TABELLE_DIR . 'includes/class-llm-nav-menu-shortcode.php' 
 }
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-stat-shortcodes.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-profile-shortcode.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-scheda-utente.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-learning-lang-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-logout-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-redirects.php';
@@ -140,6 +145,9 @@ function llm_tabelle_boot() {
 	LLM_Crossword::init();
 	LLM_Crossword_Admin::init();
 	LLM_Crossword_Shortcode::init();
+	if ( class_exists( 'LLM_Story_Crossword' ) ) {
+		LLM_Story_Crossword::init();
+	}
 	LLM_Magazine::init();
 	LLM_Magazine_Admin::init();
 	LLM_Magazine_Shortcode::init();
@@ -150,6 +158,9 @@ function llm_tabelle_boot() {
 	LLM_Idiom_Admin::init();
 	LLM_Story_Meta::init();
 	LLM_User_Meta::init();
+	if ( class_exists( 'LLM_User_Avatars' ) ) {
+		LLM_User_Avatars::init();
+	}
 	LLM_Visitor_Lang::init();
 	if ( class_exists( 'LLM_Visitor_Theme' ) ) {
 		LLM_Visitor_Theme::init();
@@ -157,6 +168,7 @@ function llm_tabelle_boot() {
 	LLM_Community::init();
 	LLM_User_Stats::init();
 	LLM_Admin_Story::init();
+	LLM_Story_Cast::init();
 	LLM_Story_Phrases_Csv::init();
 	LLM_Story_Full_Import::init();
 	LLM_Admin_Users::init();
@@ -164,9 +176,6 @@ function llm_tabelle_boot() {
 	LLM_Admin_Design_System::init();
 	LLM_Category_Translations::init();
 	LLM_Hero_Translations::init();
-	LLM_Demo_Stories::init();
-	LLM_Demo_Users::init();
-	LLM_Demo_Community::init();
 
 	add_shortcode( 'llm_story_field', array( 'LLM_Story_Template_Vars', 'shortcode_field' ) );
 	LLM_Story_Loop_Filters_Shortcode::init();
@@ -179,6 +188,7 @@ function llm_tabelle_boot() {
 	}
 	LLM_User_Stat_Shortcodes::init();
 	LLM_User_Profile_Shortcode::init();
+	LLM_Scheda_Utente::init();
 	LLM_Learning_Lang_Shortcode::init();
 	LLM_Logout_Shortcode::init();
 	LLM_Frontend_Auth::init();
@@ -192,6 +202,10 @@ function llm_tabelle_boot() {
 	LLM_Community_Feed_Shortcode::init();
 	LLM_Bravo_Balance_Shortcode::init();
 	LLM_Learning_Modes::init();
+	LLM_STT::init();
+	if ( class_exists( 'LLM_Phrase_TTS' ) ) {
+		LLM_Phrase_TTS::init();
+	}
 	LLM_Story_Phrase_Game::init();
 	LLM_Story_Progress_Bar_Shortcode::init();
 	LLM_Home_Redirect::init();
@@ -334,7 +348,7 @@ add_action(
 );
 
 /**
- * Attivazione: CPT + tabelle + storie demo + rewrite.
+ * Attivazione: CPT + tabelle + rewrite.
  */
 function llm_tabelle_activate() {
 	LLM_Post_Type::register();
@@ -344,7 +358,6 @@ function llm_tabelle_activate() {
 	LLM_Quiz::register();
 	LLM_Idiom::register();
 	LLM_Tabelle_Database::install();
-	LLM_Demo_Stories::seed_on_activate();
 	flush_rewrite_rules();
 }
 register_activation_hook( __FILE__, 'llm_tabelle_activate' );
@@ -382,8 +395,29 @@ function llm_tabelle_reset_demo_options() {
 		)
 	);
 	foreach ( $users as $uid ) {
-		delete_user_meta( (int) $uid, LLM_Demo_Users::USER_SEEDED );
+		delete_user_meta( (int) $uid, '_llm_demo_data_seeded' );
 	}
+	delete_option( 'llm_demo_stories_seeded' );
+}
+
+/**
+ * Elimina i post marcati come storie demo.
+ */
+function llm_tabelle_delete_demo_story_posts() {
+	$ids = get_posts(
+		array(
+			'post_type'      => LLM_STORY_CPT,
+			'post_status'    => 'any',
+			'posts_per_page' => -1,
+			'fields'         => 'ids',
+			'meta_key'       => '_llm_is_demo_story',
+			'meta_value'     => '1',
+		)
+	);
+	foreach ( $ids as $pid ) {
+		wp_delete_post( (int) $pid, true );
+	}
+	delete_option( 'llm_demo_stories_seeded' );
 }
 
 /**
@@ -391,7 +425,7 @@ function llm_tabelle_reset_demo_options() {
  */
 function llm_tabelle_deactivate() {
 	llm_tabelle_delete_all_activities();
-	LLM_Demo_Stories::delete_demo_posts();
+	llm_tabelle_delete_demo_story_posts();
 	llm_tabelle_reset_demo_options();
 	LLM_Tabelle_Database::uninstall();
 	flush_rewrite_rules();
