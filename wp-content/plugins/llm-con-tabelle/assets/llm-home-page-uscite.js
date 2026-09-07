@@ -135,11 +135,12 @@
 			}
 			var prevM = neighborMonth(year, month, -1);
 			var nextM = neighborMonth(year, month, 1);
+			var compactNav = window.matchMedia('(max-width: 560px)').matches;
 			if (shiftPrev) {
-				shiftPrev.textContent = '‹ ' + monthName(prevM.m);
+				shiftPrev.textContent = compactNav ? '‹' : ('‹ ' + monthName(prevM.m));
 			}
 			if (shiftNext) {
-				shiftNext.textContent = monthName(nextM.m) + ' ›';
+				shiftNext.textContent = compactNav ? '›' : (monthName(nextM.m) + ' ›');
 			}
 
 			var dows = i18n.dows || ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM'];
@@ -284,7 +285,18 @@
 		if (selected) {
 			renderDetail(selected);
 		}
-		startGreetingCycle(root, greetings, helloName, applySnapLang);
+		if (window.matchMedia) {
+			var navMq = window.matchMedia('(max-width: 560px)');
+			var onNavMq = function () {
+				renderCal();
+			};
+			if (typeof navMq.addEventListener === 'function') {
+				navMq.addEventListener('change', onNavMq);
+			} else if (typeof navMq.addListener === 'function') {
+				navMq.addListener(onNavMq);
+			}
+		}
+		startGreetingCycle(root, greetings, helloName);
 	}
 
 	function typewriterInto(el, text, ms) {
@@ -338,21 +350,15 @@
 		});
 	}
 
-	function startGreetingCycle(root, greetings, name, onLang) {
+	function startGreetingCycle(root, greetings, name) {
 		var helloEl = qs(root, '[data-llm-uscite-hello]');
 		var subEl = qs(root, '[data-llm-uscite-hello-sub]');
-		var flagEl = qs(root, '[data-llm-uscite-flag]');
-		var latestEl = qs(root, '[data-llm-uscite-title="latest"]');
-		var calTitleEl = qs(root, '[data-llm-uscite-title="calendar"]');
-		var pairsEl = qs(root, '[data-llm-uscite-title="pairs"]');
 		if (!helloEl || !subEl || !greetings.length) {
 			return;
 		}
 		var ix = 0;
 		var typeMs = 125;
-		var fadeMs = 420;
 		var pauseMs = 10000;
-		var first = true;
 
 		function lineFor(item) {
 			if (name) {
@@ -364,38 +370,11 @@
 		function run() {
 			var item = greetings[ix % greetings.length];
 			ix += 1;
-			if (flagEl) {
-				flagEl.textContent = item.flag || '';
-			}
-			if (typeof onLang === 'function') {
-				onLang(item);
-			}
 			helloEl.textContent = '';
 			subEl.textContent = '';
-			var greeting = typewriterInto(helloEl, lineFor(item), typeMs).then(function () {
+			typewriterInto(helloEl, lineFor(item), typeMs).then(function () {
 				return typewriterInto(subEl, item.sub || '', typeMs);
-			});
-			var titles;
-			if (first) {
-				first = false;
-				if (latestEl) {
-					latestEl.textContent = item.latest || '';
-				}
-				if (calTitleEl) {
-					calTitleEl.textContent = item.calendar || '';
-				}
-				if (pairsEl) {
-					pairsEl.textContent = item.pairs || '';
-				}
-				titles = Promise.resolve();
-			} else {
-				titles = Promise.all([
-					fadeText(latestEl, item.latest || '', fadeMs),
-					fadeText(calTitleEl, item.calendar || '', fadeMs),
-					fadeText(pairsEl, item.pairs || '', fadeMs)
-				]);
-			}
-			Promise.all([greeting, titles]).then(function () {
+			}).then(function () {
 				setTimeout(run, pauseMs);
 			});
 		}

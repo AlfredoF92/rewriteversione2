@@ -48,12 +48,23 @@ class LLM_Home_Page_Uscite_Shortcode {
 		);
 
 		$ui      = self::ui_lang();
-		$latest  = self::latest_stories();
-		$upcoming = self::upcoming_stories();
+		$from    = self::requested_from();
+		$latest  = self::latest_stories( $from );
+		$upcoming = self::upcoming_stories( $from );
 		$events  = self::events_by_day( $upcoming );
 		$pairs   = class_exists( 'LLM_Nav_Menu_Shortcode' )
 			? LLM_Nav_Menu_Shortcode::directory_pairs()
 			: array();
+		if ( '' !== $from ) {
+			$pairs = array_values(
+				array_filter(
+					$pairs,
+					static function ( $pair ) use ( $from ) {
+						return isset( $pair['known'] ) && $pair['known'] === $from;
+					}
+				)
+			);
+		}
 
 		$first_key = '';
 		if ( ! empty( $events ) ) {
@@ -82,7 +93,7 @@ class LLM_Home_Page_Uscite_Shortcode {
 			data-year="<?php echo esc_attr( $init[0] ); ?>"
 			data-month="<?php echo esc_attr( (string) (int) $init[1] ); ?>"
 			data-selected="<?php echo esc_attr( $first_key ); ?>"
-			data-i18n="<?php echo esc_attr( wp_json_encode( self::js_i18n( $ui ) ) ); ?>"
+			data-i18n="<?php echo esc_attr( wp_json_encode( self::js_i18n( $from ) ) ); ?>"
 			data-guest="<?php echo $is_guest ? '1' : '0'; ?>"
 			data-hello-name="<?php echo esc_attr( $hello_name ); ?>"
 			data-greetings="<?php echo esc_attr( wp_json_encode( self::greeting_cycle() ) ); ?>"
@@ -92,17 +103,33 @@ class LLM_Home_Page_Uscite_Shortcode {
 					<p class="llm-uscite__hello" data-llm-uscite-hello></p>
 					<p class="llm-uscite__hello-sub" data-llm-uscite-hello-sub></p>
 				</div>
-				<span class="llm-uscite__intro-flag" data-llm-uscite-flag aria-hidden="true"></span>
 			</header>
+
+			<?php echo self::render_from_switcher( $from, $from ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+
+			<section class="llm-uscite__section llm-uscite__section--pairs" aria-labelledby="llm-uscite-pairs-title">
+				<h2 id="llm-uscite-pairs-title" class="llm-uscite__title"><?php echo esc_html( self::t( $from, 'pairs' ) ); ?></h2>
+				<div class="llm-uscite__pairs">
+					<?php
+					foreach ( $pairs as $pair ) {
+						echo self::render_pair_card( $pair, $from ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+					}
+					$empty = max( 0, 5 - count( $pairs ) );
+					for ( $i = 0; $i < $empty; $i++ ) {
+						echo '<div class="llm-uscite__pair-card llm-uscite__pair-card--empty" aria-hidden="true"></div>';
+					}
+					?>
+				</div>
+			</section>
 
 			<section class="llm-uscite__section" aria-labelledby="llm-uscite-latest-title">
 				<div class="llm-uscite__head">
-					<h2 id="llm-uscite-latest-title" class="llm-uscite__title" data-llm-uscite-title="latest"><?php echo esc_html( self::t( 'it', 'latest' ) ); ?></h2>
-					<div class="llm-uscite__nav" role="group" aria-label="<?php echo esc_attr( self::t( $ui, 'carousel_nav' ) ); ?>">
-						<button type="button" class="llm-uscite__arrow" data-llm-uscite-prev aria-label="<?php echo esc_attr( self::t( $ui, 'prev' ) ); ?>">
+					<h2 id="llm-uscite-latest-title" class="llm-uscite__title"><?php echo esc_html( self::t( $from, 'latest' ) ); ?></h2>
+					<div class="llm-uscite__nav" role="group" aria-label="<?php echo esc_attr( self::t( $from, 'carousel_nav' ) ); ?>">
+						<button type="button" class="llm-uscite__arrow" data-llm-uscite-prev aria-label="<?php echo esc_attr( self::t( $from, 'prev' ) ); ?>">
 							<span aria-hidden="true">&#8249;</span>
 						</button>
-						<button type="button" class="llm-uscite__arrow" data-llm-uscite-next aria-label="<?php echo esc_attr( self::t( $ui, 'next' ) ); ?>">
+						<button type="button" class="llm-uscite__arrow" data-llm-uscite-next aria-label="<?php echo esc_attr( self::t( $from, 'next' ) ); ?>">
 							<span aria-hidden="true">&#8250;</span>
 						</button>
 					</div>
@@ -110,7 +137,7 @@ class LLM_Home_Page_Uscite_Shortcode {
 				<div class="llm-uscite__carousel" data-llm-uscite-track tabindex="0">
 					<?php
 					if ( empty( $latest ) ) {
-						echo '<p class="llm-uscite__empty">' . esc_html( self::t( $ui, 'no_stories' ) ) . '</p>';
+						echo '<p class="llm-uscite__empty">' . esc_html( self::t( $from, 'no_stories' ) ) . '</p>';
 					} else {
 						foreach ( $latest as $card ) {
 							echo self::render_story_card( $card, $ui, 'carousel' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
@@ -121,7 +148,7 @@ class LLM_Home_Page_Uscite_Shortcode {
 			</section>
 
 			<section class="llm-uscite__section" aria-labelledby="llm-uscite-cal-title">
-				<h2 id="llm-uscite-cal-title" class="llm-uscite__title" data-llm-uscite-title="calendar"><?php echo esc_html( self::t( 'it', 'calendar' ) ); ?></h2>
+				<h2 id="llm-uscite-cal-title" class="llm-uscite__title"><?php echo esc_html( self::t( $from, 'calendar' ) ); ?></h2>
 				<div class="llm-uscite__cal-box">
 					<div class="llm-uscite__cal-grid-wrap">
 						<div class="llm-uscite__cal-toolbar">
@@ -137,31 +164,81 @@ class LLM_Home_Page_Uscite_Shortcode {
 					</div>
 				</div>
 			</section>
-
-			<section class="llm-uscite__section" aria-labelledby="llm-uscite-pairs-title">
-				<h2 id="llm-uscite-pairs-title" class="llm-uscite__title" data-llm-uscite-title="pairs"><?php echo esc_html( self::t( 'it', 'pairs' ) ); ?></h2>
-				<div class="llm-uscite__pairs">
-					<?php
-					foreach ( $pairs as $pair ) {
-						echo self::render_pair_card( $pair, $ui ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-					}
-					$empty = max( 0, 6 - count( $pairs ) );
-					for ( $i = 0; $i < $empty; $i++ ) {
-						echo '<div class="llm-uscite__pair-card llm-uscite__pair-card--empty" aria-hidden="true"></div>';
-					}
-					?>
-				</div>
-			</section>
 		</div>
 		<?php
 		return (string) ob_get_clean();
 	}
 
 	/**
+	 * Filtro lingua di partenza dalla query string (?llm_from=it|en).
+	 *
+	 * @return string it|en|''
+	 */
+	private static function requested_from() {
+		$from = isset( $_GET['llm_from'] ) ? sanitize_key( wp_unslash( $_GET['llm_from'] ) ) : '';
+		return in_array( $from, array( 'it', 'en' ), true ) ? $from : 'it';
+	}
+
+	/**
+	 * @param string $from Lingua nota (it|en|'').
+	 * @return array<string,mixed>
+	 */
+	private static function known_lang_meta_query( $from ) {
+		$from = sanitize_key( (string) $from );
+		if ( '' === $from || ! class_exists( 'LLM_Story_Meta' ) ) {
+			return array();
+		}
+		return array(
+			'meta_query' => array(
+				array(
+					'key'   => LLM_Story_Meta::KNOWN_LANG,
+					'value' => $from,
+				),
+			),
+		);
+	}
+
+	/**
+	 * Due riquadri in cima: italiano → / inglese →.
+	 *
+	 * @param string $ui   Lingua UI.
+	 * @param string $from Filtro attivo.
+	 * @return string
+	 */
+	private static function render_from_switcher( $ui, $from ) {
+		$choices = array( 'it', 'en' );
+		ob_start();
+		?>
+		<nav class="llm-uscite__from" aria-label="<?php echo esc_attr( self::t( $ui, 'from_nav' ) ); ?>">
+			<?php foreach ( $choices as $code ) : ?>
+				<?php
+				$url    = add_query_arg( 'llm_from', $code );
+				$active = ( $from === $code );
+				$cls    = 'llm-uscite__from-card' . ( $active ? ' is-active' : '' );
+				$flag   = class_exists( 'LLM_Languages' ) ? LLM_Languages::flag_emoji( $code ) : '';
+				$label  = self::t( $ui, 'from_' . $code );
+				?>
+				<a
+					class="<?php echo esc_attr( $cls ); ?>"
+					href="<?php echo esc_url( $url ); ?>"
+					<?php echo $active ? ' aria-current="page"' : ''; ?>
+				>
+					<span class="llm-uscite__from-flag" aria-hidden="true"><?php echo esc_html( $flag ); ?></span>
+					<span class="llm-uscite__from-name"><?php echo esc_html( $label ); ?></span>
+					<span class="llm-uscite__from-arrow" aria-hidden="true">→</span>
+				</a>
+			<?php endforeach; ?>
+		</nav>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * @param string $from Lingua nota (it|en|'').
 	 * @return array<int,array<string,mixed>>
 	 */
-	private static function latest_stories() {
-		$q = new WP_Query(
+	private static function latest_stories( $from = '' ) {
+		$args = array_merge(
 			array(
 				'post_type'              => LLM_STORY_CPT,
 				'post_status'            => 'publish',
@@ -170,17 +247,20 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'order'                  => 'DESC',
 				'no_found_rows'          => true,
 				'update_post_term_cache' => true,
-			)
+			),
+			self::known_lang_meta_query( $from )
 		);
+		$q = new WP_Query( $args );
 		return self::pack_stories( $q->posts );
 	}
 
 	/**
+	 * @param string $from Lingua nota (it|en|'').
 	 * @return array<int,array<string,mixed>>
 	 */
-	private static function upcoming_stories() {
+	private static function upcoming_stories( $from = '' ) {
 		$today = current_time( 'Y-m-d' ) . ' 00:00:00';
-		$q     = new WP_Query(
+		$args  = array_merge(
 			array(
 				'post_type'              => LLM_STORY_CPT,
 				'post_status'            => array( 'publish', 'future' ),
@@ -195,8 +275,10 @@ class LLM_Home_Page_Uscite_Shortcode {
 				),
 				'no_found_rows'          => true,
 				'update_post_term_cache' => true,
-			)
+			),
+			self::known_lang_meta_query( $from )
 		);
+		$q = new WP_Query( $args );
 		return self::pack_stories( $q->posts );
 	}
 
@@ -412,18 +494,112 @@ class LLM_Home_Page_Uscite_Shortcode {
 	}
 
 	/**
+	 * Nome lingua con articolo, nella lingua UI.
+	 *
+	 * @param string $ui   Lingua UI.
+	 * @param string $code Codice lingua.
+	 * @return string
+	 */
+	private static function lang_in_phrase( $ui, $code ) {
+		$names = array(
+			'it' => array(
+				'it' => 'l\'italiano',
+				'en' => 'l\'inglese',
+				'pl' => 'il polacco',
+				'es' => 'lo spagnolo',
+				'de' => 'il tedesco',
+				'fr' => 'il francese',
+			),
+			'en' => array(
+				'it' => 'Italian',
+				'en' => 'English',
+				'pl' => 'Polish',
+				'es' => 'Spanish',
+				'de' => 'German',
+				'fr' => 'French',
+			),
+			'pl' => array(
+				'it' => 'włoskiego',
+				'en' => 'angielskiego',
+				'pl' => 'polskiego',
+				'es' => 'hiszpańskiego',
+				'de' => 'niemieckiego',
+				'fr' => 'francuskiego',
+			),
+			'es' => array(
+				'it' => 'italiano',
+				'en' => 'inglés',
+				'pl' => 'polaco',
+				'es' => 'español',
+				'de' => 'alemán',
+				'fr' => 'francés',
+			),
+			'de' => array(
+				'it' => 'Italienisch',
+				'en' => 'Englisch',
+				'pl' => 'Polnisch',
+				'es' => 'Spanisch',
+				'de' => 'Deutsch',
+				'fr' => 'Französisch',
+			),
+			'fr' => array(
+				'it' => 'l\'italien',
+				'en' => 'l\'anglais',
+				'pl' => 'le polonais',
+				'es' => 'l\'espagnol',
+				'de' => 'l\'allemand',
+				'fr' => 'le français',
+			),
+		);
+		if ( ! isset( $names[ $ui ] ) ) {
+			$ui = 'it';
+		}
+		return isset( $names[ $ui ][ $code ] ) ? $names[ $ui ][ $code ] : $code;
+	}
+
+	/**
+	 * Descrizione card: storie dedicate in base a lingua nota e obiettivo.
+	 *
+	 * @param string $ui     Lingua UI.
+	 * @param string $known  Lingua nota.
+	 * @param string $target Lingua obiettivo.
+	 * @return string
+	 */
+	private static function pair_card_desc( $ui, $known, $target ) {
+		$tpl = array(
+			'it' => 'Storie per chi vuole imparare %1$s dedicate a chi conosce %2$s',
+			'en' => 'Stories for those who want to learn %1$s, dedicated to those who know %2$s',
+			'pl' => 'Historie dla tych, którzy chcą uczyć się %1$s, przeznaczone dla znających %2$s',
+			'es' => 'Historias para quien quiere aprender %1$s, dedicadas a quien conoce %2$s',
+			'de' => 'Geschichten für alle, die %1$s lernen wollen, für alle die %2$s können',
+			'fr' => 'Histoires pour ceux qui veulent apprendre %1$s, dédiées à ceux qui connaissent %2$s',
+		);
+		if ( ! isset( $tpl[ $ui ] ) ) {
+			$ui = 'it';
+		}
+		return sprintf(
+			$tpl[ $ui ],
+			self::lang_in_phrase( $ui, $target ),
+			self::lang_in_phrase( $ui, $known )
+		);
+	}
+
+	/**
 	 * @param array{known:string,target:string,url:string} $pair Coppia.
 	 * @param string                                       $ui   Lingua UI.
 	 * @return string
 	 */
 	private static function render_pair_card( array $pair, $ui ) {
-		$known  = $pair['known'];
+		$known  = isset( $pair['known'] ) ? $pair['known'] : $ui;
 		$target = $pair['target'];
 		$url    = $pair['url'];
 		$title  = class_exists( 'LLM_Nav_Menu_Shortcode' )
-			? LLM_Nav_Menu_Shortcode::pair_title( $known, $target )
+			? LLM_Nav_Menu_Shortcode::pair_title( $ui, $target )
 			: '';
-		$flag_k = class_exists( 'LLM_Languages' ) ? LLM_Languages::flag_emoji( $known ) : '';
+		if ( '' === $title && class_exists( 'LLM_Nav_Menu_Shortcode' ) ) {
+			$title = LLM_Nav_Menu_Shortcode::pair_title( $known, $target );
+		}
+		$desc   = self::pair_card_desc( $ui, $known, $target );
 		$flag_t = class_exists( 'LLM_Languages' ) ? LLM_Languages::flag_emoji( $target ) : '';
 		$tag    = $url ? 'a' : 'div';
 		$cls    = 'llm-uscite__pair-card' . ( $url ? '' : ' llm-uscite__pair-card--soon' );
@@ -436,13 +612,10 @@ class LLM_Home_Page_Uscite_Shortcode {
 				href="<?php echo esc_url( $url ); ?>"
 			<?php endif; ?>
 		>
-			<div class="llm-uscite__pair-cover" aria-hidden="true">
-				<span class="llm-uscite__pair-flag llm-uscite__pair-flag--from"><?php echo esc_html( $flag_k ); ?></span>
-				<span class="llm-uscite__pair-arrow">→</span>
-				<span class="llm-uscite__pair-flag llm-uscite__pair-flag--to"><?php echo esc_html( $flag_t ); ?></span>
-			</div>
+			<span class="llm-uscite__pair-flag llm-uscite__pair-flag--to" aria-hidden="true"><?php echo esc_html( $flag_t ); ?></span>
 			<div class="llm-uscite__pair-body">
 				<h3 class="llm-uscite__pair-title"><?php echo esc_html( $title ); ?></h3>
+				<p class="llm-uscite__pair-desc"><?php echo esc_html( $desc ); ?></p>
 				<?php if ( ! $url ) : ?>
 					<span class="llm-uscite__soon"><?php echo esc_html( self::t( $ui, 'soon' ) ); ?></span>
 				<?php endif; ?>
@@ -476,9 +649,12 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'hello'        => 'Ciao',
 				'hello_name'   => 'Ciao, %s',
 				'hello_sub'    => 'Piacere di vederti',
+				'from_nav'     => 'Parti dalla lingua che conosci',
+				'from_it'      => 'Italiano',
+				'from_en'      => 'Inglese',
 				'latest'       => 'Ultime aggiunte',
 				'calendar'     => 'Calendario Eventi Uscite',
-				'pairs'        => 'Coppie di lingue',
+				'pairs'        => 'Vai alle storie dedicate per…',
 				'more'         => 'Scopri di più →',
 				'prev'         => 'Precedente',
 				'next'         => 'Successivo',
@@ -496,9 +672,12 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'hello'        => 'Hello',
 				'hello_name'   => 'Hello, %s',
 				'hello_sub'    => 'Nice to see you',
+				'from_nav'     => 'Start from the language you know',
+				'from_it'      => 'Italian',
+				'from_en'      => 'English',
 				'latest'       => 'Latest additions',
 				'calendar'     => 'Release calendar',
-				'pairs'        => 'Language pairs',
+				'pairs'        => 'Go to the stories dedicated to…',
 				'more'         => 'Find out more →',
 				'prev'         => 'Previous',
 				'next'         => 'Next',
@@ -516,9 +695,12 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'hello'        => 'Cześć',
 				'hello_name'   => 'Cześć, %s',
 				'hello_sub'    => 'Miło cię widzieć',
+				'from_nav'     => 'Zacznij od języka, który znasz',
+				'from_it'      => 'Włoski',
+				'from_en'      => 'Angielski',
 				'latest'       => 'Ostatnio dodane',
 				'calendar'     => 'Kalendarz publikacji',
-				'pairs'        => 'Pary językowe',
+				'pairs'        => 'Przejdź do historii poświęconych…',
 				'more'         => 'Zobacz więcej →',
 				'prev'         => 'Poprzednie',
 				'next'         => 'Następne',
@@ -536,9 +718,12 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'hello'        => 'Hola',
 				'hello_name'   => 'Hola, %s',
 				'hello_sub'    => 'Encantado de verte',
+				'from_nav'     => 'Empieza por el idioma que conoces',
+				'from_it'      => 'Italiano',
+				'from_en'      => 'Inglés',
 				'latest'       => 'Últimas añadiduras',
 				'calendar'     => 'Calendario de salidas',
-				'pairs'        => 'Parejas de idiomas',
+				'pairs'        => 'Ve a las historias dedicadas a…',
 				'more'         => 'Descubre más →',
 				'prev'         => 'Anterior',
 				'next'         => 'Siguiente',
@@ -556,9 +741,12 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'hello'        => 'Hallo',
 				'hello_name'   => 'Hallo, %s',
 				'hello_sub'    => 'Schön, dich zu sehen',
+				'from_nav'     => 'Starte mit der Sprache, die du kennst',
+				'from_it'      => 'Italienisch',
+				'from_en'      => 'Englisch',
 				'latest'       => 'Neueste Ergänzungen',
 				'calendar'     => 'Veranstaltungskalender',
-				'pairs'        => 'Sprachpaare',
+				'pairs'        => 'Zu den Geschichten, um…',
 				'more'         => 'Mehr erfahren →',
 				'prev'         => 'Zurück',
 				'next'         => 'Weiter',
@@ -576,9 +764,12 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'hello'        => 'Bonjour',
 				'hello_name'   => 'Bonjour, %s',
 				'hello_sub'    => 'Ravi de te voir',
+				'from_nav'     => 'Pars de la langue que tu connais',
+				'from_it'      => 'Italien',
+				'from_en'      => 'Anglais',
 				'latest'       => 'Derniers ajouts',
 				'calendar'     => 'Calendrier des sorties',
-				'pairs'        => 'Paires de langues',
+				'pairs'        => 'Va aux histoires dédiées pour…',
 				'more'         => 'En savoir plus →',
 				'prev'         => 'Précédent',
 				'next'         => 'Suivant',
