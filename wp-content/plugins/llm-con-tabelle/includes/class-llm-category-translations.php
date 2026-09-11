@@ -18,6 +18,9 @@ class LLM_Category_Translations {
 	/** Prefisso chiave term meta. Es: _llm_cat_name_pl */
 	const META_PREFIX = '_llm_cat_name_';
 
+	/** Categoria nascosta in frontend (bozza). */
+	const META_DRAFT = '_llm_cat_draft';
+
 	/** Slug pagina admin. */
 	const MENU_SLUG = 'llm-category-translations';
 
@@ -28,6 +31,33 @@ class LLM_Category_Translations {
 
 		// Pagina admin riepilogativa.
 		add_action( 'admin_menu', array( __CLASS__, 'add_admin_page' ) );
+		add_filter( 'llm_loop_stories_filter_category_terms', array( __CLASS__, 'filter_public_terms' ) );
+	}
+
+	/**
+	 * @param int|WP_Term $term Termine o ID.
+	 * @return bool
+	 */
+	public static function is_draft( $term ) {
+		$id = ( $term instanceof WP_Term ) ? (int) $term->term_id : (int) $term;
+		return $id > 0 && '1' === (string) get_term_meta( $id, self::META_DRAFT, true );
+	}
+
+	/**
+	 * @param WP_Term[] $terms Categorie.
+	 * @return WP_Term[]
+	 */
+	public static function filter_public_terms( $terms ) {
+		if ( ! is_array( $terms ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $terms as $term ) {
+			if ( $term instanceof WP_Term && ! self::is_draft( $term ) ) {
+				$out[] = $term;
+			}
+		}
+		return $out;
 	}
 
 	/* -----------------------------------------------------------------------

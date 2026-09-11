@@ -6,17 +6,23 @@
 
 	var STORIES_KEY = 'llm_guest_story_progress';
 	var CROSSWORDS_KEY = 'llm_crossword_progress';
+	var PLAY_TIME_KEY = 'llm_story_play_time';
 	var NAME_KEY = 'llm_guest_display_name';
+	var AVATAR_KEY = 'llm_guest_avatar';
 
-	/** Chiavi LLM gestite nel browser (lingue, modalità, progresso, nome). */
+	/** Chiavi LLM gestite nel browser (lingue, modalità, progresso, nome, avatar). */
 	var KNOWN_KEYS = [
 		NAME_KEY,
+		AVATAR_KEY,
 		'llm_interface_lang',
 		'llm_learning_lang',
 		'llm_learning_mode',
 		'llm_learning_options',
+		'llm_stt_engine',
+		'llm_tts_voice',
 		STORIES_KEY,
-		CROSSWORDS_KEY
+		CROSSWORDS_KEY,
+		PLAY_TIME_KEY
 	];
 
 	function safeParse(raw, fallback) {
@@ -60,6 +66,8 @@
 		if (isNaN(phrasesTotal)) { phrasesTotal = 0; }
 		if (isNaN(points)) { points = phrasesDone; }
 		if (step !== 2) { step = 1; }
+		var known = entry.known ? String(entry.known).toLowerCase() : '';
+		var target = entry.target ? String(entry.target).toLowerCase() : '';
 		return {
 			storyId: id,
 			title: entry.title ? String(entry.title) : '',
@@ -69,6 +77,8 @@
 			phrasesTotal: Math.max(0, phrasesTotal),
 			points: Math.max(0, points),
 			finished: !!entry.finished || (phrasesTotal > 0 && phrasesDone >= phrasesTotal),
+			known: known,
+			target: target,
 			updatedAt: entry.updatedAt ? String(entry.updatedAt) : ''
 		};
 	}
@@ -102,6 +112,8 @@
 				phrasesTotal: data && data.phrasesTotal != null ? data.phrasesTotal : prev.phrasesTotal,
 				points: data && data.points != null ? data.points : prev.points,
 				finished: data && data.finished != null ? data.finished : prev.finished,
+				known: data && data.known != null ? data.known : prev.known,
+				target: data && data.target != null ? data.target : prev.target,
 				updatedAt: new Date().toISOString()
 			},
 			id
@@ -191,7 +203,10 @@
 		next.updatedAt = new Date().toISOString();
 
 		var map = readCrosswordsMap();
-		if (!next.filled) {
+		if (map[id] && map[id].solved) {
+			next.solved = true;
+		}
+		if (!next.filled && !next.solved) {
 			if (map[id]) {
 				delete map[id];
 				writeCrosswordsMap(map);
@@ -288,7 +303,9 @@
 			phrasesDone: finalDone,
 			phrasesTotal: total,
 			points: finalDone,
-			finished: !!cfg.gameFinished
+			finished: !!cfg.gameFinished,
+			known: cfg.interfaceLangCode || (local && local.known) || '',
+			target: cfg.targetLangCode || (local && local.target) || ''
 		});
 
 		return restored;
@@ -367,6 +384,111 @@
 		return name;
 	}
 
+	function catalogFiles() {
+		var c = window.llmUserAvatars || {};
+		return Array.isArray(c.files) ? c.files : [];
+	}
+
+	function getAvatar() {
+		var raw = readSimple(AVATAR_KEY);
+		return raw ? String(raw).trim() : '';
+	}
+
+	function setAvatar(file) {
+		file = String(file || '').trim();
+		try {
+			if (file) {
+				window.localStorage.setItem(AVATAR_KEY, file);
+			} else {
+				window.localStorage.removeItem(AVATAR_KEY);
+			}
+		} catch (e) {
+			return '';
+		}
+		return file;
+	}
+
+	function pickRandomAvatar(exclude) {
+		var files = catalogFiles();
+		var pool = [];
+		var i;
+		exclude = String(exclude || '');
+		for (i = 0; i < files.length; i++) {
+			if (files[i] && files[i] !== exclude) {
+				pool.push(files[i]);
+			}
+		}
+		if (!pool.length) {
+			pool = files.slice();
+		}
+		if (!pool.length) {
+			return '';
+		}
+		return pool[Math.floor(Math.random() * pool.length)];
+	}
+
+	function ensureAvatar() {
+		var files = catalogFiles();
+		var current = getAvatar();
+		if (current && files.indexOf(current) !== -1) {
+			return current;
+		}
+		var picked = pickRandomAvatar(current);
+		if (picked) {
+			setAvatar(picked);
+		}
+		return picked;
+	}
+
+	function readPlayTimeMap() {
+		try {
+			var map = safeParse(window.localStorage.getItem(PLAY_TIME_KEY), {});
+			return map && typeof map === 'object' ? map : {};
+		} catch (e) {
+			return {};
+		}
+	}
+
+	function writePlayTimeMap(map) {
+		try {
+			window.localStorage.setItem(PLAY_TIME_KEY, JSON.stringify(map || {}));
+		} catch (e) {
+			/* Quota o privacy mode. */
+		}
+	}
+
+	function getPlaySeconds(storyId) {
+		var id = parseInt(storyId, 10) || 0;
+		if (!id) {
+			return 0;
+		}
+		var map = readPlayTimeMap();
+		return Math.max(0, parseInt(map[String(id)], 10) || 0);
+	}
+
+	function addPlaySeconds(storyId, delta) {
+		var id = parseInt(storyId, 10) || 0;
+		var add = Math.max(0, parseInt(delta, 10) || 0);
+		if (!id || !add) {
+			return getPlaySeconds(id);
+		}
+		var map = readPlayTimeMap();
+		var key = String(id);
+		var next = Math.max(0, (parseInt(map[key], 10) || 0) + add);
+		map[key] = next;
+		writePlayTimeMap(map);
+		return next;
+	}
+
+	function sumPlaySeconds() {
+		var map = readPlayTimeMap();
+		var total = 0;
+		Object.keys(map).forEach(function (key) {
+			total += Math.max(0, parseInt(map[key], 10) || 0);
+		});
+		return total;
+	}
+
 	function collectSnapshot() {
 		var stories = getAllStories();
 		var phrasesDone = 0;
@@ -404,7 +526,9 @@
 				points: points,
 				crosswords: crosswords.length,
 				crosswordsSolved: crosswordsSolved,
-				crosswordLetters: lettersFilled
+				crosswordLetters: lettersFilled,
+				playSeconds: sumPlaySeconds(),
+				playMinutes: Math.floor(sumPlaySeconds() / 60)
 			},
 			storage: storage
 		};
@@ -413,10 +537,16 @@
 	window.llmGuestBrowserStore = {
 		STORIES_KEY: STORIES_KEY,
 		CROSSWORDS_KEY: CROSSWORDS_KEY,
+		PLAY_TIME_KEY: PLAY_TIME_KEY,
 		NAME_KEY: NAME_KEY,
+		AVATAR_KEY: AVATAR_KEY,
 		KNOWN_KEYS: KNOWN_KEYS,
 		getName: getName,
 		setName: setName,
+		getAvatar: getAvatar,
+		setAvatar: setAvatar,
+		pickRandomAvatar: pickRandomAvatar,
+		ensureAvatar: ensureAvatar,
 		getStory: getStory,
 		setStory: setStory,
 		removeStory: removeStory,
@@ -425,6 +555,9 @@
 		setCrossword: setCrossword,
 		removeCrossword: removeCrossword,
 		getAllCrosswords: getAllCrosswords,
+		getPlaySeconds: getPlaySeconds,
+		addPlaySeconds: addPlaySeconds,
+		sumPlaySeconds: sumPlaySeconds,
 		hydratePhraseGameCfg: hydratePhraseGameCfg,
 		persistPhraseProgress: persistPhraseProgress,
 		measureStorage: measureStorage,

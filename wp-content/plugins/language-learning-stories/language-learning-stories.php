@@ -28,15 +28,12 @@ require_once LLS_PLUGIN_DIR . 'includes/class-lls-post-type.php';
 require_once LLS_PLUGIN_DIR . 'includes/class-lls-taxonomies.php';
 require_once LLS_PLUGIN_DIR . 'includes/class-lls-story-meta.php';
 require_once LLS_PLUGIN_DIR . 'includes/class-lls-admin-story.php';
-require_once LLS_PLUGIN_DIR . 'includes/class-lls-demo-content.php';
 require_once LLS_PLUGIN_DIR . 'includes/class-lls-activity-cpt.php';
 require_once LLS_PLUGIN_DIR . 'includes/class-lls-user-meta.php';
 require_once LLS_PLUGIN_DIR . 'includes/class-lls-community.php';
 require_once LLS_PLUGIN_DIR . 'includes/class-lls-user-stats.php';
 require_once LLS_PLUGIN_DIR . 'includes/class-lls-admin-users.php';
 require_once LLS_PLUGIN_DIR . 'includes/class-lls-admin-community.php';
-require_once LLS_PLUGIN_DIR . 'includes/class-lls-demo-users.php';
-require_once LLS_PLUGIN_DIR . 'includes/class-lls-demo-community.php';
 
 /**
  * Avvio plugin.
@@ -53,9 +50,6 @@ function lls_boot() {
 	LLS_Admin_Story::init();
 	LLS_Admin_Users::init();
 	LLS_Admin_Community::init();
-	LLS_Demo_Content::init();
-	LLS_Demo_Users::init();
-	LLS_Demo_Community::init();
 }
 add_action( 'plugins_loaded', 'lls_boot' );
 

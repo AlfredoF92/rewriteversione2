@@ -49,6 +49,7 @@ class LLM_Story_Phrase_Game {
 		add_action( 'wp_ajax_llm_phrase_game_set_display', array( __CLASS__, 'ajax_set_display' ) );
 		add_action( 'wp_ajax_nopriv_llm_phrase_game_set_display', array( __CLASS__, 'ajax_set_display' ) );
 		add_action( 'wp_ajax_llm_fe_save_phrase_notes', array( __CLASS__, 'ajax_save_phrase_notes' ) );
+		add_action( 'wp_ajax_llm_fe_admin_complete_story', array( __CLASS__, 'ajax_admin_complete_story' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_sync_visitor_langs' ), 6 );
 	}
 
@@ -142,8 +143,9 @@ class LLM_Story_Phrase_Game {
 			if ( '' !== $stored ) {
 				return LLM_Visitor_Theme::get();
 			}
+			return is_user_logged_in() ? 'dark' : LLM_Visitor_Theme::get();
 		}
-		return 'dark';
+		return is_user_logged_in() ? 'dark' : 'light';
 	}
 
 	/**
@@ -199,6 +201,22 @@ class LLM_Story_Phrase_Game {
 	}
 
 	/**
+	 * Riga Bravo + pulsante Grazie (stesso stile di «cambia modalità»).
+	 *
+	 * @param string $suffix 1|voice.
+	 * @return string
+	 */
+	private static function render_exact_ok_row( $suffix, $thanks = '' ) {
+		if ( '' === $thanks ) {
+			$thanks = LLM_Phrase_Game_I18n::get( 'exact_ok_thanks' );
+		}
+		return '<div class="llm-phrase-game__exact-ok-row llm-phrase-game__exact-ok-row--' . esc_attr( $suffix ) . '" hidden>'
+			. '<p class="llm-phrase-game__exact-ok llm-phrase-game__exact-ok--' . esc_attr( $suffix ) . '"></p>'
+			. '<button type="button" class="llm-learning-mode__change llm-phrase-game__exact-thanks" hidden>' . esc_html( $thanks ) . ' <span aria-hidden="true">❤️</span></button>'
+			. '</div>';
+	}
+
+	/**
 	 * Pulsante per tornare al checkpoint dopo un salto.
 	 *
 	 * @return string
@@ -227,6 +245,23 @@ class LLM_Story_Phrase_Game {
 	}
 
 	/**
+	 * Pulsante per cancellare l’ultima parola della textarea.
+	 *
+	 * @param string $suffix Suffisso classe (--1 / --2 / --voice).
+	 * @return string
+	 */
+	private static function render_delete_last_word_button( $suffix ) {
+		$label = LLM_Phrase_Game_I18n::get( 'delete_last_word' );
+		$aria  = LLM_Phrase_Game_I18n::get( 'delete_last_word_aria' );
+		return '<button type="button" class="llm-phrase-game__clear-input llm-phrase-game__delete-word llm-phrase-game__delete-word--' . esc_attr( $suffix ) . ' button" aria-label="' . esc_attr( $aria ) . '" title="' . esc_attr( $aria ) . '">'
+			. '<span class="llm-phrase-game__clear-input-icon" aria-hidden="true">'
+			. '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>'
+			. '</span>'
+			. '<span class="llm-phrase-game__clear-input-text">' . esc_html( $label ) . '</span>'
+			. '</button>';
+	}
+
+	/**
 	 * Pulsante "Riprendi dalle parole esatte" (frecce, una per parola da togliere).
 	 *
 	 * @param string $suffix Suffisso classe (--1 / --2 / --voice).
@@ -239,14 +274,27 @@ class LLM_Story_Phrase_Game {
 			. '</button>';
 	}
 
+	private static function render_ordina_esatte_button( $suffix ) {
+		$label = LLM_Phrase_Game_I18n::get( 'sort_exact_words' );
+		$aria  = LLM_Phrase_Game_I18n::get( 'sort_exact_words_aria' );
+		return '<button type="button" class="llm-phrase-game__clear-input llm-phrase-game__ordina-input llm-phrase-game__ordina-input--' . esc_attr( $suffix ) . ' button" hidden aria-label="' . esc_attr( $aria ) . '">'
+			. '<span class="llm-phrase-game__ordina-input-text">' . esc_html( $label ) . '</span>'
+			. '</button>';
+	}
+
 	/**
-	 * Riga sotto textarea: svuota + riprendi dalle parole esatte.
+	 * Riga sotto textarea: svuota + ordina parole esatte + riprendi dalle parole esatte.
 	 *
 	 * @param string $suffix Suffisso classe (--1 / --2 / --voice).
 	 * @return string
 	 */
 	private static function render_clear_input_row( $suffix ) {
-		return self::render_clear_input_button( $suffix ) . self::render_rewind_exact_button( $suffix );
+		$html = self::render_clear_input_button( $suffix ) . self::render_delete_last_word_button( $suffix );
+		if ( 'voice' === $suffix ) {
+			$html .= self::render_ordina_esatte_button( $suffix );
+		}
+		$html .= self::render_rewind_exact_button( $suffix );
+		return $html;
 	}
 
 	private static function render_mic_button( $mod_class, $engine, $label ) {
@@ -261,13 +309,6 @@ class LLM_Story_Phrase_Game {
 		$phase = ( '2' === (string) $phase ) ? '2' : '1';
 		$html  = '<div class="llm-phrase-game__mic-cluster">';
 		$html .= '<div class="llm-phrase-game__mic-stage" data-llm-mic-stage>';
-		if ( $deepgram_ready ) {
-			$html .= self::render_mic_button(
-				'llm-phrase-game__mic--deepgram llm-phrase-game__mic--deepgram-' . $phase,
-				'deepgram',
-				LLM_Phrase_Game_I18n::get( 'mic_button_deepgram' )
-			);
-		}
 		if ( $azure_ready ) {
 			$html .= self::render_mic_button(
 				'llm-phrase-game__mic--azure llm-phrase-game__mic--azure-' . $phase,
@@ -275,18 +316,19 @@ class LLM_Story_Phrase_Game {
 				LLM_Phrase_Game_I18n::get( 'mic_button_azure' )
 			);
 		}
+		if ( $deepgram_ready ) {
+			$html .= self::render_mic_button(
+				'llm-phrase-game__mic--deepgram llm-phrase-game__mic--deepgram-' . $phase,
+				'deepgram',
+				LLM_Phrase_Game_I18n::get( 'mic_button_deepgram' )
+			);
+		}
 		$browser_mod = ( '2' === $phase ) ? 'llm-phrase-game__mic--2' : 'llm-phrase-game__mic--1';
 		$html       .= self::render_mic_button( $browser_mod, 'browser', LLM_Phrase_Game_I18n::get( 'mic_button_browser' ) );
 		$html       .= '</div>';
 		$html       .= '<button type="button" class="llm-phrase-game__mic-switch" data-llm-mic-switch aria-label="' . esc_attr( LLM_Phrase_Game_I18n::get( 'mic_switch_aria' ) ) . '">';
-		$html       .= '<span class="llm-phrase-game__mic-switch-pad" aria-hidden="true"><span class="llm-phrase-game__mic-switch-arrow"></span></span>';
+		$html       .= '<span class="llm-phrase-game__mic-switch-pad" aria-hidden="true"><span class="llm-phrase-game__mic-switch-cambio"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M16.2 3.4 20 7.2l-3.8 3.8-1.4-1.4 1.4-1.4H6.5V6.2h9.7l-1.4-1.4 1.4-1.4zm-8.4 17.2L4 16.8l3.8-3.8 1.4 1.4-1.4 1.4h9.7v2H8.8l1.4 1.4-1.4 1.4z"/></svg></span></span>';
 		$html       .= '</button>';
-		if ( $with_help ) {
-			$html .= '<span class="llm-phrase-game__mic-help">';
-			$html .= '<button type="button" class="llm-phrase-game__help-dot llm-phrase-game__mic-help-btn" aria-expanded="false" aria-controls="' . esc_attr( $uid ) . '-mic-help" aria-label="' . esc_attr( LLM_Phrase_Game_I18n::get( 'mic_help_aria' ) ) . '"><span class="llm-phrase-game__help-dot-mark" aria-hidden="true">?</span></button>';
-			$html .= '<span class="llm-phrase-game__mic-help-bubble" id="' . esc_attr( $uid ) . '-mic-help" role="tooltip" hidden>' . esc_html( LLM_Phrase_Game_I18n::get( 'mic_help_text' ) ) . '</span>';
-			$html .= '</span>';
-		}
 		$html .= '</div>';
 		return $html;
 	}
@@ -310,8 +352,14 @@ class LLM_Story_Phrase_Game {
 		$cls_1   = trim( $phase_class . ' llm-phrase-game__listen-target--voice-1' . ( $hidden_primary ? ' llm-phrase-game__listen-target--force-hidden' : '' ) );
 		$cls_2   = trim( $phase_class . ' llm-phrase-game__listen-target--voice-2 llm-phrase-game__listen-target--force-hidden' );
 		return '<div class="llm-phrase-game__listen-voices">'
+			. '<div class="llm-phrase-game__listen-voice-row">'
 			. self::render_listen_target_button( $cls_1, $label, $aria, $hidden_primary )
+			. self::render_listen_slow( 'male' )
+			. '</div>'
+			. '<div class="llm-phrase-game__listen-voice-row">'
 			. self::render_listen_target_button( $cls_2, $label_2, $label_2, true )
+			. self::render_listen_slow( 'female' )
+			. '</div>'
 			. '</div>';
 	}
 
@@ -321,9 +369,10 @@ class LLM_Story_Phrase_Game {
 			. '</button>';
 	}
 
-	private static function render_listen_slow() {
+	private static function render_listen_slow( $voice = '' ) {
 		$icon = '<span class="llm-phrase-game__listen-slow-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" focusable="false"><circle cx="12" cy="6" r="2.15"/><circle cx="5.15" cy="10.15" r="1.7"/><circle cx="18.85" cy="10.15" r="1.7"/><circle cx="6.1" cy="16.85" r="1.7"/><circle cx="17.9" cy="16.85" r="1.7"/><circle cx="12" cy="19.35" r="1.15"/><ellipse cx="12" cy="13.05" rx="6.4" ry="4.85"/></svg></span>';
-		return '<button type="button" class="llm-phrase-game__mic-switch llm-phrase-game__listen-switch llm-phrase-game__listen-slow" data-llm-listen-slow aria-label="' . esc_attr( LLM_Phrase_Game_I18n::get( 'listen_slow_aria' ) ) . '" title="' . esc_attr( LLM_Phrase_Game_I18n::get( 'listen_slow_aria' ) ) . '">'
+		$voice_attr = $voice !== '' ? ' data-llm-listen-voice="' . esc_attr( $voice ) . '"' : '';
+		return '<button type="button" class="llm-phrase-game__mic-switch llm-phrase-game__listen-switch llm-phrase-game__listen-slow" data-llm-listen-slow' . $voice_attr . ' aria-label="' . esc_attr( LLM_Phrase_Game_I18n::get( 'listen_slow_aria' ) ) . '" title="' . esc_attr( LLM_Phrase_Game_I18n::get( 'listen_slow_aria' ) ) . '">'
 			. '<span class="llm-phrase-game__mic-switch-pad" aria-hidden="true">' . $icon . '</span>'
 			. '</button>';
 	}
@@ -368,6 +417,20 @@ class LLM_Story_Phrase_Game {
 			. '<span class="llm-phrase-game__helper-acc-text">' . esc_html( $label ) . '</span>'
 			. '</button>'
 			. '<div class="llm-phrase-game__extra-chars-panel" id="' . esc_attr( $panel_id ) . '" hidden></div>'
+			. '</div>';
+	}
+
+	private static function render_caret_nav_block( $uid, $suffix ) {
+		$prev_aria = LLM_Phrase_Game_I18n::get( 'caret_word_prev_aria' );
+		$next_aria = LLM_Phrase_Game_I18n::get( 'caret_word_next_aria' );
+
+		return '<div class="llm-phrase-game__caret-nav llm-phrase-game__caret-nav--' . esc_attr( $suffix ) . '">'
+			. '<button type="button" class="llm-game-theme__btn llm-story-layout-switch__btn llm-phrase-game__helper-acc llm-phrase-game__caret-nav-btn" data-llm-caret-dir="-1" aria-label="' . esc_attr( $prev_aria ) . '">'
+			. '<span class="llm-phrase-game__helper-acc-emoji" aria-hidden="true">◀</span>'
+			. '</button>'
+			. '<button type="button" class="llm-game-theme__btn llm-story-layout-switch__btn llm-phrase-game__helper-acc llm-phrase-game__caret-nav-btn" data-llm-caret-dir="1" aria-label="' . esc_attr( $next_aria ) . '">'
+			. '<span class="llm-phrase-game__helper-acc-emoji" aria-hidden="true">▶</span>'
+			. '</button>'
 			. '</div>';
 	}
 
@@ -432,13 +495,13 @@ class LLM_Story_Phrase_Game {
 			LLM_Phrase_Game_I18n::target_lang_label_for_ui( $target_code_shortcode )
 		);
 		$listen_target_label   = LLM_Phrase_Game_I18n::get( 'listen_target_label' );
-		$listen_help_play_icon = '<span class="llm-phrase-game__listen-help-play-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></span>';
 		$known_ui_label        = LLM_Phrase_Game_I18n::target_lang_label_for_ui( LLM_Phrase_Game_I18n::lang() );
 		$label_approx          = LLM_Phrase_Game_I18n::format( 'label_approx', $known_ui_label );
+		$exact_ok_thanks       = LLM_Phrase_Game_I18n::thanks_for_target_lang( $target_code_shortcode );
 		$story_intro  = sanitize_textarea_field( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_INTRO, true ) );
 		$game_theme   = self::game_theme();
-		$story_layout = class_exists( 'LLM_Visitor_Theme' ) ? LLM_Visitor_Theme::get_layout() : 'one';
-		$story_layout = in_array( $story_layout, array( 'one', 'two' ), true ) ? $story_layout : 'one';
+		$story_layout = class_exists( 'LLM_Visitor_Theme' ) ? LLM_Visitor_Theme::get_layout() : 'two';
+		$story_layout = in_array( $story_layout, array( 'one', 'two' ), true ) ? $story_layout : 'two';
 		$cw_id        = class_exists( 'LLM_Story_Crossword' ) ? LLM_Story_Crossword::get_crossword_id( $story_id ) : 0;
 		$cw_html      = '';
 		if ( $cw_id && class_exists( 'LLM_Crossword_Shortcode' ) ) {
@@ -484,7 +547,9 @@ class LLM_Story_Phrase_Game {
 								</div>
 								<div class="llm-phrase-game__clear-wrap llm-phrase-game__clear-wrap--1 llm-phrase-game__action-fade" hidden>
 									<?php echo self::render_clear_input_button( '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+									<?php echo self::render_delete_last_word_button( '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 								</div>
+								<?php echo self::render_exact_ok_row( '1', $exact_ok_thanks ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 							</div>
 							<div class="llm-phrase-game__voice-field" hidden>
 								<label class="screen-reader-text" for="<?php echo esc_attr( $uid ); ?>-input-voice"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'sr_your_spoken_translation' ) ); ?></label>
@@ -499,37 +564,16 @@ class LLM_Story_Phrase_Game {
 									<div class="llm-phrase-game__clear-wrap llm-phrase-game__clear-wrap--voice llm-phrase-game__action-fade" hidden>
 										<?php echo self::render_clear_input_row( 'voice' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 									</div>
+									<?php echo self::render_exact_ok_row( 'voice', $exact_ok_thanks ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 								</div>
 							</div>
 						</div>
 					</div>
 					<div class="llm-phrase-game__helper-accs">
-					<?php echo self::render_random_words_block( $uid, '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
-					<?php echo self::render_extra_chars_block( $uid, '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 					<?php echo self::render_keyboard_block( $uid, '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
-					</div>
-					<div class="llm-phrase-game__field-trans" hidden>
-						<button type="button" class="llm-phrase-game__notes-acc llm-phrase-game__field-trans-toggle" aria-expanded="false" aria-controls="<?php echo esc_attr( $uid ); ?>-field-trans">
-							<span class="llm-phrase-game__notes-toggle-emoji" aria-hidden="true">❤️</span>
-							<span class="llm-phrase-game__notes-acc-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'view_translation' ) ); ?></span>
-							<span class="llm-phrase-game__tool-accordion-chevron" aria-hidden="true"></span>
-						</button>
-						<div class="llm-phrase-game__field-trans-panel" id="<?php echo esc_attr( $uid ); ?>-field-trans" hidden>
-							<p class="llm-phrase-game__field-trans-text"></p>
-						</div>
-					</div>
-					<div class="llm-phrase-game__field-pron" hidden>
-						<button type="button" class="llm-phrase-game__notes-acc llm-phrase-game__field-pron-toggle" aria-expanded="false" aria-controls="<?php echo esc_attr( $uid ); ?>-field-pron">
-							<span class="llm-phrase-game__notes-toggle-emoji" aria-hidden="true">🗣️</span>
-							<span class="llm-phrase-game__notes-acc-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'view_pronunciation' ) ); ?></span>
-							<span class="llm-phrase-game__tool-accordion-chevron" aria-hidden="true"></span>
-						</button>
-						<div class="llm-phrase-game__field-pron-panel" id="<?php echo esc_attr( $uid ); ?>-field-pron" hidden>
-							<p class="llm-phrase-game__field-pron-label"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'label_ipa' ) ); ?></p>
-							<p class="llm-phrase-game__field-pron-ipa"></p>
-							<p class="llm-phrase-game__field-pron-label"><?php echo esc_html( $label_approx ); ?></p>
-							<p class="llm-phrase-game__field-pron-approx"></p>
-						</div>
+					<?php echo self::render_caret_nav_block( $uid, '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+					<?php echo self::render_extra_chars_block( $uid, '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+					<?php echo self::render_random_words_block( $uid, '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 					</div>
 					<div class="llm-phrase-game__phase1-tools">
 						<div class="llm-phrase-game__input-block llm-phrase-game__input-block--tools">
@@ -540,24 +584,27 @@ class LLM_Story_Phrase_Game {
 								<div class="llm-phrase-game__listen-cluster">
 								<?php echo self::render_listen_voices( '', $listen_target_label, $listen_target_aria, true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML escapato. ?>
 								<?php echo self::render_listen_switch(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML escapato. ?>
-								<?php echo self::render_listen_slow(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML escapato. ?>
-								<span class="llm-phrase-game__listen-help">
-									<button type="button" class="llm-phrase-game__help-dot llm-phrase-game__listen-help-btn" aria-expanded="false" aria-controls="<?php echo esc_attr( $uid ); ?>-listen-help" aria-label="<?php echo esc_attr( LLM_Phrase_Game_I18n::get( 'listen_help_aria' ) ); ?>"><span class="llm-phrase-game__help-dot-mark" aria-hidden="true">?</span></button>
-									<span class="llm-phrase-game__listen-help-bubble" id="<?php echo esc_attr( $uid ); ?>-listen-help" role="dialog" hidden>
-										<span class="llm-phrase-game__listen-help-row" data-listen-variant="slow">
-											<span class="llm-phrase-game__listen-help-label"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'listen_help_slow' ) ); ?></span>
-											<button type="button" class="llm-phrase-game__listen-help-play" data-listen-variant="slow"><?php echo $listen_help_play_icon; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG statico. ?><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'listen_help_play' ) ); ?></button>
-										</span>
-										<span class="llm-phrase-game__listen-help-row" data-listen-variant="voice-1">
-											<span class="llm-phrase-game__listen-help-label"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'listen_help_variant_1' ) ); ?></span>
-											<button type="button" class="llm-phrase-game__listen-help-play" data-listen-variant="voice-1"><?php echo $listen_help_play_icon; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG statico. ?><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'listen_help_play' ) ); ?></button>
-										</span>
-										<span class="llm-phrase-game__listen-help-row" data-listen-variant="voice-2">
-											<span class="llm-phrase-game__listen-help-label"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'listen_help_variant_2' ) ); ?></span>
-											<button type="button" class="llm-phrase-game__listen-help-play" data-listen-variant="voice-2"><?php echo $listen_help_play_icon; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG statico. ?><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'listen_help_play' ) ); ?></button>
-										</span>
-									</span>
-								</span>
+								</div>
+							</div>
+							<div class="llm-phrase-game__phrase-help">
+								<button type="button" class="llm-phrase-game__phrase-help-btn" aria-expanded="false" aria-controls="<?php echo esc_attr( $uid ); ?>-phrase-help">
+									<?php echo esc_html( LLM_Phrase_Game_I18n::get( 'phrase_help' ) ); ?>
+								</button>
+								<div class="llm-phrase-game__phrase-help-box" id="<?php echo esc_attr( $uid ); ?>-phrase-help" hidden>
+									<p class="llm-phrase-game__phrase-help-lock">
+										<span class="llm-phrase-game__phrase-help-heart" aria-hidden="true">❤️</span>
+										<span class="llm-phrase-game__phrase-help-lock-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'help_unlock_hint' ) ); ?></span>
+									</p>
+									<section class="llm-phrase-game__phrase-help-section llm-phrase-game__phrase-help-section--trans llm-phrase-game__phrase-help-section--locked" hidden>
+										<h3 class="llm-phrase-game__phrase-help-heading"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'view_translation' ) ); ?></h3>
+										<p class="llm-phrase-game__phrase-help-trans"></p>
+									</section>
+									<section class="llm-phrase-game__phrase-help-section llm-phrase-game__phrase-help-section--pron llm-phrase-game__phrase-help-section--locked" hidden>
+										<p class="llm-phrase-game__phrase-help-label llm-phrase-game__phrase-help-label--ipa" hidden><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'label_ipa' ) ); ?></p>
+										<p class="llm-phrase-game__phrase-help-ipa"></p>
+										<p class="llm-phrase-game__phrase-help-label llm-phrase-game__phrase-help-label--approx" hidden><?php echo esc_html( $label_approx ); ?></p>
+										<p class="llm-phrase-game__phrase-help-approx"></p>
+									</section>
 								</div>
 							</div>
 							<button type="button" class="llm-phrase-game__tool-accordion-toggle llm-phrase-game__inverted-hint" hidden aria-expanded="false">
@@ -580,7 +627,7 @@ class LLM_Story_Phrase_Game {
 			<div class="llm-phrase-game__notes" hidden>
 				<hr class="llm-phrase-game__divider llm-phrase-game__divider--before-notes" role="presentation" aria-hidden="true" />
 				<div class="llm-phrase-game__notes-stack">
-				<div class="llm-phrase-game__story-notes">
+				<div class="llm-phrase-game__story-notes" hidden>
 					<button type="button" class="llm-phrase-game__notes-acc llm-phrase-game__story-notes-toggle" aria-expanded="false" aria-controls="<?php echo esc_attr( $uid ); ?>-story-notes">
 						<span class="llm-phrase-game__notes-toggle-emoji" aria-hidden="true">📓</span>
 						<span class="llm-phrase-game__notes-acc-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'story_notes_toggle' ) ); ?></span>
@@ -593,14 +640,17 @@ class LLM_Story_Phrase_Game {
 				</div>
 				<div class="llm-phrase-game__notes-item">
 				<button type="button" class="llm-phrase-game__notes-acc llm-phrase-game__notes-toggle" aria-expanded="false" aria-controls="<?php echo esc_attr( $uid ); ?>-notes-panel">
-					<span class="llm-phrase-game__notes-toggle-emoji" aria-hidden="true">❤️</span>
+					<span class="llm-phrase-game__notes-toggle-emoji" aria-hidden="true">📝</span>
 					<span class="llm-phrase-game__notes-toggle-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'notes_toggle_show' ) ); ?></span>
 					<span class="llm-phrase-game__tool-accordion-chevron" aria-hidden="true"></span>
 				</button>
 				<div class="llm-phrase-game__notes-panel" id="<?php echo esc_attr( $uid ); ?>-notes-panel" hidden>
+					<button type="button" class="llm-learning-mode__change llm-phrase-game__notes-read-more" hidden>
+						<?php echo esc_html( LLM_Phrase_Game_I18n::get( 'notes_read_more' ) ); ?>
+					</button>
 					<button type="button" class="llm-learning-mode__change llm-phrase-game__show-field-trans" hidden>
 						<span class="llm-phrase-game__show-field-pron-heart" aria-hidden="true">❤️</span>
-						<?php echo esc_html( LLM_Phrase_Game_I18n::get( 'show_translation_under_field' ) ); ?>
+						<?php echo esc_html( LLM_Phrase_Game_I18n::get( 'view_translation' ) ); ?>
 					</button>
 				</div>
 				</div>
@@ -613,8 +663,8 @@ class LLM_Story_Phrase_Game {
 					<div class="llm-phrase-game__pron-tips-panel" id="<?php echo esc_attr( $uid ); ?>-pron-tips" hidden>
 						<div class="llm-phrase-game__pron-tips-text"></div>
 						<button type="button" class="llm-learning-mode__change llm-phrase-game__show-field-pron">
-							<span class="llm-phrase-game__show-field-pron-heart" aria-hidden="true">❤️</span>
-							<?php echo esc_html( LLM_Phrase_Game_I18n::get( 'show_pronunciation_under_field' ) ); ?>
+							<span class="llm-phrase-game__show-field-pron-heart" aria-hidden="true">🗣️</span>
+							<?php echo esc_html( LLM_Phrase_Game_I18n::get( 'view_pronunciation' ) ); ?>
 						</button>
 					</div>
 				</div>
@@ -664,7 +714,6 @@ class LLM_Story_Phrase_Game {
 								<div class="llm-phrase-game__listen-cluster">
 							<?php echo self::render_listen_voices( 'llm-phrase-game__listen-target--phase2', $listen_target_label, $listen_target_aria, false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML escapato. ?>
 							<?php echo self::render_listen_switch(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML escapato. ?>
-							<?php echo self::render_listen_slow(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML escapato. ?>
 								</div>
 							</div>
 						</div>
@@ -684,9 +733,12 @@ class LLM_Story_Phrase_Game {
 						<div class="llm-phrase-game__mic-row">
 							<?php echo self::render_mic_cluster( $uid, '2', $deepgram_ready, $azure_ready, false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML escapato. ?>
 						</div>
-						<?php echo self::render_random_words_block( $uid, '2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
-						<?php echo self::render_extra_chars_block( $uid, '2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+						<div class="llm-phrase-game__helper-accs">
 						<?php echo self::render_keyboard_block( $uid, '2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+						<?php echo self::render_caret_nav_block( $uid, '2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+						<?php echo self::render_extra_chars_block( $uid, '2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+						<?php echo self::render_random_words_block( $uid, '2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+						</div>
 					</div>
 					<div class="llm-phrase-game__actions">
 						<div class="llm-phrase-game__continue-block llm-phrase-game__continue-block--2">
@@ -700,12 +752,15 @@ class LLM_Story_Phrase_Game {
 			</div>
 		<div class="llm-phrase-game__done" hidden>
 			<p class="llm-phrase-game__done-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'done_all' ) ); ?></p>
-			<button type="button" class="llm-phrase-game__restart-btn button"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'story_progress_restart' ) ); ?></button>
 		</div>
-		<?php echo self::render_learning_mode_ui( $uid ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+		<?php echo self::render_learning_mode_ui( $uid, $story_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 			</div>
 			<?php if ( $has_crossword ) : ?>
 			<div class="llm-story-view llm-story-view--crossword" id="llm-story-view-crossword-<?php echo esc_attr( (string) (int) $story_id ); ?>" role="tabpanel" aria-labelledby="llm-story-tab-crossword-<?php echo esc_attr( (string) (int) $story_id ); ?>" hidden>
+				<div class="llm-story-crossword-lede">
+					<p class="llm-story-crossword-lede__title"><?php echo esc_html( LLM_Crossword_I18n::get( 'story_intro_title' ) ); ?></p>
+					<p class="llm-story-crossword-lede__text"><?php echo esc_html( LLM_Crossword_I18n::get( 'story_intro_text' ) ); ?></p>
+				</div>
 				<?php echo $cw_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML dello shortcode cruciverba. ?>
 			</div>
 			<?php endif; ?>
@@ -723,6 +778,7 @@ class LLM_Story_Phrase_Game {
 					self::render_admin_edit_link( 'approx', LLM_Phrase_Game_I18n::get( 'notes_edit_approx' ) );
 					?>
 					<button type="button" class="llm-game-theme__btn llm-story-layout-switch__btn llm-phrase-game__admin-edit llm-phrase-game__admin-fill-solution"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'admin_fill_solution' ) ); ?></button>
+					<button type="button" class="llm-game-theme__btn llm-story-layout-switch__btn llm-phrase-game__admin-edit llm-phrase-game__admin-complete-story"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'admin_complete_story' ) ); ?></button>
 				</div>
 				<?php endif; ?>
 		<?php echo self::render_game_theme_switcher( $game_theme ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
@@ -733,6 +789,26 @@ class LLM_Story_Phrase_Game {
 			self::render_notes_edit_modal();
 		}
 		?>
+		<div class="llm-phrase-game__listen-think" hidden>
+			<div class="llm-phrase-game__listen-think-backdrop"></div>
+			<div class="llm-phrase-game__listen-think-card" role="dialog" aria-modal="true" aria-live="polite">
+				<p class="llm-phrase-game__listen-think-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'listen_think_first' ) ); ?></p>
+			</div>
+		</div>
+		<div class="llm-phrase-game__story-notes-pop" hidden>
+			<div class="llm-phrase-game__story-notes-pop-backdrop"></div>
+			<div class="llm-phrase-game__story-notes-pop-card" role="dialog" aria-modal="true" aria-labelledby="llm-phrase-game-story-notes-pop-title">
+				<div class="llm-phrase-game__story-notes-pop-head">
+					<h3 id="llm-phrase-game-story-notes-pop-title" class="llm-phrase-game__story-notes-pop-title"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'notes_toggle_show' ) ); ?></h3>
+					<button type="button" class="llm-phrase-game__story-notes-pop-close llm-phrase-game__story-action-btn button" aria-label="<?php echo esc_attr( LLM_Phrase_Game_I18n::get( 'read_notes_chip_close' ) ); ?>">&times;</button>
+				</div>
+				<div class="llm-phrase-game__story-remember" hidden>
+					<p class="llm-phrase-game__story-remember-label"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'remember_label' ) ); ?></p>
+					<div class="llm-phrase-game__story-remember-text"></div>
+				</div>
+				<div class="llm-phrase-game__story-notes-pop-body llm-phrase-game__grammar"></div>
+			</div>
+		</div>
 		</div>
 		<?php
 		return (string) ob_get_clean();
@@ -761,7 +837,7 @@ class LLM_Story_Phrase_Game {
 	 */
 	private static function render_admin_edit_link( $field, $label ) {
 		$field = sanitize_key( $field );
-		if ( ! in_array( $field, array( 'notes', 'grammar', 'alt', 'pronunciation', 'ipa', 'approx' ), true ) ) {
+		if ( ! in_array( $field, array( 'notes', 'notes_target', 'grammar', 'alt', 'pronunciation', 'ipa', 'approx' ), true ) ) {
 			return;
 		}
 		echo '<button type="button" class="llm-game-theme__btn llm-story-layout-switch__btn llm-phrase-game__admin-edit" data-llm-edit-field="' . esc_attr( $field ) . '">' . esc_html( $label ) . '</button>';
@@ -1322,7 +1398,7 @@ class LLM_Story_Phrase_Game {
 		if ( '' === $raw ) {
 			return array();
 		}
-		$lines = preg_split( '/[\r\n;]+/u', $raw );
+		$lines = preg_split( '/\R/u', $raw );
 		$out   = array();
 		if ( ! is_array( $lines ) ) {
 			return array();
@@ -1332,20 +1408,14 @@ class LLM_Story_Phrase_Game {
 			if ( '' === $line ) {
 				continue;
 			}
-			// Virgole solo se la riga non ha parentesi (es. "broke, stole" dentro un topic).
-			if ( false !== strpos( $line, ',' ) && false === strpos( $line, '(' ) ) {
-				$bits = preg_split( '/\s*,\s*/u', $line );
-				if ( is_array( $bits ) ) {
-					foreach ( $bits as $bit ) {
-						$bit = trim( (string) $bit );
-						if ( '' !== $bit ) {
-							$out[] = $bit;
-						}
-					}
-				}
+			if ( preg_match( '/^\d+[\.)]\s+(.+)$/u', $line, $m ) ) {
+				$out[] = $m[1];
 				continue;
 			}
-			$out[] = $line;
+			$is_title = ! preg_match( '/[.?!…]$/u', $line ) && false === strpos( $line, ': ' );
+			if ( $is_title ) {
+				$out[] = $line;
+			}
 		}
 		return $out;
 	}
@@ -1353,10 +1423,11 @@ class LLM_Story_Phrase_Game {
 	/**
 	 * Barra "Modalità apprendimento" + popup di scelta.
 	 *
-	 * @param string $uid Prefisso ID univoco dell'istanza.
+	 * @param string $uid      Prefisso ID univoco dell'istanza.
+	 * @param int    $story_id ID storia.
 	 * @return string HTML già escapato.
 	 */
-	private static function render_learning_mode_ui( $uid ) {
+	private static function render_learning_mode_ui( $uid, $story_id = 0 ) {
 		$modes        = LLM_Learning_Modes::visible();
 		$current      = LLM_Learning_Modes::current();
 		$extras       = LLM_Learning_Modes::options();
@@ -1364,16 +1435,32 @@ class LLM_Story_Phrase_Game {
 		$radio_name   = $uid . '-learning-mode';
 		$dialog_id    = $uid . '-learning-mode-dialog';
 		$title_id     = $uid . '-learning-mode-title';
+		$story_id     = absint( $story_id );
+		$play_seconds = ( is_user_logged_in() && $story_id && class_exists( 'LLM_User_Story_Play_Time' ) )
+			? LLM_User_Story_Play_Time::get_seconds( get_current_user_id(), $story_id )
+			: 0;
+		$play_minutes = class_exists( 'LLM_User_Story_Play_Time' )
+			? LLM_User_Story_Play_Time::seconds_to_minutes( $play_seconds )
+			: 0;
+		$play_label   = LLM_Phrase_Game_I18n::get( 'play_time_label' );
+		$play_value   = LLM_Phrase_Game_I18n::format( 'play_time_minutes', $play_minutes );
 
 		ob_start();
 		?>
 		<div class="llm-learning-mode" data-current-mode="<?php echo esc_attr( $current ); ?>">
 			<?php echo self::render_jump_return_button(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+			<div class="llm-learning-mode__toolbar">
 			<p class="llm-learning-mode__bar">
 				<span class="llm-learning-mode__label"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'learning_mode_label' ) ); ?></span>
 				<span class="llm-learning-mode__value"><?php echo esc_html( LLM_Learning_Modes::label( $current ) ); ?></span>
 				<button type="button" class="llm-learning-mode__change" aria-haspopup="dialog" aria-controls="<?php echo esc_attr( $dialog_id ); ?>"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'learning_mode_change' ) ); ?></button>
+				<button type="button" class="llm-learning-mode__change llm-phrase-game__restart-btn"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'story_progress_restart' ) ); ?></button>
 			</p>
+			<p class="llm-learning-mode__playtime" data-llm-play-time data-seconds="<?php echo esc_attr( (string) $play_seconds ); ?>">
+				<span class="llm-learning-mode__playtime-label"><?php echo esc_html( $play_label ); ?></span>
+				<strong class="llm-learning-mode__playtime-value" data-llm-play-time-value><?php echo esc_html( $play_value ); ?></strong>
+			</p>
+			</div>
 			<div class="llm-learning-mode__overlay" id="<?php echo esc_attr( $dialog_id ); ?>" hidden>
 				<div class="llm-learning-mode__dialog" role="dialog" aria-modal="true" aria-labelledby="<?php echo esc_attr( $title_id ); ?>">
 					<button type="button" class="llm-learning-mode__close" aria-label="<?php echo esc_attr( LLM_Phrase_Game_I18n::get( 'learning_mode_close' ) ); ?>">&times;</button>
@@ -1464,6 +1551,12 @@ class LLM_Story_Phrase_Game {
 		$phrases = LLM_Story_Repository::get_phrases( $story_id );
 		$boot      = array();
 		foreach ( $phrases as $i => $row ) {
+			$front = class_exists( 'LLM_Phrase_TTS' )
+				? LLM_Phrase_TTS::frontend_audio_urls( $row )
+				: array(
+					'male'   => isset( $row['audio_male_url'] ) ? (string) $row['audio_male_url'] : '',
+					'female' => isset( $row['audio_female_url'] ) ? (string) $row['audio_female_url'] : '',
+				);
 			$boot[] = array(
 				'index'     => $i,
 				'interface' => isset( $row['interface'] ) ? $row['interface'] : '',
@@ -1471,11 +1564,13 @@ class LLM_Story_Phrase_Game {
 				'grammar'   => isset( $row['grammar'] ) ? $row['grammar'] : '',
 				'alt'       => isset( $row['alt'] ) ? $row['alt'] : '',
 				'notes'     => isset( $row['notes'] ) ? $row['notes'] : '',
+				'notesTarget' => isset( $row['notes_target'] ) ? $row['notes_target'] : '',
+				'remember'    => isset( $row['remember'] ) ? $row['remember'] : '',
 				'pronunciation' => isset( $row['pronunciation'] ) ? $row['pronunciation'] : '',
 				'ipa'           => isset( $row['ipa'] ) ? $row['ipa'] : '',
 				'approx'        => isset( $row['approx'] ) ? $row['approx'] : '',
-				'audioMale'     => isset( $row['audio_male_url'] ) ? (string) $row['audio_male_url'] : '',
-				'audioFemale'   => isset( $row['audio_female_url'] ) ? (string) $row['audio_female_url'] : '',
+				'audioMale'     => $front['male'],
+				'audioFemale'   => $front['female'],
 			);
 		}
 
@@ -1661,7 +1756,16 @@ class LLM_Story_Phrase_Game {
 			wp_enqueue_style( 'dashicons' );
 		}
 
+		wp_register_script(
+			'llm-story-play-time',
+			LLM_TABELLE_URL . 'assets/llm-story-play-time.js',
+			array( 'llm-guest-browser-store', 'llm-phrase-game' ),
+			LLM_TABELLE_VERSION,
+			true
+		);
+
 		wp_enqueue_script( 'llm-phrase-game' );
+		wp_enqueue_script( 'llm-story-play-time' );
 		wp_enqueue_script( 'llm-learning-modes' );
 		wp_localize_script( 'llm-learning-modes', 'llmLearningModes', LLM_Learning_Modes::script_data() );
 
@@ -1710,11 +1814,13 @@ class LLM_Story_Phrase_Game {
 			'storyContinue'    => LLM_Phrase_Game_I18n::get( 'story_continue' ),
 				'empty'            => LLM_Phrase_Game_I18n::get( 'empty_input' ),
 				'rewindExact'      => LLM_Phrase_Game_I18n::get( 'rewind_exact' ),
+				'sortExactWords'   => LLM_Phrase_Game_I18n::get( 'sort_exact_words' ),
 				'progress'         => LLM_Phrase_Game_I18n::get( 'progress' ),
 				'ajaxError'        => LLM_Phrase_Game_I18n::get( 'ajax_error' ),
 				'restartConfirm'   => LLM_Phrase_Game_I18n::get( 'story_progress_confirm' ),
 			'introLabel'       => LLM_Phrase_Game_I18n::get( 'intro_label' ),
 			'grammarTopicsTitle' => LLM_Phrase_Game_I18n::get( 'grammar_topics_title' ),
+			'grammarTopicsHeading' => LLM_Phrase_Game_I18n::get( 'grammar_topics_heading' ),
 			'grammarTopicsBody'  => LLM_Phrase_Game_I18n::get( 'grammar_topics_body' ),
 			'upcomingHint'     => LLM_Phrase_Game_I18n::format( 'upcoming_phrases_hint', $n_phrases ),
 			'micHint'          => LLM_Phrase_Game_I18n::get( 'mic_hint' ),
@@ -1730,6 +1836,7 @@ class LLM_Story_Phrase_Game {
 			'listenLabelMale'  => LLM_Phrase_Game_I18n::get( 'listen_label_male' ),
 			'listenLabelFemale'=> LLM_Phrase_Game_I18n::get( 'listen_label_female' ),
 			'listenTargetLabel'=> LLM_Phrase_Game_I18n::get( 'listen_target_label' ),
+			'listenThinkFirst' => LLM_Phrase_Game_I18n::get( 'listen_think_first' ),
 			'micNoAudio'       => LLM_Phrase_Game_I18n::get( 'mic_no_audio' ),
 			'loadingNotes'     => LLM_Phrase_Game_I18n::get( 'loading_notes' ),
 			'altToggleShow'    => LLM_Phrase_Game_I18n::get( 'alt_toggle_show' ),
@@ -1737,8 +1844,11 @@ class LLM_Story_Phrase_Game {
 			'peekTargetLabel'  => LLM_Phrase_Game_I18n::get( 'peek_target_label' ),
 			'peekTargetAria'   => LLM_Phrase_Game_I18n::get( 'peek_target_aria' ),
 			'resolveGoPrompt'  => LLM_Phrase_Game_I18n::get( 'resolve_go_prompt' ),
+			'phraseHelp'       => LLM_Phrase_Game_I18n::get( 'phrase_help' ),
+			'helpUnlockHint'   => LLM_Phrase_Game_I18n::get( 'help_unlock_hint' ),
 			'notesToggleShow'  => LLM_Phrase_Game_I18n::get( 'notes_toggle_show' ),
 			'notesToggleHide'  => LLM_Phrase_Game_I18n::get( 'notes_toggle_hide' ),
+			'notesReadMore'    => LLM_Phrase_Game_I18n::get( 'notes_read_more' ),
 			'continueToNotes'  => LLM_Phrase_Game_I18n::get( 'continue_to_notes' ),
 			'resolveGoFail'    => LLM_Phrase_Game_I18n::get( 'resolve_go_fail' ),
 			'writeTranslateFail' => LLM_Phrase_Game_I18n::get( 'write_translate_fail' ),
@@ -1747,6 +1857,10 @@ class LLM_Story_Phrase_Game {
 			'writeTranslatePeekNotes' => LLM_Phrase_Game_I18n::get( 'write_translate_peek_notes' ),
 			'writeTranslatePlaceholderWrite' => LLM_Phrase_Game_I18n::get( 'write_translate_placeholder_write' ),
 			'writeTranslatePlaceholderSpeak' => LLM_Phrase_Game_I18n::get( 'write_translate_placeholder_speak' ),
+			'listenThinkFirst'    => LLM_Phrase_Game_I18n::get( 'listen_think_first' ),
+			'exactOkWrite'        => LLM_Phrase_Game_I18n::get( 'exact_ok_write' ),
+			'exactOkSpeak'        => LLM_Phrase_Game_I18n::get( 'exact_ok_speak' ),
+			'exactOkThanks'       => LLM_Phrase_Game_I18n::thanks_for_target_lang( $target_code ),
 			'readGoFastPrompt'   => LLM_Phrase_Game_I18n::get( 'read_go_fast_prompt' ),
 			'readGoFastNext'     => LLM_Phrase_Game_I18n::get( 'read_go_fast_next' ),
 			'readGoFastTarget'   => LLM_Phrase_Game_I18n::get( 'read_go_fast_target' ),
@@ -1787,6 +1901,11 @@ class LLM_Story_Phrase_Game {
 			'notesEditSaved'     => LLM_Phrase_Game_I18n::get( 'notes_edit_saved' ),
 			'notesEditError'     => LLM_Phrase_Game_I18n::get( 'notes_edit_error' ),
 			'goToPhrase'         => LLM_Phrase_Game_I18n::get( 'go_to_phrase' ),
+			'readNotesChip'      => LLM_Phrase_Game_I18n::get( 'read_notes_chip' ),
+			'readNotesChipClose' => LLM_Phrase_Game_I18n::get( 'read_notes_chip_close' ),
+			'rememberLabel'      => LLM_Phrase_Game_I18n::get( 'remember_label' ),
+			'notesTranslation'   => LLM_Phrase_Game_I18n::get( 'notes_translation' ),
+			'phraseN'            => LLM_Phrase_Game_I18n::get( 'phrase_n' ),
 			'returnToCheckpointBtn' => $return_phrase_n > 0
 				? LLM_Phrase_Game_I18n::format( 'return_to_checkpoint_btn', $return_phrase_n )
 				: '',
@@ -1803,6 +1922,7 @@ class LLM_Story_Phrase_Game {
 				'storyIntro'          => sanitize_textarea_field( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_INTRO, true ) ),
 				'cefrLevel'           => $cefr_code,
 				'grammarTopics'       => self::hero_grammar_topics( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_GRAMMAR_TOPICS, true ) ),
+				'grammarTopicsText'   => sanitize_textarea_field( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_GRAMMAR_TOPICS, true ) ),
 			'storyFinale'         => sanitize_textarea_field( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_FINALE, true ) ),
 				'speechLang'          => self::speech_locale( $target_code ),
 			'strictAccents'       => is_user_logged_in() ? LLM_User_Meta::get_strict_accents( get_current_user_id() ) : true,
@@ -1825,6 +1945,20 @@ class LLM_Story_Phrase_Game {
 			'optionRandomWords'   => LLM_Learning_Modes::OPTION_RANDOM_WORDS,
 			'optionExtraChars'    => LLM_Learning_Modes::OPTION_EXTRA_CHARS,
 			'optionListenReplayLoop' => LLM_Learning_Modes::OPTION_LISTEN_REPLAY_LOOP,
+			'optionStickyTranslate' => LLM_Learning_Modes::OPTION_STICKY_TRANSLATE,
+			'optionHideStoryNotes' => LLM_Learning_Modes::OPTION_HIDE_STORY_NOTES,
+			'optionStoryTargetOnly' => LLM_Learning_Modes::OPTION_STORY_TARGET_ONLY,
+			'playTime'            => array(
+				'loggedIn'    => is_user_logged_in(),
+				'seconds'     => ( is_user_logged_in() && class_exists( 'LLM_User_Story_Play_Time' ) )
+					? LLM_User_Story_Play_Time::get_seconds( get_current_user_id(), $story_id )
+					: 0,
+				'action'      => class_exists( 'LLM_User_Story_Play_Time' ) ? LLM_User_Story_Play_Time::AJAX : 'llm_story_play_time_tick',
+				'nonce'       => wp_create_nonce( class_exists( 'LLM_User_Story_Play_Time' ) ? LLM_User_Story_Play_Time::NONCE : 'llm_story_play_time' ),
+				'minutesTpl'  => LLM_Phrase_Game_I18n::get( 'play_time_minutes' ),
+				'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
+				'storyId'     => (int) $story_id,
+			),
 			)
 		);
 	}
@@ -2322,6 +2456,35 @@ class LLM_Story_Phrase_Game {
 		}
 
 		wp_send_json_success( array( 'message' => LLM_Phrase_Game_I18n::get( 'notes_edit_saved' ) ) );
+	}
+
+	/**
+	 * AJAX admin: marca la storia come completata (niente coin, niente community) e lascia ricaricare.
+	 */
+	public static function ajax_admin_complete_story() {
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'notes_edit_error' ) ), 403 );
+		}
+		check_ajax_referer( 'llm_fe_edit_notes', 'nonce' );
+
+		$story_id = isset( $_POST['story_id'] ) ? absint( wp_unslash( $_POST['story_id'] ) ) : 0;
+		if ( ! $story_id || ! self::current_user_can_edit_notes( $story_id ) ) {
+			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'notes_edit_error' ) ), 403 );
+		}
+
+		$post = get_post( $story_id );
+		if ( ! $post || LLM_STORY_CPT !== $post->post_type ) {
+			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'invalid_story' ) ), 400 );
+		}
+
+		$ok = class_exists( 'LLM_User_Stats' )
+			? LLM_User_Stats::mark_story_complete_silent( get_current_user_id(), $story_id )
+			: false;
+		if ( ! $ok ) {
+			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'notes_edit_error' ) ), 400 );
+		}
+
+		wp_send_json_success();
 	}
 
 	/**

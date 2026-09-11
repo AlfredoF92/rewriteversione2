@@ -523,6 +523,9 @@ class LLM_Story_Phrases_Csv {
 				if ( '' === trim( (string) ( isset( $row['approx'] ) ? $row['approx'] : '' ) ) && isset( $old['approx'] ) ) {
 					$row['approx'] = (string) $old['approx'];
 				}
+				if ( '' === trim( (string) ( isset( $row['remember'] ) ? $row['remember'] : '' ) ) && isset( $old['remember'] ) ) {
+					$row['remember'] = (string) $old['remember'];
+				}
 				$action = ( $p <= $old_count ) ? 'replace' : 'add';
 				$merged[] = $row;
 				$preview[] = array(

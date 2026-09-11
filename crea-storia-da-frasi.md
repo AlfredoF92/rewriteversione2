@@ -74,7 +74,7 @@ Testi di trama / intro / finale / scheda / estratto: scritti in **lingua nota** 
 | Introduzione | `_llm_story_intro` | 2–4 frasi. Appare prima delle frasi (typewriter). Invita a imparare. |
 | Finale | `_llm_story_finale` | 2–4 frasi. Appare a storia completata. Complimenti + cosa ha imparato. |
 | Livello CEFR | `_llm_story_cefr_level` | A1, A2, B1, B2, C1 o C2 (se non indicato: stima dal vocabolario) |
-| Topic grammaticali | `_llm_story_grammar_topics` | Un topic per riga |
+| Topic grammaticali | `_llm_story_grammar_topics` | Esattamente **10 punti**. Per ciascuno: riga titolo `1. Titolo` + riga descrizione. Parole della lingua obiettivo tra virgolette (in pagina diventano corsivo); traduzione nella lingua nota tra parentesi. Pulsante frontend: «Topic grammaticali che imparerai?» |
 | Breve testo scheda | `_llm_story_card_text` | 1–2 frasi per la card |
 | Costo coin | `_llm_story_coin_cost` | Default **10** se l’utente non dice altro |
 | Premio coin | `_llm_story_coin_reward` | Default **25** se l’utente non dice altro |
@@ -82,25 +82,7 @@ Testi di trama / intro / finale / scheda / estratto: scritti in **lingua nota** 
 | Stato | `post_status` | **`draft`** |
 | Immagine in evidenza | thumbnail | Solo se l’utente la fornisce o chiede di sceglierla. |
 
-Salva con uno script PHP CLI che carica WordPress (`wp-load.php`) e usa `wp_insert_post` + `update_post_meta` + `LLM_Story_Repository::save_phrases`. Non inserire a mano le righe `wp_posts` in SQL.
-
-Modello dati in `database/` (es. `database/story-draft-DATA.php`) + runner `database/create-story-draft.php`.
-
-Intestazione runner:
-
-```php
-if ( php_sapi_name() !== 'cli' ) {
-	exit( 'Solo CLI.' );
-}
-$root = dirname( __DIR__ );
-require $root . '/wp-load.php';
-```
-
-Esecuzione:
-
-```powershell
-& "C:\xampp\php\php.exe" "C:\xampp\htdocs\localloverewrite202608\database\create-story-draft.php" "C:\xampp\htdocs\localloverewrite202608\database\NOME-DATI.php"
-```
+Salva con WordPress (`wp_insert_post` + meta + `LLM_Story_Repository::save_phrases`) dall’editor o da CLI che carica `wp-load.php`. Non usare seed/demo automatici e non inserire a mano le righe `wp_posts` in SQL.
 
 Verifica:
 
@@ -119,8 +101,8 @@ Controlla: `post_status = draft`, lingue corrette, numero frasi = elenco utente,
 Appena hai l’ID storia, esegui **tutto** `genera-appunti-frasi.md`:
 
 - analisi grammaticale (minimo 220 parole, in lingua nota)
-- ordine fisso: spiegazione (eventuale `Ricorda:`) → un paragrafo `Pronuncia:` in fondo → un paragrafo `Curiosità etimologia:` in fondo; niente pronuncia/etimologia in mezzo; niente punteggiatura; niente formule tipo “da rubare”
-- traduzione alternativa nel formato obbligatorio
+- ordine fisso: spiegazione (eventuale `Remember:` / `Ricorda:` nella lingua nota) → un paragrafo etimologia in fondo (`Etymology curiosity:` / `Curiosità etimologia:`); niente pronuncia/etimologia in mezzo; niente punteggiatura; niente formule tipo “da rubare”; etichette sempre in [`_llm_known_lang`]
+- traduzione alternativa in 4 righe (ufficiale target → alternativa target → senso in lingua nota → spiegazione)
 - salva nel DB e verifica `CHAR_LENGTH(phrase_grammar) > 0` su tutte le righe
 
 Usa come traduzione di riferimento il campo `phrase_target` / `phrase_interface` già salvati.

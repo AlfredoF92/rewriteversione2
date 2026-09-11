@@ -69,16 +69,25 @@
 		var isGuest = root.getAttribute('data-is-guest') === '1' || !!cfg.isGuest;
 
 		if (isGuest) {
+			var link = root.querySelector('a.llm-header-user__login, a.llm-header-user__account');
+			var loginUrl = (link && link.getAttribute('data-llm-header-login-url')) || cfg.loginUrl || '';
+			var profileUrl = (link && link.getAttribute('data-llm-header-profile-url')) || cfg.guestProfileUrl || '';
 			if (browserName) {
 				textEl.textContent = greetingTplFor(lang).replace('%s', browserName);
 				if (tagEl) {
 					tagEl.textContent = browserUserLabelFor(lang);
 					tagEl.hidden = false;
 				}
+				if (link && profileUrl) {
+					link.setAttribute('href', profileUrl);
+				}
 			} else {
 				textEl.textContent = guestLabelFor(lang);
 				if (tagEl) {
 					tagEl.hidden = true;
+				}
+				if (link && loginUrl) {
+					link.setAttribute('href', loginUrl);
 				}
 			}
 			return;
@@ -97,6 +106,8 @@
 	function init() {
 		document.querySelectorAll('[data-llm-header-user]').forEach(syncRoot);
 	}
+
+	window.addEventListener('llm-guest-name-changed', init);
 
 	if (document.readyState === 'loading') {
 		document.addEventListener('DOMContentLoaded', init);

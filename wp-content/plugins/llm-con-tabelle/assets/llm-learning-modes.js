@@ -52,7 +52,14 @@
 		if (cfg && Array.isArray(cfg.defaultOptions) && cfg.defaultOptions.length) {
 			return sanitizeOptions(cfg.defaultOptions);
 		}
-		return sanitizeOptions(['random_words', 'listen_replay_loop']);
+		return sanitizeOptions(['random_words', 'listen_replay_loop', 'story_target_only']);
+	}
+
+	function sameOptionSet(a, b) {
+		if (!a || !b || a.length !== b.length) {
+			return false;
+		}
+		return a.slice().sort().join(',') === b.slice().sort().join(',');
 	}
 
 	/** Utenti loggati: vince il profilo. Ospiti: localStorage, altrimenti default. */
@@ -60,7 +67,15 @@
 		if (!cfg) { return []; }
 		if (cfg.isLoggedIn) { return sanitizeOptions(cfg.currentOptions || []); }
 		var stored = readStoredOptions();
-		return stored !== null ? stored : defaultOptions();
+		var defaults = defaultOptions();
+		if (stored === null) {
+			return defaults;
+		}
+		if (sameOptionSet(stored, ['random_words', 'listen_replay_loop']) && !sameOptionSet(stored, defaults)) {
+			writeStoredOptions(defaults);
+			return defaults;
+		}
+		return stored;
 	}
 
 	function isValidMode(id) {
@@ -104,7 +119,7 @@
 
 		var storedMode = readStoredMode();
 		if (!isValidMode(storedMode)) {
-			writeStoredMode(cfg.defaultMode || 'resolve_go');
+			writeStoredMode(cfg.defaultMode || 'write_translate');
 		}
 
 		if (readStoredOptions() === null) {
@@ -368,7 +383,7 @@
 			var root = e.target.closest('.llm-learning-mode');
 			if (!root) { return; }
 
-			if (e.target.closest('.llm-learning-mode__change')) {
+			if (e.target.closest('.llm-learning-mode__change') && !e.target.closest('.llm-phrase-game__restart-btn')) {
 				openDialog(root);
 			} else if (
 				e.target.closest('.llm-learning-mode__cancel') ||

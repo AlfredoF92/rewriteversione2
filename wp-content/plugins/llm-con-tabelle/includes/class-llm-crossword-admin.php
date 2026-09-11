@@ -375,14 +375,19 @@ class LLM_Crossword_Admin {
 	}
 
 	/**
-	 * Anteprima con la stessa grafica del frontend: griglia numerata a sinistra,
-	 * pulsanti e definizioni a destra. Qui le lettere della soluzione sono visibili.
+	 * Anteprima in Modifica storia (o altrove) da un ID cruciverba già salvato.
 	 *
-	 * @param string[] $grid    Righe della griglia.
-	 * @param array    $entries Parole.
-	 * @param array    $clues   Definizioni per chiave.
-	 * @return string HTML.
+	 * @param int $post_id ID cruciverba.
+	 * @return string HTML oppure vuoto.
 	 */
+	public static function preview_for_id( $post_id ) {
+		$built = LLM_Crossword::build( absint( $post_id ) );
+		if ( is_wp_error( $built ) ) {
+			return '<p class="description">' . esc_html( $built->get_error_message() ) . '</p>';
+		}
+		return self::preview_html( $built['grid'], $built['entries'], $built['clues'] );
+	}
+
 	private static function preview_html( array $grid, array $entries, array $clues ) {
 		$i18n = LLM_Crossword_I18n::bundle();
 

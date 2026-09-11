@@ -47,6 +47,9 @@ class LLM_Header_User_Shortcode {
 			array(),
 			LLM_TABELLE_VERSION
 		);
+		if ( class_exists( 'LLM_User_Avatars' ) ) {
+			LLM_User_Avatars::enqueue();
+		}
 		wp_enqueue_script(
 			'llm-guest-browser-store',
 			LLM_TABELLE_URL . 'assets/llm-guest-browser-store.js',
@@ -57,7 +60,7 @@ class LLM_Header_User_Shortcode {
 		wp_enqueue_script(
 			'llm-header-user',
 			LLM_TABELLE_URL . 'assets/llm-header-user.js',
-			array( 'llm-guest-browser-store' ),
+			array( 'llm-guest-browser-store', 'llm-user-avatars' ),
 			LLM_TABELLE_VERSION,
 			true
 		);
@@ -76,7 +79,17 @@ class LLM_Header_User_Shortcode {
 		$guest_path   = self::normalize_path( (string) $atts['guest_path'] );
 		$login_path   = self::normalize_path( (string) $atts['login_path'] );
 		$guest_url    = esc_url( home_url( $login_path ? $login_path : $guest_path ) );
-		$account_url  = esc_url( home_url( $account_path ) );
+		$account_url  = home_url( $account_path );
+		if ( class_exists( 'LLM_Scheda_Utente' ) && is_user_logged_in() ) {
+			$profile = LLM_Scheda_Utente::profile_url( get_current_user_id() );
+			if ( $profile ) {
+				$account_url = $profile;
+			}
+		}
+		$account_url       = esc_url( $account_url );
+		$guest_profile_url = class_exists( 'LLM_Scheda_Utente' )
+			? esc_url( LLM_Scheda_Utente::guest_profile_url() )
+			: $guest_url;
 
 		$guest_label = trim( (string) $atts['guest_label'] );
 		if ( '' === $guest_label ) {
@@ -124,13 +137,15 @@ class LLM_Header_User_Shortcode {
 				'browserUserLabel'  => $browser_user_label,
 				'flagMap'           => $flag_map,
 				'displayName'       => $display_name,
+				'guestProfileUrl'   => $guest_profile_url,
+				'loginUrl'          => $guest_url,
 			)
 		);
 
 		if ( $is_guest ) {
 			return sprintf(
 				'<span class="llm-header-user" data-llm-header-user data-is-guest="1">'
-				. '<a class="llm-header-user__login" href="%1$s">'
+				. '<a class="llm-header-user__login" href="%1$s" data-llm-header-login-url="%1$s" data-llm-header-profile-url="%6$s">'
 				. '%4$s'
 				. '<span class="llm-header-user__icon">%3$s</span>'
 				. '<span class="llm-header-user__copy">'
@@ -140,9 +155,10 @@ class LLM_Header_User_Shortcode {
 				. '</a></span>',
 				$guest_url,
 				esc_html( $guest_label ),
-				LLM_Header_UI_Icons::user(), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG statico.
+				self::avatar_html( true ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- markup controllato.
 				$flag_html, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- markup controllato.
-				esc_html( $browser_user_label )
+				esc_html( $browser_user_label ),
+				$guest_profile_url
 			);
 		}
 
@@ -162,10 +178,29 @@ class LLM_Header_User_Shortcode {
 			. '</a></span>',
 			$account_url,
 			esc_html( $label ),
-			LLM_Header_UI_Icons::user(), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- SVG statico.
+			self::avatar_html( false ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- markup controllato.
 			$badge, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- markup statico controllato.
 			$flag_html // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- markup controllato.
 		);
+	}
+
+	/**
+	 * Avatar catalogo (ospite via JS, utente WP già assegnato).
+	 *
+	 * @param bool $is_guest Ospite.
+	 * @return string
+	 */
+	private static function avatar_html( $is_guest ) {
+		$blank = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+		if ( $is_guest ) {
+			return '<img class="llm-header-user__avatar" src="' . esc_attr( $blank ) . '" alt="" width="32" height="32" data-llm-guest-avatar />';
+		}
+		$uid   = get_current_user_id();
+		$photo = class_exists( 'LLM_Scheda_Utente' ) ? LLM_Scheda_Utente::photo_url( $uid, 'thumbnail' ) : '';
+		if ( $photo ) {
+			return '<img class="llm-header-user__avatar" src="' . esc_url( $photo ) . '" alt="" width="32" height="32" />';
+		}
+		return class_exists( 'LLM_Header_UI_Icons' ) ? LLM_Header_UI_Icons::user() : '';
 	}
 
 	/**

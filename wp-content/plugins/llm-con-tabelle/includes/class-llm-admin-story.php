@@ -147,6 +147,18 @@ class LLM_Admin_Story {
 			'fullExportNeedSave'      => __( 'Salva prima la bozza per esportare la storia.', 'llm-con-tabelle' ),
 			'fullExportHint'          => __( 'Testo nello stesso formato di Story Importer: copialo e usalo in «Importa dati della storia».', 'llm-con-tabelle' ),
 			'fullExportHintNoNotes'   => __( 'Stesso formato di Story Importer, ma senza analisi grammaticale (appunti) sulle frasi.', 'llm-con-tabelle' ),
+			'ttsAction'               => LLM_Phrase_TTS::AJAX,
+			'ttsNonce'                => wp_create_nonce( LLM_Phrase_TTS::NONCE ),
+			'ttsAzureReady'           => class_exists( 'LLM_STT' ) && ( LLM_STT::deepgram_ready() || LLM_STT::azure_ready() ),
+			'ttsNeedAzure'            => __( 'Configura Deepgram o Azure Speech in Storie → Microfoni IA.', 'llm-con-tabelle' ),
+			'ttsBtn'                  => __( 'Genera audio IA', 'llm-con-tabelle' ),
+			'ttsForce'                => __( 'Rigenera anche quelli già presenti?', 'llm-con-tabelle' ),
+			'ttsNeedSave'             => __( 'Salva prima la bozza per generare gli audio.', 'llm-con-tabelle' ),
+			'ttsWorking'              => __( 'Generazione audio…', 'llm-con-tabelle' ),
+			'ttsErr'                  => __( 'Generazione audio non riuscita.', 'llm-con-tabelle' ),
+			'ttsStatusBoth'           => __( 'Audio: completo', 'llm-con-tabelle' ),
+			'ttsStatusPartial'        => __( 'Audio: incompleto', 'llm-con-tabelle' ),
+			'ttsStatusNone'           => __( 'Audio: mancante', 'llm-con-tabelle' ),
 		)
 		);
 	}
@@ -162,6 +174,7 @@ class LLM_Admin_Story {
 		}
 		?>
 		<div class="llm-story-export-bar">
+			<p class="llm-story-id-display">ID storia: <strong><?php echo esc_html( (string) (int) $post->ID ); ?></strong></p>
 			<button type="button" id="llm-full-export-btn" class="button button-primary">
 				<?php esc_html_e( 'Esporta storia', 'llm-con-tabelle' ); ?>
 			</button>
@@ -228,6 +241,7 @@ class LLM_Admin_Story {
 	public static function render_settings( $post ) {
 		wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME );
 		?>
+		<p class="llm-story-id-display llm-story-id-display--settings">ID storia: <strong><?php echo esc_html( (string) (int) $post->ID ); ?></strong></p>
 		<div class="llm-full-import-toolbar">
 			<button type="button" id="llm-full-import-incolla-csv" class="button button-secondary">
 				<?php esc_html_e( 'Importa dati della storia da Story Importer', 'llm-con-tabelle' ); ?>
@@ -291,8 +305,8 @@ class LLM_Admin_Story {
 		</div>
 		<div class="llm-field-row">
 			<label for="llm_story_grammar_topics"><strong><?php esc_html_e( 'Topic Grammaticali', 'llm-con-tabelle' ); ?></strong></label>
-			<p class="description"><?php esc_html_e( 'Un topic per riga.', 'llm-con-tabelle' ); ?></p>
-			<textarea name="llm_story_grammar_topics" id="llm_story_grammar_topics" class="widefat" rows="5"><?php echo esc_textarea( is_string( $grammar_topics ) ? $grammar_topics : '' ); ?></textarea>
+			<p class="description"><?php esc_html_e( 'Dieci punti. Per ciascuno: riga titolo (1. Titolo) e riga descrizione. Parole della lingua obiettivo tra virgolette.', 'llm-con-tabelle' ); ?></p>
+			<textarea name="llm_story_grammar_topics" id="llm_story_grammar_topics" class="widefat" rows="16"><?php echo esc_textarea( is_string( $grammar_topics ) ? $grammar_topics : '' ); ?></textarea>
 		</div>
 		<div class="llm-field-row">
 			<label for="llm_story_card_text"><strong><?php esc_html_e( 'Breve testo per la scheda della storia', 'llm-con-tabelle' ); ?></strong></label>
@@ -398,13 +412,15 @@ class LLM_Admin_Story {
 			);
 		}
 		?>
-		<p class="description"><?php esc_html_e( 'Salvate in tabella dedicata (nessun JSON). Trascina per riordinare.', 'llm-con-tabelle' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Salvate in tabella dedicata (nessun JSON). Trascina per riordinare. «Genera audio IA» crea Aura-2 (sito) e Azure Neural (solo admin). Il rallentamento è in riproduzione.', 'llm-con-tabelle' ); ?></p>
 		<p class="llm-phrases-csv-toolbar">
 			<?php if ( $post->ID > 0 ) : ?>
 				<a href="<?php echo esc_url( LLM_Story_Phrases_Csv::export_url( $post->ID ) ); ?>" class="button" id="llm-phrases-csv-export"><?php esc_html_e( 'Esporta CSV', 'llm-con-tabelle' ); ?></a>
 				<label for="llm-phrases-csv-file" class="button" id="llm-phrases-csv-import"><?php esc_html_e( 'Importa CSV…', 'llm-con-tabelle' ); ?></label>
 				<input type="file" id="llm-phrases-csv-file" accept=".csv,text/csv" tabindex="-1" class="llm-csv-file-input-hidden" />
 				<button type="button" class="button" id="llm-phrases-csv-paste-toggle" aria-expanded="false" aria-controls="llm-phrases-csv-paste-panel"><?php esc_html_e( 'Incolla CSV…', 'llm-con-tabelle' ); ?></button>
+				<button type="button" class="button button-primary" id="llm-generate-phrase-tts"><?php esc_html_e( 'Genera audio IA', 'llm-con-tabelle' ); ?></button>
+				<span id="llm-phrase-tts-status" class="description"></span>
 			<?php else : ?>
 				<span class="description"><?php esc_html_e( 'Salva la bozza per abilitare importazione ed esportazione CSV delle frasi.', 'llm-con-tabelle' ); ?></span>
 			<?php endif; ?>
@@ -430,7 +446,7 @@ class LLM_Admin_Story {
 			<button type="button" class="button" id="llm-add-phrase"><?php esc_html_e( 'Aggiungi frase', 'llm-con-tabelle' ); ?></button>
 		</p>
 		<script type="text/template" id="llm-phrase-template">
-			<?php self::render_phrase_row( '{{IDX}}', array( 'interface' => '', 'target' => '', 'grammar' => '', 'alt' => '', 'notes' => '', 'pronunciation' => '', 'ipa' => '', 'approx' => '' ) ); ?>
+			<?php self::render_phrase_row( '{{IDX}}', array( 'interface' => '', 'target' => '', 'grammar' => '', 'alt' => '', 'notes' => '', 'notes_target' => '', 'remember' => '', 'pronunciation' => '', 'ipa' => '', 'approx' => '', 'id' => 0 ) ); ?>
 		</script>
 		<?php if ( $post->ID > 0 ) : ?>
 		<div id="llm-phrases-csv-modal" class="llm-csv-modal" hidden aria-hidden="true">
@@ -486,11 +502,47 @@ class LLM_Admin_Story {
 		} else {
 			$num = '{{NUM}}';
 		}
-		$iface = isset( $p['interface'] ) ? $p['interface'] : '';
-		$prev  = self::phrase_preview_text( $iface );
+		$iface     = isset( $p['interface'] ) ? $p['interface'] : '';
+		$phrase_id = isset( $p['id'] ) ? absint( $p['id'] ) : 0;
+		$story_id  = (int) get_the_ID();
+		$locale    = 'en-US';
+		if ( $story_id && class_exists( 'LLM_Story_Phrase_Game' ) && class_exists( 'LLM_Story_Meta' ) ) {
+			$locale = LLM_Story_Phrase_Game::speech_locale( (string) get_post_meta( $story_id, LLM_Story_Meta::TARGET_LANG, true ) );
+		}
+		$voices = class_exists( 'LLM_Phrase_TTS' ) ? LLM_Phrase_TTS::admin_voice_buttons( $locale ) : array();
+		$urls   = class_exists( 'LLM_Phrase_TTS' ) ? LLM_Phrase_TTS::admin_audio_urls( $p, $locale ) : array();
+		$ready  = 0;
+		foreach ( $voices as $vb ) {
+			if ( ! empty( $urls[ $vb['play'] ] ) ) {
+				++$ready;
+			}
+		}
+		$shown = count( $voices );
+		if ( $shown && $ready === $shown ) {
+			$tts_status = __( 'Audio: completo', 'llm-con-tabelle' );
+		} elseif ( $ready > 0 ) {
+			$tts_status = __( 'Audio: incompleto', 'llm-con-tabelle' );
+		} else {
+			$tts_status = __( 'Audio: mancante', 'llm-con-tabelle' );
+		}
+		$prev = self::phrase_preview_text( $iface );
+		$row_attrs = ' data-phrase-id="' . esc_attr( (string) $phrase_id ) . '"';
+		foreach ( $urls as $play_key => $play_url ) {
+			$row_attrs .= ' data-audio-' . esc_attr( $play_key ) . '="' . esc_url( $play_url ) . '"';
+		}
 		?>
-		<div class="llm-phrase-row">
+		<div class="llm-phrase-row"<?php echo $row_attrs; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- già escapato. ?>>
 			<span class="llm-drag-handle dashicons dashicons-menu" title="<?php esc_attr_e( 'Trascina', 'llm-con-tabelle' ); ?>"></span>
+			<div class="llm-phrase-row__body">
+			<div class="llm-phrase-tts-listen">
+				<?php foreach ( $voices as $vb ) : ?>
+					<?php
+					$play_key = (string) $vb['play'];
+					$has_url  = ! empty( $urls[ $play_key ] );
+					?>
+					<button type="button" class="button llm-phrase-play" data-llm-play="<?php echo esc_attr( $play_key ); ?>"<?php echo $has_url ? '' : ' disabled="disabled"'; ?>><?php echo esc_html( $vb['label'] ); ?></button>
+				<?php endforeach; ?>
+			</div>
 			<details class="llm-phrase-details">
 				<summary class="llm-phrase-summary">
 					<span class="llm-phrase-summary-title">
@@ -498,16 +550,22 @@ class LLM_Admin_Story {
 						<span class="llm-phrase-num"><?php echo esc_html( $num ); ?></span>
 					</span>
 					<span class="llm-phrase-preview"><?php echo esc_html( $prev ); ?></span>
+					<span class="llm-phrase-tts-row-status"><?php echo esc_html( $tts_status ); ?></span>
 				</summary>
 				<div class="llm-phrase-fields">
+					<input type="hidden" name="llm_phrases[<?php echo esc_attr( $i ); ?>][id]" value="<?php echo esc_attr( (string) $phrase_id ); ?>" />
 					<label><?php esc_html_e( 'Frase (lingua interfaccia)', 'llm-con-tabelle' ); ?></label>
 					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][interface]" class="widefat llm-phrase-interface" rows="2"><?php echo esc_textarea( $iface ); ?></textarea>
 					<label><?php esc_html_e( 'Frase (lingua obiettivo)', 'llm-con-tabelle' ); ?></label>
 					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][target]" class="widefat" rows="2"><?php echo esc_textarea( isset( $p['target'] ) ? $p['target'] : '' ); ?></textarea>
-					<label><?php esc_html_e( 'Note sulla frase', 'llm-con-tabelle' ); ?></label>
+					<label><?php esc_html_e( 'Note della storia (lingua che conosci)', 'llm-con-tabelle' ); ?></label>
 					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][notes]" class="widefat" rows="2"><?php echo esc_textarea( isset( $p['notes'] ) ? $p['notes'] : '' ); ?></textarea>
+					<label><?php esc_html_e( 'Note della storia (lingua da imparare)', 'llm-con-tabelle' ); ?></label>
+					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][notes_target]" class="widefat" rows="2"><?php echo esc_textarea( isset( $p['notes_target'] ) ? $p['notes_target'] : '' ); ?></textarea>
 					<label><?php esc_html_e( 'Analisi grammaticale', 'llm-con-tabelle' ); ?></label>
 					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][grammar]" class="widefat" rows="3"><?php echo esc_textarea( isset( $p['grammar'] ) ? $p['grammar'] : '' ); ?></textarea>
+					<label><?php esc_html_e( 'Ricorda', 'llm-con-tabelle' ); ?></label>
+					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][remember]" class="widefat" rows="3"><?php echo esc_textarea( isset( $p['remember'] ) ? $p['remember'] : '' ); ?></textarea>
 					<label><?php esc_html_e( 'Traduzione alternativa', 'llm-con-tabelle' ); ?></label>
 					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][alt]" class="widefat" rows="2"><?php echo esc_textarea( isset( $p['alt'] ) ? $p['alt'] : '' ); ?></textarea>
 					<label><?php esc_html_e( 'Pronuncia', 'llm-con-tabelle' ); ?></label>
@@ -519,6 +577,7 @@ class LLM_Admin_Story {
 					<button type="button" class="button-link llm-remove-phrase"><?php esc_html_e( 'Rimuovi frase', 'llm-con-tabelle' ); ?></button>
 				</div>
 			</details>
+			</div>
 		</div>
 		<?php
 	}
@@ -831,6 +890,8 @@ class LLM_Admin_Story {
 		$media_raw = isset( $_POST['llm_media_blocks'] ) ? wp_unslash( $_POST['llm_media_blocks'] ) : array();
 		$media     = LLM_Story_Repository::sanitize_media_from_post( $media_raw );
 		LLM_Story_Repository::save_media_blocks( $post_id, $media );
+
+		LLM_Story_Cast::save_from_post( $post_id );
 	}
 
 	/**
@@ -980,7 +1041,7 @@ class LLM_Admin_Story {
 	public static function column_content( $column, $post_id ) {
 		switch ( $column ) {
 			case 'llm_id':
-				echo '<span class="llm-col-id">' . esc_html( (string) (int) $post_id ) . '</span>';
+				echo '<strong class="llm-col-id">' . esc_html( (string) (int) $post_id ) . '</strong>';
 				break;
 			case 'llm_thumbnail':
 				$thumb_id  = (int) get_post_thumbnail_id( $post_id );

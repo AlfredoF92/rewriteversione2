@@ -33,4 +33,75 @@
 	flex-grow: 0 !important;
 	background-position: center center !important;
 	background-size: cover !important;
+	overflow: hidden !important;
+}
+
+/*
+ * Pagine interne lingue: Loop Grid 3×3 su mobile.
+ * Elementor imposta mobile a 1 colonna (elementor-grid-mobile-1): lo forziamo a 3.
+ */
+@media (max-width: 767px) {
+	.elementor-widget-loop-grid.elementor-grid-mobile-1 {
+		padding-left: max(1rem, env(safe-area-inset-left)) !important;
+		padding-right: max(1rem, env(safe-area-inset-right)) !important;
+		box-sizing: border-box !important;
+	}
+
+	.elementor-widget-loop-grid.elementor-grid-mobile-1 .elementor-loop-container.elementor-grid {
+		display: grid !important;
+		grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+		column-gap: 0.42rem !important;
+		row-gap: 0.85rem !important;
+		--grid-column-gap: 0.42rem;
+		--grid-row-gap: 0.85rem;
+	}
+
+	.elementor-widget-loop-grid .e-loop-item {
+		min-width: 0;
+		width: auto !important;
+		max-width: none !important;
+	}
+
+	.elementor-widget-loop-grid .e-loop-item > a.e-con,
+	.elementor-widget-loop-grid .e-loop-item > .e-con {
+		gap: 0.32rem !important;
+		min-width: 0;
+	}
+
+	.elementor-widget-loop-grid .elementor-element-6172751 {
+		aspect-ratio: 1 / 1 !important;
+		border-radius: 10px !important;
+	}
+
+	.elementor-widget-loop-grid .e-loop-item .elementor-heading-title {
+		font-size: 0.68rem !important;
+		line-height: 1.25 !important;
+		letter-spacing: -0.02em !important;
+		margin: 0 !important;
+		display: -webkit-box !important;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden !important;
+		word-break: break-word;
+	}
+
+	.elementor-widget-loop-grid .elementor-element-07b3279 .elementor-heading-title {
+		font-size: 0.58rem !important;
+		font-weight: 500 !important;
+		font-style: italic;
+		opacity: 0.72;
+		-webkit-line-clamp: 1;
+	}
+
+	.elementor-widget-loop-grid .llm-story-progress-bar--compact {
+		margin-top: 0.1rem !important;
+	}
+
+	.elementor-widget-loop-grid .llm-story-progress-bar--compact .llm-story-progress-bar__count {
+		display: none !important;
+	}
+
+	.elementor-widget-loop-grid .llm-story-progress-bar--compact .llm-story-progress-bar__track {
+		height: 3px !important;
+	}
 }

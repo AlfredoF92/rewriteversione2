@@ -138,4 +138,65 @@
 			closeMenu(open);
 		}
 	});
+
+	function expandFullWidth() {
+		document.querySelectorAll('[data-llm-nav-menu]').forEach(function (root) {
+			var el = root.parentElement;
+			var hops = 0;
+			while (el && hops < 10) {
+				var cls = el.classList;
+				if (cls && (cls.contains('e-con') || cls.contains('e-con-inner') || cls.contains('elementor-widget') || cls.contains('elementor-element') || cls.contains('elementor-widget-container') || cls.contains('elementor-widget-wrap'))) {
+					el.style.width = '100%';
+					el.style.maxWidth = '100%';
+					el.style.flexGrow = '1';
+					el.style.alignSelf = 'stretch';
+				}
+				if (cls && (cls.contains('elementor-location-header') || el.tagName === 'HEADER')) {
+					break;
+				}
+				el = el.parentElement;
+				hops += 1;
+			}
+		});
+	}
+
+	function browserName() {
+		if (window.llmGuestBrowserStore && typeof window.llmGuestBrowserStore.getName === 'function') {
+			return window.llmGuestBrowserStore.getName() || '';
+		}
+		try {
+			return (window.localStorage.getItem('llm_guest_display_name') || '').trim();
+		} catch (e) {
+			return '';
+		}
+	}
+
+	function syncHello(root) {
+		var el = root.querySelector('[data-llm-nav-hello]');
+		var nameEl = root.querySelector('[data-llm-nav-hello-name]');
+		if (!el || !nameEl) {
+			return;
+		}
+		var isGuest = el.getAttribute('data-guest') === '1';
+		var fallback = el.getAttribute('data-fallback') || '';
+		var name = isGuest ? browserName() : (el.getAttribute('data-name') || '');
+		nameEl.textContent = name || fallback;
+	}
+
+	function syncAllHellos() {
+		document.querySelectorAll('[data-llm-nav-menu]').forEach(syncHello);
+	}
+
+	function boot() {
+		expandFullWidth();
+		syncAllHellos();
+	}
+
+	window.addEventListener('llm-guest-name-changed', syncAllHellos);
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', boot);
+	} else {
+		boot();
+	}
 })();

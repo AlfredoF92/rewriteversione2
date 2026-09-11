@@ -133,9 +133,10 @@
 }
 
 .llm-story-hero__media {
-	width: min(220px, 34vw);
-	height: min(220px, 34vw);
-	min-height: 140px;
+	width: min(380px, 46vw);
+	height: auto;
+	aspect-ratio: 16 / 9;
+	min-height: 0;
 	margin: 0;
 	border-radius: 12px;
 	background-color: #111;
@@ -388,8 +389,33 @@
 
 .llm-story-view--crossword {
 	--llm-chip-ink: #111;
+	--llm-chip-border: #c3c4c7;
 	--llm-chip-hover: rgba(0, 0, 0, 0.08);
 	padding: 0;
+}
+
+.llm-story-crossword-lede {
+	max-width: 40rem;
+	margin: 0 0 1rem;
+}
+
+.llm-story-crossword-lede__title {
+	margin: 0 0 0.35rem;
+	font-size: 1.35rem;
+	font-weight: 700;
+	line-height: 1.25;
+	letter-spacing: -0.02em;
+}
+
+.llm-story-crossword-lede__text {
+	margin: 0;
+	font-size: 1rem;
+	line-height: 1.5;
+	opacity: 0.88;
+}
+
+.llm-phrase-game--theme-dark .llm-story-crossword-lede {
+	color: #f4f1ea;
 }
 
 .llm-phrase-game--theme-dark .llm-story-view--crossword,
@@ -426,24 +452,32 @@
 	width: 100%;
 	display: flex;
 	flex-direction: column;
-	align-items: flex-start;
-	overflow: visible;
+	align-items: stretch;
+	overflow-x: auto;
+	overflow-y: visible;
 }
 
 .llm-story-view--crossword .cw-grid {
-	width: min(70%, calc((100dvh - 20rem) * var(--cw-cols, 15) / var(--cw-rows, 15))) !important;
-	max-width: 70% !important;
-	max-height: calc(100dvh - 20rem);
-	margin: 0 auto 0 0;
+	width: calc(80% * var(--cw-zoom, 1)) !important;
+	max-width: none !important;
+	min-width: calc(80% * var(--cw-zoom, 1));
+	height: auto !important;
+	max-height: none;
+	margin: 0;
 	box-sizing: border-box;
+	gap: 2px;
+	padding: 2px;
 	grid-template-columns: repeat(var(--cw-cols, 15), minmax(0, 1fr)) !important;
-	grid-template-rows: repeat(var(--cw-rows, 15), minmax(0, 1fr)) !important;
+	grid-template-rows: repeat(var(--cw-rows, 15), auto) !important;
+	align-content: start;
+	justify-content: stretch;
 }
 
 .llm-story-view--crossword .cw-cell-wrap,
 .llm-story-view--crossword .cw-black {
 	width: 100%;
 	min-width: 0;
+	min-height: 0;
 	aspect-ratio: 1;
 }
 
@@ -451,23 +485,26 @@
 	width: 100% !important;
 	height: 100% !important;
 	min-width: 0;
-	font-size: clamp(10px, 1.15vw, 16px);
+	border: 1px solid #000 !important;
+	font-size: calc(var(--cw-cell-size) * 0.48) !important;
 	font-weight: 400 !important;
 }
 
 .llm-story-view--crossword .cw-number {
-	font-size: clamp(7px, 0.85vw, 11px);
+	font-size: calc(var(--cw-cell-size) * 0.28);
 	font-weight: 400;
 }
 
 .llm-story-view--crossword .cw-controls {
 	display: flex;
 	flex-wrap: wrap;
+	align-items: center;
 	gap: 0.4rem;
 	margin-top: 0.55rem;
 }
 
-.llm-story-view--crossword .cw-controls .cw-btn {
+.llm-story-view--crossword .cw-controls .cw-btn,
+.llm-story-view--crossword .cw-controls .cw-keyboard__toggle {
 	display: inline-flex !important;
 	align-items: center;
 	justify-content: center;
@@ -500,38 +537,33 @@
 	content: "↺";
 }
 
+.llm-story-view--crossword .cw-btn--zoom {
+	min-width: 2.6rem;
+	padding-left: 0.5rem !important;
+	padding-right: 0.5rem !important;
+}
+
+.llm-story-view--crossword .cw-btn--zoom:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+
 .llm-story-view--crossword .cw-controls .cw-btn:hover,
-.llm-story-view--crossword .cw-controls .cw-btn:focus-visible {
+.llm-story-view--crossword .cw-controls .cw-btn:focus-visible,
+.llm-story-view--crossword .cw-controls .cw-keyboard__toggle:hover,
+.llm-story-view--crossword .cw-controls .cw-keyboard__toggle:focus-visible,
+.llm-story-view--crossword .cw-controls .cw-keyboard__toggle[aria-expanded="true"] {
 	background: rgba(0, 0, 0, 0.08) !important;
 	outline: none;
 }
 
 .llm-story-view--crossword .cw-keyboard {
 	width: 100%;
-	margin-top: 0.55rem;
+	margin-top: 0.35rem;
 }
 
-.llm-story-view--crossword .cw-keyboard__toggle {
-	display: inline-flex !important;
-	align-items: center;
-	justify-content: center;
-	gap: 0.4rem;
+.llm-story-view--crossword .cw-keyboard:not(:has(.cw-keyboard__panel:not([hidden]))) {
 	margin: 0;
-	padding: 0.3rem 0.7rem !important;
-	min-height: 1.95rem !important;
-	border: 1px solid #111 !important;
-	border-radius: 8px !important;
-	background: transparent !important;
-	box-shadow: none !important;
-	color: #111 !important;
-	font-size: 0.74rem !important;
-	font-weight: 400 !important;
-	line-height: 1.25 !important;
-	text-transform: none !important;
-}
-
-.llm-story-view--crossword .cw-keyboard__toggle[aria-expanded="true"] {
-	background: rgba(0, 0, 0, 0.08) !important;
 }
 
 .llm-story-view--crossword .cw-status {
@@ -539,23 +571,40 @@
 	color: #444;
 }
 
+.llm-story-view--crossword .cw-status--success {
+	color: #1c6830 !important;
+	font-family: inherit !important;
+	font-size: 1rem !important;
+	font-weight: 700 !important;
+	line-height: 1.35;
+}
+
 .llm-story-view--crossword .cw-mobile-clue--below,
 .llm-story-view--crossword .cw-mobile-clue--above {
+	display: flex;
+	flex-direction: row;
 	align-items: flex-start;
-	gap: 0.75rem;
-	width: 100%;
-	margin: 0.65rem 0 0;
-	padding: 0.85rem 0.95rem;
-	border: 1px solid #d5d5d5;
-	border-radius: 8px;
-	background: #e8e8e8;
+	justify-content: space-between;
+	gap: 0.85rem;
+	width: 80%;
+	max-width: 80%;
+	margin: 0 0 0.75rem;
+	padding: 0.95rem 1.05rem;
+	border: 1px solid #d8d8d4;
+	border-radius: 12px;
+	background: #f4f3ef;
 	color: #1a1a18;
 	box-shadow: none;
+	font-family: Manrope, Roboto, system-ui, sans-serif;
 	font-weight: 400;
 }
 
-.llm-story-view--crossword .cw-mobile-clue--below {
+.llm-story-view--crossword .cw-mobile-clue--above {
 	display: flex !important;
+}
+
+.llm-story-view--crossword .cw-mobile-clue--below {
+	display: none !important;
 }
 
 .llm-story-view--crossword .cw-mobile-clue--below[hidden],
@@ -624,37 +673,80 @@
 }
 
 .llm-story-view--crossword .cw-mobile-clue__text {
-	font-size: 1rem;
+	font-size: 0.98rem;
 	line-height: 1.45;
 	font-weight: 400 !important;
 	color: #1a1a18;
 }
 
+.llm-story-view--crossword .cw-mobile-clue__text .cw-def-line {
+	align-items: flex-start;
+	gap: 0.5rem;
+	margin: 0 0 0.45rem;
+}
+
+.llm-story-view--crossword .cw-mobile-clue__text .cw-def-flag {
+	font-size: 1.2em;
+	line-height: 1.35;
+}
+
+.llm-story-view--crossword .cw-mobile-clue__text .cw-def-known {
+	font-weight: 700;
+	letter-spacing: -0.02em;
+}
+
+.llm-story-view--crossword .cw-mobile-clue__text .cw-def-target {
+	font-weight: 400;
+}
+
+.llm-story-view--crossword .cw-mobile-clue__text .cw-def-solution {
+	margin-top: 0.15rem;
+	font-size: 0.72em;
+	font-weight: 400;
+	opacity: 0.58;
+}
+
 .llm-story-view--crossword .cw-mobile-clue__text em {
 	font-weight: 400;
-	font-style: italic;
+	font-style: normal;
 }
 
 .llm-story-view--crossword .cw-mobile-clue__text .cw-def-pos,
 .llm-story-view--crossword .cw-mobile-clue .cw-def-pos {
-	font-size: 0.72rem;
-	font-weight: 400;
-	vertical-align: middle;
-	color: #333 !important;
-	background: transparent !important;
-	padding: 0;
+	display: none !important;
 }
 
-@media (min-width: 783px) {
-	.llm-story-view--crossword .cw-mobile-clue--above {
-		display: none !important;
-	}
+.llm-phrase-game--theme-dark .llm-story-view--crossword .cw-mobile-clue--below,
+.llm-phrase-game--theme-dark .llm-story-view--crossword .cw-mobile-clue--above {
+	background: #212121;
+	border-color: rgba(255, 255, 255, 0.12);
+	color: #f4f1ea;
+}
+
+.llm-phrase-game--theme-dark .llm-story-view--crossword .cw-mobile-clue__text {
+	color: #f4f1ea;
+}
+
+.llm-phrase-game--theme-dark .llm-story-view--crossword .cw-mobile-clue__meta {
+	color: #cfc9bc;
 }
 
 @media (max-width: 782px) {
 	.llm-story-view--crossword .cw-grid {
-		width: min(100%, calc((100dvh - 16rem) * var(--cw-cols, 15) / var(--cw-rows, 15))) !important;
-		max-width: 100% !important;
+		width: calc(100% * var(--cw-zoom, 1)) !important;
+		max-width: none !important;
+		min-width: calc(100% * var(--cw-zoom, 1));
+	}
+
+	.llm-story-view--crossword .cw-cell-wrap,
+	.llm-story-view--crossword .cw-black {
+		aspect-ratio: 4 / 5;
+	}
+
+	.llm-story-view--crossword .cw-mobile-clue--below,
+	.llm-story-view--crossword .cw-mobile-clue--above {
+		width: 100%;
+		max-width: 100%;
 	}
 
 	.llm-story-view--crossword .cw-mobile-clue--below {
@@ -786,6 +878,7 @@
 	--llm-game-btn-hover: rgba(255, 255, 255, 0.1);
 	--llm-story-font: Roboto, system-ui, sans-serif;
 	--llm-chip-ink: #fff;
+	--llm-chip-border: rgba(255, 255, 255, 0.42);
 	--llm-chip-hover: rgba(255, 255, 255, 0.12);
 
 	box-sizing: border-box;
@@ -828,6 +921,7 @@
 .llm-phrase-game__story-intro-text,
 .llm-phrase-game__grammar-topics-text,
 .llm-phrase-game__story-finale-text,
+.llm-phrase-game__done-text,
 .llm-phrase-game__story-line,
 .llm-phrase-game__upcoming-blur,
 .llm-phrase-game__interface {
@@ -846,20 +940,65 @@
 
 .llm-phrase-game__story-chip {
 	background: var(--llm-game-panel) !important;
-	color: var(--llm-game-muted) !important;
+	color: var(--llm-game-white) !important;
 }
 
-.llm-phrase-game .button.llm-phrase-game__story-chip-go {
+.llm-grammar-topics-dialog__close,
+.llm-grammar-topics-dialog__close:hover,
+.llm-grammar-topics-dialog__close:focus,
+.llm-grammar-topics-dialog__close:focus-visible {
+	-webkit-appearance: none !important;
+	appearance: none !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+.llm-grammar-topics-dialog__close {
+	padding: 0.28rem 0.58rem !important;
+	min-height: 0 !important;
+	height: auto !important;
+	border: 1px solid var(--llm-chip-border, #c3c4c7) !important;
+	border-radius: 999px !important;
+	color: var(--llm-chip-ink, #000) !important;
+	font-size: 0.78rem !important;
+	font-weight: 600 !important;
+	line-height: 1 !important;
+}
+
+.llm-grammar-topics-dialog__close:hover,
+.llm-grammar-topics-dialog__close:focus,
+.llm-grammar-topics-dialog__close:focus-visible {
+	background: var(--llm-chip-hover, rgba(0, 0, 0, 0.08)) !important;
+	border-color: var(--llm-chip-border, #c3c4c7) !important;
+	color: var(--llm-chip-ink, #000) !important;
+}
+
+.llm-phrase-game .button.llm-phrase-game__story-action-btn,
+.llm-phrase-game .button.llm-phrase-game__story-chip-go,
+.llm-phrase-game .button.llm-phrase-game__story-chip-listen,
+.llm-phrase-game .button.llm-phrase-game__story-chip-notes-btn,
+.llm-phrase-game .button.llm-phrase-game__story-notes-pop-close {
 	color: var(--llm-game-white) !important;
 	background: var(--llm-game-panel) !important;
-	border-color: var(--llm-game-btn-outline) !important;
+	border: 1px solid var(--llm-game-btn-outline) !important;
+	border-radius: 4px !important;
+	min-height: 0 !important;
+	height: auto !important;
+	padding: 0.08rem 0.35rem !important;
+	font-size: 0.6rem !important;
+	font-weight: 500 !important;
+	letter-spacing: 0.01em !important;
+	line-height: 1.25 !important;
 }
 
 .llm-phrase-game__progress,
 .llm-phrase-game__prompt,
 .llm-phrase-game__prompt-text,
 .llm-learning-mode__bar,
-.llm-learning-mode__label {
+.llm-learning-mode__label,
+.llm-learning-mode__playtime,
+.llm-learning-mode__playtime-label {
 	color: var(--llm-game-muted) !important;
 }
 
@@ -877,7 +1016,8 @@
 	padding-bottom: 0.85rem;
 }
 
-.llm-learning-mode__value {
+.llm-learning-mode__value,
+.llm-learning-mode__playtime-value {
 	color: var(--llm-game-white) !important;
 }
 
@@ -888,7 +1028,8 @@
 .llm-phrase-game__interface-row,
 .llm-phrase-game__interface-row--phase2,
 .llm-phrase-game--phase2-active .llm-phrase-game__phase--1,
-.llm-learning-mode__bar {
+.llm-learning-mode__bar,
+.llm-learning-mode__toolbar {
 	border-color: var(--llm-game-line) !important;
 }
 
@@ -922,17 +1063,117 @@
 .llm-phrase-game textarea.llm-phrase-game__input,
 .llm-phrase-game__input-shell .llm-phrase-game__input {
 	color: var(--llm-game-white) !important;
-	caret-color: var(--llm-game-white) !important;
-	-webkit-user-select: none;
-	user-select: none;
-	cursor: pointer !important;
+	caret-color: auto !important;
+	-webkit-user-select: text;
+	user-select: text;
+	cursor: text !important;
+}
+
+.llm-phrase-game__exact-ok-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.55rem 0.75rem;
+	margin: 0.45rem 0 0;
+}
+
+.llm-phrase-game__exact-ok-row[hidden] {
+	display: none !important;
+}
+
+.llm-phrase-game__exact-ok {
+	margin: 0;
+	padding: 0;
+	color: #1c6830 !important;
+	font-family: inherit !important;
+	font-size: inherit !important;
+	font-weight: 700 !important;
+	line-height: 1.35;
+}
+
+.llm-phrase-game__exact-ok[hidden] {
+	display: none !important;
+}
+
+.llm-phrase-game .llm-learning-mode__change.llm-phrase-game__exact-thanks,
+.llm-learning-mode__change.llm-phrase-game__exact-thanks,
+.llm-phrase-game .llm-learning-mode__change.llm-phrase-game__notes-read-more,
+.llm-learning-mode__change.llm-phrase-game__notes-read-more {
+	margin-left: 0 !important;
+	margin-top: 0 !important;
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.28rem;
+	padding: 0.4rem 0.95rem !important;
+	font-size: 0.74rem !important;
+	line-height: 1.25 !important;
+	border-radius: 999px !important;
+}
+
+.llm-phrase-game .llm-learning-mode__change.llm-phrase-game__notes-read-more,
+.llm-learning-mode__change.llm-phrase-game__notes-read-more {
+	margin-top: 0.65rem !important;
+}
+
+.llm-phrase-game .llm-learning-mode__change.llm-phrase-game__exact-thanks[hidden],
+.llm-learning-mode__change.llm-phrase-game__exact-thanks[hidden],
+.llm-phrase-game .llm-learning-mode__change.llm-phrase-game__notes-read-more[hidden],
+.llm-learning-mode__change.llm-phrase-game__notes-read-more[hidden] {
+	display: none !important;
+}
+
+.llm-phrase-game textarea.llm-phrase-game__input--exact-ok,
+.llm-phrase-game textarea.llm-phrase-game__input--exact-sealed,
+.llm-phrase-game__input-shell .llm-phrase-game__input--exact-ok,
+.llm-phrase-game__input-shell .llm-phrase-game__input--exact-sealed {
+	pointer-events: none !important;
+	caret-color: transparent !important;
+	-webkit-user-select: none !important;
+	user-select: none !important;
+	cursor: default !important;
+}
+
+.llm-phrase-game textarea.llm-phrase-game__input--exact-sealed,
+.llm-phrase-game__input-shell .llm-phrase-game__input--exact-sealed {
+	color: #1c6830 !important;
+	font-weight: 700 !important;
+}
+
+.llm-phrase-game textarea.llm-phrase-game__input--exact-sealed-fade,
+.llm-phrase-game__input-shell .llm-phrase-game__input--exact-sealed-fade {
+	animation: llm-exact-bravo-fade 0.45s ease both;
+}
+
+@keyframes llm-exact-bravo-fade {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+.llm-phrase-game__input-shell--exact-ok {
+	cursor: default;
 }
 
 .llm-phrase-game--no-osk .llm-phrase-game__input,
 .llm-phrase-game--no-osk input.llm-phrase-game__input,
 .llm-phrase-game--no-osk textarea.llm-phrase-game__input,
 .llm-phrase-game--no-osk .llm-phrase-game__input-shell .llm-phrase-game__input {
-	caret-color: var(--llm-game-white) !important;
+	caret-color: transparent !important;
+	-webkit-user-select: none;
+	user-select: none;
+	cursor: pointer !important;
+}
+
+.llm-phrase-game--native-caret .llm-phrase-game__input,
+.llm-phrase-game--native-caret input.llm-phrase-game__input,
+.llm-phrase-game--native-caret textarea.llm-phrase-game__input,
+.llm-phrase-game--native-caret .llm-phrase-game__input-shell .llm-phrase-game__input,
+.llm-phrase-game--native-caret .llm-phrase-game__input:focus,
+.llm-phrase-game--native-caret .llm-phrase-game__input:focus-visible {
+	caret-color: auto !important;
+	-webkit-user-select: text;
+	user-select: text;
+	cursor: text !important;
 }
 
 .llm-phrase-game__voice-mark {
@@ -943,7 +1184,25 @@
 .llm-phrase-game .llm-phrase-game__input--voice-marking {
 	color: transparent !important;
 	-webkit-text-fill-color: transparent !important;
-	caret-color: var(--llm-game-white) !important;
+	caret-color: transparent !important;
+}
+
+.llm-phrase-game__voice-new {
+	color: #79b8ff !important;
+	font-weight: 700 !important;
+}
+
+.llm-phrase-game--theme-light .llm-phrase-game__voice-new {
+	color: #2271b1 !important;
+}
+
+.llm-phrase-game__voice-exact {
+	color: #1c6830 !important;
+	font-weight: 700 !important;
+}
+
+.llm-phrase-game--theme-light .llm-phrase-game__voice-exact {
+	color: #1c6830 !important;
 }
 
 .llm-phrase-game__input::placeholder,
@@ -1061,6 +1320,9 @@
 	border-width: 2px !important;
 	border-radius: 35px !important;
 	letter-spacing: 0.03em;
+	height: var(--llm-game-btn-h, 2.2rem) !important;
+	min-height: var(--llm-game-btn-h, 2.2rem) !important;
+	box-sizing: border-box;
 }
 
 .llm-phrase-game .llm-phrase-game__listen-target:not(.llm-phrase-game__peek-target),
@@ -1147,9 +1409,20 @@
 	color: #1a1a1a !important;
 }
 
+.llm-phrase-game .llm-phrase-game__notes-read-more[hidden],
+.llm-phrase-game__notes-read-more[hidden],
 .llm-phrase-game .llm-phrase-game__show-field-trans[hidden],
 .llm-phrase-game__show-field-trans[hidden] {
 	display: none !important;
+}
+
+.llm-phrase-game .llm-phrase-game__notes-read-more:hover,
+.llm-phrase-game .llm-phrase-game__notes-read-more:focus,
+.llm-phrase-game .llm-phrase-game__notes-read-more:focus-visible,
+.llm-phrase-game__notes-read-more:hover,
+.llm-phrase-game__notes-read-more:focus,
+.llm-phrase-game__notes-read-more:focus-visible {
+	text-decoration: none;
 }
 
 .llm-phrase-game .llm-phrase-game__show-field-pron,
@@ -1170,6 +1443,7 @@
 
 .llm-phrase-game--mode-play-inverted .llm-phrase-game__show-field-trans,
 .llm-phrase-game--mode-play-inverted .llm-phrase-game__show-field-pron,
+.llm-phrase-game--mode-play-inverted .llm-phrase-game__notes-read-more,
 .llm-phrase-game--mode-play-inverted .llm-phrase-game__field-trans,
 .llm-phrase-game--mode-play-inverted .llm-phrase-game__field-pron {
 	display: none !important;
@@ -1376,6 +1650,30 @@
 	border-top-color: var(--llm-game-line) !important;
 }
 
+.llm-phrase-game .button.llm-phrase-game__ordina-input,
+.llm-phrase-game__ordina-input.button,
+.llm-phrase-game .button.llm-phrase-game__ordina-input:hover,
+.llm-phrase-game__ordina-input.button:hover,
+.llm-phrase-game .button.llm-phrase-game__ordina-input:focus,
+.llm-phrase-game__ordina-input.button:focus,
+.llm-phrase-game .button.llm-phrase-game__ordina-input.is-lit,
+.llm-phrase-game__ordina-input.is-lit,
+.llm-phrase-game .button.llm-phrase-game__ordina-input.is-lit:hover,
+.llm-phrase-game__ordina-input.is-lit:hover,
+.llm-phrase-game .button.llm-phrase-game__ordina-input.is-lit:focus,
+.llm-phrase-game__ordina-input.is-lit:focus {
+	padding: 0.22rem 0.55rem !important;
+	min-height: 0 !important;
+	border: 1px solid var(--llm-game-line) !important;
+	border-radius: var(--llm-game-btn-radius) !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	color: var(--llm-game-link) !important;
+	font-size: 0.72rem !important;
+	font-weight: 600 !important;
+	text-decoration: none;
+}
+
 .llm-phrase-game .button.llm-phrase-game__clear-input,
 .llm-phrase-game__clear-input.button,
 .llm-phrase-game .button.llm-phrase-game__rewind-input,
@@ -1418,7 +1716,7 @@
 	padding: 0.18rem 0.5rem !important;
 	min-height: 0 !important;
 	height: auto !important;
-	border: 1px solid var(--llm-chip-ink, #000) !important;
+	border: 1px solid var(--llm-chip-border, #c3c4c7) !important;
 	border-radius: 6px !important;
 	background: transparent !important;
 	box-shadow: none !important;
@@ -1440,7 +1738,7 @@
 .llm-game-theme__btn:hover,
 .llm-game-theme__btn:focus-visible {
 	background: var(--llm-chip-hover, rgba(0, 0, 0, 0.08)) !important;
-	border: 1px solid var(--llm-chip-ink, #000) !important;
+	border: 1px solid var(--llm-chip-border, #c3c4c7) !important;
 	color: var(--llm-chip-ink, #000) !important;
 	outline: none;
 }
@@ -1533,8 +1831,24 @@
 	.llm-phrase-game {
 		--llm-game-pad-x: 1.05rem;
 		--llm-game-btn-h: 2.45rem;
+		--llm-mobile-action-h: 3.5rem;
 		padding-left: var(--llm-game-pad-x);
 		padding-right: var(--llm-game-pad-x);
+	}
+
+	.llm-phrase-game .llm-phrase-game__mic,
+	.llm-phrase-game__mic,
+	.llm-phrase-game .llm-phrase-game__listen-target:not(.llm-phrase-game__peek-target),
+	.llm-phrase-game__listen-target:not(.llm-phrase-game__peek-target) {
+		width: var(--llm-tool-btn-w, 17rem) !important;
+		max-width: 100%;
+		height: var(--llm-mobile-action-h) !important;
+		min-height: var(--llm-mobile-action-h) !important;
+		padding: 0 1.1rem !important;
+		font-size: 1rem !important;
+		border-width: 2px !important;
+		border-radius: 35px !important;
+		box-sizing: border-box;
 	}
 
 	.llm-phrase-game__sticky-translate,
@@ -1568,10 +1882,11 @@
 	--llm-game-btn-mic: #2f7fd6;
 	--llm-game-btn-listen: #8b4fc4;
 	--llm-game-btn-notes: #9a5bb8;
-	--llm-game-btn-outline: #1a1a1a;
+	--llm-game-btn-outline: #c3c4c7;
 	--llm-game-btn-outline-text: #1a1a1a;
 	--llm-game-btn-hover: #ececec;
 	--llm-chip-ink: #000;
+	--llm-chip-border: #c3c4c7;
 	--llm-chip-hover: rgba(0, 0, 0, 0.08);
 }
 
@@ -1584,6 +1899,16 @@
 .llm-phrase-game--theme-light .llm-phrase-game__input-shell {
 	border-color: var(--llm-game-input-border) !important;
 	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+}
+
+.llm-phrase-game--theme-light .llm-phrase-game__listen-think-backdrop {
+	background: rgba(20, 20, 22, 0.28);
+}
+
+.llm-phrase-game--theme-light .llm-phrase-game__listen-think-card {
+	background: #fff !important;
+	border-color: #d8d8d8 !important;
+	color: #1a1a1a !important;
 }
 
 .llm-phrase-game--theme-light .llm-phrase-game__input-shell:hover:not(:focus-within):not(.llm-phrase-game__input-shell--listening) {
@@ -1761,11 +2086,11 @@
 
 	.llm-story-layout--two .llm-story-hero__media {
 		order: 1;
-		width: 50%;
+		width: 100%;
 		height: auto;
 		min-width: 0;
 		min-height: 0;
-		aspect-ratio: 1 / 1;
+		aspect-ratio: 16 / 9;
 		padding-bottom: 0;
 		flex-shrink: 0;
 		border-radius: 10px;
@@ -1849,4 +2174,19 @@
 		padding-left: 1.15rem;
 		padding-right: 0.5rem;
 	}
+}
+
+.llm-phrase-game__grammar p,
+.llm-phrase-game__grammar-block {
+	margin: 0 0 0.55em;
+}
+
+.llm-phrase-game__grammar p:last-child,
+.llm-phrase-game__grammar-block:last-child {
+	margin-bottom: 0;
+}
+
+.llm-phrase-game__alt,
+.llm-phrase-game__alt p {
+	margin: 0;
 }

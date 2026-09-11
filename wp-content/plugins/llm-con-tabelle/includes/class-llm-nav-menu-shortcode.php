@@ -1,6 +1,7 @@
 <?php
 /**
- * Shortcode [menù] / [menu] — pulsante header + popup dark con le coppie di storie.
+ * Shortcode [menù] / [menu] — barra header a larghezza intera
+ * (logo + sopratitolo a sinistra, menù e foto profilo a destra).
  *
  * @package LLM_Tabelle
  */
@@ -48,121 +49,153 @@ class LLM_Nav_Menu_Shortcode {
 		);
 
 		wp_enqueue_style(
+			'llm-nav-menu-font',
+			'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap',
+			array(),
+			null
+		);
+		wp_enqueue_style(
 			'llm-nav-menu',
 			LLM_TABELLE_URL . 'assets/llm-nav-menu.css',
-			array(),
+			array( 'llm-nav-menu-font' ),
 			LLM_TABELLE_VERSION
+		);
+		if ( class_exists( 'LLM_User_Avatars' ) ) {
+			LLM_User_Avatars::enqueue();
+		}
+		wp_enqueue_script(
+			'llm-guest-browser-store',
+			LLM_TABELLE_URL . 'assets/llm-guest-browser-store.js',
+			array(),
+			LLM_TABELLE_VERSION,
+			true
 		);
 		wp_enqueue_script(
 			'llm-nav-menu',
 			LLM_TABELLE_URL . 'assets/llm-nav-menu.js',
-			array(),
+			array( 'llm-user-avatars', 'llm-guest-browser-store' ),
 			LLM_TABELLE_VERSION,
 			true
 		);
 
 		$ui = self::ui_lang();
-		$label = trim( (string) $atts['label'] );
-		if ( '' === $label ) {
-			$label = self::t( $ui, 'menu' );
-		}
 
 		$account_path = (string) $atts['account_path'];
 		if ( '' === $account_path || '/' !== $account_path[0] ) {
 			$account_path = '/' . ltrim( $account_path, '/' );
 		}
-		$account_url = home_url( $account_path );
+		$account_slug = trim( $account_path, '/' );
+		if ( class_exists( 'LLM_Scheda_Utente' ) && ( '' === $account_slug || 'area-personale' === $account_slug ) ) {
+			$account_url = LLM_Scheda_Utente::account_url();
+		} else {
+			$account_url = home_url( $account_path );
+		}
 
-		$pairs = self::pairs_to_show();
-		$stats = self::story_stats();
-		$uid   = 'llm-nav-menu-' . uniqid( '', false );
+		$home_url = home_url( '/' );
+		$tagline  = class_exists( 'LLM_Hero_Translations' ) ? LLM_Hero_Translations::get_text( 'badge' ) : '';
+		$flags    = class_exists( 'LLM_Hero_Translations' ) ? LLM_Hero_Translations::get_pair_flags() : array();
+		$flags    = is_array( $flags ) ? $flags : array();
+		$avatar   = self::avatar_html();
+		$is_guest = ! is_user_logged_in();
+		$hello    = self::hello_parts( $ui );
 
 		ob_start();
 		?>
 		<div class="llm-nav-menu" data-llm-nav-menu>
-			<button
-				type="button"
-				class="llm-nav-menu__btn"
-				aria-expanded="false"
-				aria-controls="<?php echo esc_attr( $uid ); ?>"
-				aria-haspopup="dialog"
-			>
-				<?php
-				if ( class_exists( 'LLM_Header_UI_Icons' ) ) {
-					echo LLM_Header_UI_Icons::menu(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-				}
-				?>
-				<span class="llm-nav-menu__btn-label"><?php echo esc_html( $label ); ?></span>
-			</button>
-			<div class="llm-nav-menu__backdrop" hidden></div>
-			<div
-				id="<?php echo esc_attr( $uid ); ?>"
-				class="llm-nav-menu__popup"
-				role="dialog"
-				aria-modal="true"
-				hidden
-				aria-labelledby="<?php echo esc_attr( $uid ); ?>-title"
-			>
-				<button type="button" class="llm-nav-menu__close" aria-label="<?php echo esc_attr( self::t( $ui, 'close' ) ); ?>">
-					<span aria-hidden="true">&times;</span>
-				</button>
-				<div class="llm-nav-menu__head">
-					<p class="llm-nav-menu__kicker"><?php echo esc_html( self::t( $ui, 'kicker' ) ); ?></p>
-					<h2 id="<?php echo esc_attr( $uid ); ?>-title" class="llm-nav-menu__title"><?php echo esc_html( self::t( $ui, 'title' ) ); ?></h2>
-				</div>
-				<div class="llm-nav-menu__grid">
-					<?php foreach ( $pairs as $pair ) : ?>
-						<?php
-						$known  = $pair['known'];
-						$target = $pair['target'];
-						$key    = $known . '_' . $target;
-						$url    = $pair['url'];
-						$st     = isset( $stats[ $key ] ) ? $stats[ $key ] : array( 'cefr' => array(), 'week' => 0, 'total' => 0 );
-						$tag    = $url ? 'a' : 'div';
-						$cls    = 'llm-nav-menu__card' . ( $url ? '' : ' llm-nav-menu__card--soon' );
-						?>
-						<<?php echo $tag; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-							class="<?php echo esc_attr( $cls ); ?>"
-							<?php if ( $url ) : ?>
-								href="<?php echo esc_url( $url ); ?>"
-							<?php endif; ?>
-						>
-							<p class="llm-nav-menu__flags">
-								<span class="llm-nav-menu__flag llm-nav-menu__flag--from" aria-hidden="true"><?php echo esc_html( LLM_Languages::flag_emoji( $known ) ); ?></span>
-								<span class="llm-nav-menu__flags-arrow" aria-hidden="true">→</span>
-								<span class="llm-nav-menu__flag llm-nav-menu__flag--to" aria-hidden="true"><?php echo esc_html( LLM_Languages::flag_emoji( $target ) ); ?></span>
-							</p>
-							<h3 class="llm-nav-menu__card-title"><?php echo esc_html( self::pair_title( $known, $target ) ); ?></h3>
-							<p class="llm-nav-menu__card-desc"><?php echo esc_html( self::pair_desc( $known, $target ) ); ?></p>
-							<?php if ( ! empty( $st['cefr'] ) ) : ?>
-								<ul class="llm-nav-menu__levels">
-									<?php foreach ( self::CEFR_ORDER as $lvl ) : ?>
-										<?php if ( empty( $st['cefr'][ $lvl ] ) ) { continue; } ?>
-										<li><?php echo esc_html( self::level_line( $known, $lvl, (int) $st['cefr'][ $lvl ] ) ); ?></li>
-									<?php endforeach; ?>
-								</ul>
-							<?php elseif ( (int) $st['total'] > 0 ) : ?>
-								<p class="llm-nav-menu__total"><?php echo esc_html( self::total_line( $known, (int) $st['total'] ) ); ?></p>
-							<?php endif; ?>
-							<p class="llm-nav-menu__week"><?php echo esc_html( self::week_line( $known, (int) $st['week'] ) ); ?></p>
-							<?php if ( ! $url ) : ?>
-								<span class="llm-nav-menu__soon"><?php echo esc_html( self::t( $known, 'soon' ) ); ?></span>
-							<?php endif; ?>
-						</<?php echo $tag; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-					<?php endforeach; ?>
-				</div>
-				<a class="llm-nav-menu__account" href="<?php echo esc_url( $account_url ); ?>">
-					<?php
-					if ( class_exists( 'LLM_Header_UI_Icons' ) ) {
-						echo LLM_Header_UI_Icons::user(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-					}
-					?>
-					<span><?php echo esc_html( self::t( $ui, 'account' ) ); ?></span>
+			<a class="llm-nav-menu__brand" href="<?php echo esc_url( $home_url ); ?>">
+				<span class="llm-nav-menu__logo">LoveRewrite</span>
+				<span class="llm-nav-menu__brand-sub">
+					<?php if ( $flags ) : ?>
+						<span class="llm-nav-menu__flags" aria-hidden="true">
+							<?php foreach ( $flags as $flag ) : ?>
+								<span class="llm-nav-menu__flag"><?php echo esc_html( $flag ); ?></span>
+							<?php endforeach; ?>
+						</span>
+					<?php endif; ?>
+					<?php if ( $tagline ) : ?>
+						<span class="llm-nav-menu__tagline"><?php echo esc_html( $tagline ); ?></span>
+					<?php endif; ?>
+				</span>
+			</a>
+			<div class="llm-nav-menu__actions">
+				<p
+					class="llm-nav-menu__hello"
+					data-llm-nav-hello
+					data-guest="<?php echo $is_guest ? '1' : '0'; ?>"
+					data-name="<?php echo esc_attr( $hello['name'] ); ?>"
+					data-hi="<?php echo esc_attr( $hello['hi'] ); ?>"
+					data-fallback="<?php echo esc_attr( $hello['fallback'] ); ?>"
+				>
+					<span class="llm-nav-menu__hello-hi"><?php echo esc_html( $hello['hi'] ); ?></span><span class="llm-nav-menu__hello-comma">,</span>
+					<span class="llm-nav-menu__hello-name" data-llm-nav-hello-name><?php echo esc_html( $hello['name'] ? $hello['name'] : $hello['fallback'] ); ?></span>
+				</p>
+				<a class="llm-nav-menu__avatar" href="<?php echo esc_url( $account_url ); ?>" aria-label="<?php echo esc_attr( self::t( $ui, 'account' ) ); ?>">
+					<?php echo $avatar; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- markup controllato. ?>
 				</a>
 			</div>
 		</div>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Foto profilo (utente WP) o icona ospite.
+	 *
+	 * @return string
+	 */
+	private static function avatar_html() {
+		if ( is_user_logged_in() ) {
+			$uid   = get_current_user_id();
+			$photo = class_exists( 'LLM_Scheda_Utente' ) ? LLM_Scheda_Utente::photo_url( $uid, 'thumbnail' ) : '';
+			if ( $photo ) {
+				return '<img class="llm-nav-menu__avatar-img" src="' . esc_url( $photo ) . '" alt="" width="72" height="72" />';
+			}
+			return get_avatar(
+				$uid,
+				72,
+				'',
+				'',
+				array(
+					'class' => 'llm-nav-menu__avatar-img',
+				)
+			);
+		}
+		$blank = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+		return '<img class="llm-nav-menu__avatar-img" src="' . esc_attr( $blank ) . '" alt="" width="72" height="72" data-llm-guest-avatar />';
+	}
+
+	/**
+	 * Saluto header: «Ciao» + nome (utente o browser).
+	 *
+	 * @param string $ui Lingua UI.
+	 * @return array{hi:string,name:string,fallback:string}
+	 */
+	private static function hello_parts( $ui ) {
+		$hi = array(
+			'it' => 'Ciao',
+			'en' => 'Hi',
+			'pl' => 'Cześć',
+			'es' => 'Hola',
+		);
+		$fb = array(
+			'it' => 'utente browser',
+			'en' => 'browser user',
+			'pl' => 'użytkownik przeglądarki',
+			'es' => 'usuario del navegador',
+		);
+		$name = '';
+		if ( is_user_logged_in() ) {
+			$user = wp_get_current_user();
+			$name = ( $user && $user->exists() ) ? trim( (string) $user->display_name ) : '';
+			if ( '' === $name ) {
+				$name = trim( (string) $user->user_login );
+			}
+		}
+		return array(
+			'hi'       => isset( $hi[ $ui ] ) ? $hi[ $ui ] : $hi['it'],
+			'name'     => $name,
+			'fallback' => isset( $fb[ $ui ] ) ? $fb[ $ui ] : $fb['it'],
+		);
 	}
 
 	/**
@@ -309,6 +342,7 @@ class LLM_Nav_Menu_Shortcode {
 				'kicker'  => 'LoveRewrite',
 				'title'   => 'Scegli le storie',
 				'account' => 'Area personale',
+				'login'   => 'Accedi',
 				'soon'    => 'In arrivo',
 			),
 			'en' => array(
@@ -317,6 +351,7 @@ class LLM_Nav_Menu_Shortcode {
 				'kicker'  => 'LoveRewrite',
 				'title'   => 'Choose your stories',
 				'account' => 'Your account',
+				'login'   => 'Log in',
 				'soon'    => 'Coming soon',
 			),
 			'pl' => array(
@@ -325,6 +360,7 @@ class LLM_Nav_Menu_Shortcode {
 				'kicker'  => 'LoveRewrite',
 				'title'   => 'Wybierz historie',
 				'account' => 'Strefa osobista',
+				'login'   => 'Zaloguj się',
 				'soon'    => 'Wkrótce',
 			),
 			'es' => array(
@@ -333,6 +369,7 @@ class LLM_Nav_Menu_Shortcode {
 				'kicker'  => 'LoveRewrite',
 				'title'   => 'Elige las historias',
 				'account' => 'Área personal',
+				'login'   => 'Iniciar sesión',
 				'soon'    => 'Próximamente',
 			),
 		);

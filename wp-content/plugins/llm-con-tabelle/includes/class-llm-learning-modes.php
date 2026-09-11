@@ -31,6 +31,15 @@ class LLM_Learning_Modes {
 	/** Pulsanti per inserire caratteri speciali della lingua target. */
 	const OPTION_EXTRA_CHARS = 'extra_chars';
 
+	/** Da mobile, blocca in alto il riquadro con frase e campi di testo. */
+	const OPTION_STICKY_TRANSLATE = 'sticky_translate';
+
+	/** Nasconde traduzione + note a fianco delle frasi già tradotte. */
+	const OPTION_HIDE_STORY_NOTES = 'hide_story_notes';
+
+	/** Storia già tradotta solo nella lingua da imparare (frase + note target). */
+	const OPTION_STORY_TARGET_ONLY = 'story_target_only';
+
 	/** Modalità storica a due fasi. */
 	const MODE_LOVEREWRITE = 'loverewrite';
 
@@ -58,9 +67,14 @@ class LLM_Learning_Modes {
 	public static function all() {
 		$modes = array(
 			array(
-				'id'          => self::MODE_LOVEREWRITE,
-				'label'       => LLM_Phrase_Game_I18n::get( 'mode_loverewrite_label' ),
-				'description' => LLM_Phrase_Game_I18n::get( 'mode_loverewrite_desc' ),
+				'id'          => self::MODE_WRITE_TRANSLATE,
+				'label'       => LLM_Phrase_Game_I18n::get( 'mode_write_translate_label' ),
+				'description' => LLM_Phrase_Game_I18n::get( 'mode_write_translate_desc' ),
+			),
+			array(
+				'id'          => self::MODE_PLAY_INVERTED,
+				'label'       => LLM_Phrase_Game_I18n::get( 'mode_play_inverted_label' ),
+				'description' => LLM_Phrase_Game_I18n::get( 'mode_play_inverted_desc' ),
 			),
 			array(
 				'id'          => self::MODE_RESOLVE_GO,
@@ -68,19 +82,15 @@ class LLM_Learning_Modes {
 				'description' => LLM_Phrase_Game_I18n::get( 'mode_resolve_go_desc' ),
 			),
 			array(
-				'id'          => self::MODE_WRITE_TRANSLATE,
-				'label'       => LLM_Phrase_Game_I18n::get( 'mode_write_translate_label' ),
-				'description' => LLM_Phrase_Game_I18n::get( 'mode_write_translate_desc' ),
-			),
-			array(
 				'id'          => self::MODE_READ_GO_FAST,
 				'label'       => LLM_Phrase_Game_I18n::get( 'mode_read_go_fast_label' ),
 				'description' => LLM_Phrase_Game_I18n::get( 'mode_read_go_fast_desc' ),
 			),
 			array(
-				'id'          => self::MODE_PLAY_INVERTED,
-				'label'       => LLM_Phrase_Game_I18n::get( 'mode_play_inverted_label' ),
-				'description' => LLM_Phrase_Game_I18n::get( 'mode_play_inverted_desc' ),
+				'id'          => self::MODE_LOVEREWRITE,
+				'label'       => LLM_Phrase_Game_I18n::get( 'mode_loverewrite_label' ),
+				'description' => LLM_Phrase_Game_I18n::get( 'mode_loverewrite_desc' ),
+				'hidden'      => true,
 			),
 		);
 
@@ -100,9 +110,25 @@ class LLM_Learning_Modes {
 				'id'          => sanitize_key( (string) $mode['id'] ),
 				'label'       => isset( $mode['label'] ) ? (string) $mode['label'] : (string) $mode['id'],
 				'description' => isset( $mode['description'] ) ? (string) $mode['description'] : '',
+				'hidden'      => ! empty( $mode['hidden'] ),
 			);
 		}
 
+		return $out;
+	}
+
+	/**
+	 * Modalità visibili nel menù di scelta.
+	 *
+	 * @return array<int, array{id: string, label: string, description: string, hidden: bool}>
+	 */
+	public static function visible() {
+		$out = array();
+		foreach ( self::all() as $mode ) {
+			if ( empty( $mode['hidden'] ) ) {
+				$out[] = $mode;
+			}
+		}
 		return $out;
 	}
 
@@ -127,6 +153,21 @@ class LLM_Learning_Modes {
 				'id'          => self::OPTION_EXTRA_CHARS,
 				'label'       => LLM_Phrase_Game_I18n::get( 'option_extra_chars_label' ),
 				'description' => LLM_Phrase_Game_I18n::get( 'option_extra_chars_desc' ),
+			),
+			array(
+				'id'          => self::OPTION_STICKY_TRANSLATE,
+				'label'       => LLM_Phrase_Game_I18n::get( 'option_sticky_translate_label' ),
+				'description' => LLM_Phrase_Game_I18n::get( 'option_sticky_translate_desc' ),
+			),
+			array(
+				'id'          => self::OPTION_HIDE_STORY_NOTES,
+				'label'       => LLM_Phrase_Game_I18n::get( 'option_hide_story_notes_label' ),
+				'description' => LLM_Phrase_Game_I18n::get( 'option_hide_story_notes_desc' ),
+			),
+			array(
+				'id'          => self::OPTION_STORY_TARGET_ONLY,
+				'label'       => LLM_Phrase_Game_I18n::get( 'option_story_target_only_label' ),
+				'description' => LLM_Phrase_Game_I18n::get( 'option_story_target_only_desc' ),
 			),
 		);
 
@@ -203,6 +244,7 @@ class LLM_Learning_Modes {
 		$defaults = array(
 			self::OPTION_RANDOM_WORDS,
 			self::OPTION_LISTEN_REPLAY_LOOP,
+			self::OPTION_STORY_TARGET_ONLY,
 		);
 
 		/**
@@ -235,7 +277,7 @@ class LLM_Learning_Modes {
 	 * @return string
 	 */
 	public static function default_mode() {
-		return (string) apply_filters( 'llm_learning_mode_default', self::MODE_RESOLVE_GO );
+		return (string) apply_filters( 'llm_learning_mode_default', self::MODE_WRITE_TRANSLATE );
 	}
 
 	/**
@@ -247,7 +289,7 @@ class LLM_Learning_Modes {
 		if ( '' === $mode_id ) {
 			return false;
 		}
-		foreach ( self::all() as $mode ) {
+		foreach ( self::visible() as $mode ) {
 			if ( $mode['id'] === $mode_id ) {
 				return true;
 			}
@@ -279,7 +321,8 @@ class LLM_Learning_Modes {
 		if ( $user_id < 1 ) {
 			return false;
 		}
-		return self::is_valid( (string) get_user_meta( $user_id, self::USER_META, true ) );
+		$saved = sanitize_key( (string) get_user_meta( $user_id, self::USER_META, true ) );
+		return '' !== $saved;
 	}
 
 	/**
@@ -333,7 +376,7 @@ class LLM_Learning_Modes {
 	 */
 	public static function skips_validation( $mode_id ) {
 		$mode_id = sanitize_key( (string) $mode_id );
-		$skips   = in_array( $mode_id, array( self::MODE_READ_GO_FAST, self::MODE_PLAY_INVERTED ), true );
+		$skips   = self::MODE_READ_GO_FAST === $mode_id;
 
 		/**
 		 * Permette a modalità registrate da terzi di saltare la validazione.
@@ -392,7 +435,7 @@ class LLM_Learning_Modes {
 			'storageKey'  => self::STORAGE_KEY,
 			'current'     => self::current(),
 			'defaultMode' => self::default_mode(),
-			'modes'       => self::all(),
+			'modes'       => self::visible(),
 			'options'          => self::options(),
 			'currentOptions'   => self::current_options(),
 			'defaultOptions'   => self::default_options(),

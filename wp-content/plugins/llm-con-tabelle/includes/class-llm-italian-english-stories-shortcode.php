@@ -39,6 +39,81 @@ class LLM_Italian_English_Stories_Shortcode {
 		foreach ( array_keys( self::catalogs() ) as $tag ) {
 			add_shortcode( $tag, array( __CLASS__, 'render' ) );
 		}
+		add_action( 'wp', array( __CLASS__, 'apply_catalog_learning_lang' ), 3 );
+	}
+
+	/**
+	 * Sulle pagine catalogo imposta subito la lingua da imparare,
+	 * così il sopratitolo sotto il logo è già «Impara il polacco una frase alla volta».
+	 */
+	public static function apply_catalog_learning_lang() {
+		if ( is_admin() || wp_doing_ajax() || wp_doing_cron() ) {
+			return;
+		}
+		if ( ! empty( $_GET['elementor-preview'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+		if ( ! class_exists( 'LLM_Visitor_Lang' ) || ! class_exists( 'LLM_Languages' ) ) {
+			return;
+		}
+		$pair = self::pair_from_current_page();
+		if ( ! $pair ) {
+			return;
+		}
+		$known  = $pair[0];
+		$target = $pair[1];
+		if ( LLM_Visitor_Lang::stored_known() === $known && LLM_Visitor_Lang::stored_learning() === $target ) {
+			return;
+		}
+		LLM_Visitor_Lang::set_pair( $known, $target );
+	}
+
+	/**
+	 * @return array{0:string,1:string}|null
+	 */
+	private static function pair_from_current_page() {
+		if ( ! is_singular() ) {
+			return null;
+		}
+		$page_id = get_queried_object_id();
+		if ( $page_id <= 0 ) {
+			return null;
+		}
+
+		if ( class_exists( 'LLM_Home_Redirect' ) ) {
+			$pairs = (array) get_option( LLM_Home_Redirect::OPT_PAIRS, array() );
+			foreach ( $pairs as $key => $dest_id ) {
+				if ( (int) $dest_id !== (int) $page_id ) {
+					continue;
+				}
+				$parts = explode( '_', (string) $key, 2 );
+				if ( 2 !== count( $parts ) ) {
+					continue;
+				}
+				$known  = sanitize_key( $parts[0] );
+				$target = sanitize_key( $parts[1] );
+				if ( LLM_Languages::is_valid( $known ) && LLM_Languages::is_valid( $target ) && $known !== $target ) {
+					return array( $known, $target );
+				}
+			}
+		}
+
+		$haystack = '';
+		$post     = get_post( $page_id );
+		if ( $post ) {
+			$haystack .= (string) $post->post_content;
+			$el        = get_post_meta( $page_id, '_elementor_data', true );
+			if ( is_string( $el ) && '' !== $el ) {
+				$haystack .= $el;
+			}
+		}
+		foreach ( self::catalogs() as $tag => $pair ) {
+			if ( false !== strpos( $haystack, $tag ) ) {
+				return $pair;
+			}
+		}
+
+		return null;
 	}
 
 	/**
@@ -54,12 +129,24 @@ class LLM_Italian_English_Stories_Shortcode {
 		$pair = isset( $map[ $tag ] ) ? $map[ $tag ] : array( 'it', 'en' );
 		self::$known  = $pair[0];
 		self::$target = $pair[1];
+		if ( class_exists( 'LLM_Visitor_Lang' ) ) {
+			LLM_Visitor_Lang::set_pair( self::$known, self::$target );
+		}
 
+		if ( class_exists( 'LLM_Home_Page_Uscite_Shortcode' ) ) {
+			add_action( 'wp_head', array( 'LLM_Home_Page_Uscite_Shortcode', 'print_font_preconnect' ), 2 );
+		}
+		wp_enqueue_style(
+			'llm-uscite-fonts',
+			'https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Bebas+Neue&family=Elms+Sans:ital,wght@0,100..900;1,100..900&family=Lora:ital,wght@0,400..700;1,400..700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Roboto+Slab:wght@100..900&display=swap',
+			array(),
+			null
+		);
 		wp_enqueue_style( 'llm-ui' );
 		wp_enqueue_style(
 			'llm-italian-english-stories',
 			LLM_TABELLE_URL . 'assets/llm-italian-english-stories.css',
-			array( 'llm-ui' ),
+			array( 'llm-ui', 'llm-uscite-fonts' ),
 			LLM_TABELLE_VERSION
 		);
 		wp_enqueue_script(
@@ -70,28 +157,21 @@ class LLM_Italian_English_Stories_Shortcode {
 			true
 		);
 
+		if ( class_exists( 'LLM_Home_Page_Uscite_Shortcode' ) ) {
+			LLM_Home_Page_Uscite_Shortcode::print_font_preconnect();
+		}
+
 		$sections = self::build_sections();
-		$page_title = class_exists( 'LLM_Nav_Menu_Shortcode' )
-			? LLM_Nav_Menu_Shortcode::pair_title( self::$known, self::$target )
-			: '';
+		$page_title = self::page_heading( self::$known, self::$target );
 		$page_desc = class_exists( 'LLM_Nav_Menu_Shortcode' )
 			? LLM_Nav_Menu_Shortcode::pair_desc( self::$known, self::$target )
 			: '';
-		$flag_from = class_exists( 'LLM_Languages' ) ? LLM_Languages::flag_emoji( self::$known ) : '';
-		$flag_to   = class_exists( 'LLM_Languages' ) ? LLM_Languages::flag_emoji( self::$target ) : '';
 
 		ob_start();
 		?>
 		<div class="llm-ie-stories llm-ui-scope" data-llm-ie-catalog>
 			<div class="llm-ie-stories__backdrop" hidden></div>
 			<header class="llm-ie-stories__header">
-				<?php if ( $flag_from || $flag_to ) : ?>
-					<p class="llm-ie-stories__kicker">
-						<span class="llm-ie-stories__kicker-flag llm-ie-stories__kicker-flag--from" aria-hidden="true"><?php echo esc_html( $flag_from ); ?></span>
-						<span class="llm-ie-stories__kicker-arrow" aria-hidden="true">→</span>
-						<span class="llm-ie-stories__kicker-flag llm-ie-stories__kicker-flag--to" aria-hidden="true"><?php echo esc_html( $flag_to ); ?></span>
-					</p>
-				<?php endif; ?>
 				<?php if ( $page_title ) : ?>
 					<h2 class="llm-ie-stories__page-title"><?php echo esc_html( $page_title ); ?></h2>
 				<?php endif; ?>
@@ -101,9 +181,13 @@ class LLM_Italian_English_Stories_Shortcode {
 			</header>
 
 			<?php foreach ( $sections as $section ) : ?>
+				<?php
+				$grid_mod = isset( $section['grid'] ) ? sanitize_key( (string) $section['grid'] ) : '';
+				$grid_cls = 'llm-ie-stories__grid' . ( $grid_mod ? ' llm-ie-stories__grid--' . $grid_mod : '' );
+				?>
 				<section class="llm-ie-stories__section" id="<?php echo esc_attr( $section['anchor'] ); ?>">
 					<h3 class="llm-ie-stories__title"><?php echo esc_html( $section['title'] ); ?></h3>
-					<div class="llm-ie-stories__grid">
+					<div class="<?php echo esc_attr( $grid_cls ); ?>">
 						<?php foreach ( $section['cards'] as $card ) : ?>
 							<?php echo self::render_card( $card ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 						<?php endforeach; ?>
@@ -121,10 +205,19 @@ class LLM_Italian_English_Stories_Shortcode {
 	private static function build_sections() {
 		$sections = array();
 		$sections[] = array(
-			'title'  => self::ui( 'magazines' ),
-			'anchor' => 'llm-ie-riviste',
-			'cards'  => self::pad_cards( self::magazine_cards() ),
+			'title'  => self::ui( 'latest' ),
+			'anchor' => 'llm-ie-ultime',
+			'grid'   => 'latest',
+			'cards'  => self::pad_cards( self::latest_cards(), 4, 2 ),
 		);
+		$mag_cards = self::magazine_cards();
+		if ( ! empty( $mag_cards ) ) {
+			$sections[] = array(
+				'title'  => self::ui( 'magazines' ),
+				'anchor' => 'llm-ie-riviste',
+				'cards'  => self::pad_cards( $mag_cards ),
+			);
+		}
 
 		$grouped = self::stories_grouped();
 		foreach ( $grouped as $group ) {
@@ -237,6 +330,9 @@ class LLM_Italian_English_Stories_Shortcode {
 		foreach ( $child_ids as $cid ) {
 			$term = get_term( $cid, 'category' );
 			if ( $term && ! is_wp_error( $term ) ) {
+				if ( class_exists( 'LLM_Category_Translations' ) && LLM_Category_Translations::is_draft( $term ) ) {
+					continue;
+				}
 				$order_terms[] = $term;
 				$buckets[ $cid ] = array();
 			}
@@ -285,6 +381,9 @@ class LLM_Italian_English_Stories_Shortcode {
 				}
 			}
 			if ( $seen ) {
+				continue;
+			}
+			if ( empty( $buckets[ $tid ] ) ) {
 				continue;
 			}
 			$groups[] = array(
@@ -559,15 +658,59 @@ class LLM_Italian_English_Stories_Shortcode {
 	}
 
 	/**
-	 * Completa la riga a 5 (minimo una riga di placeholder).
+	 * Ultime 8 storie pubblicate della coppia corrente.
 	 *
-	 * @param array<int,array<string,mixed>> $cards Card reali.
 	 * @return array<int,array<string,mixed>>
 	 */
-	private static function pad_cards( array $cards ) {
-		$cols = self::COLS;
-		$n    = count( $cards );
-		$need = $n < $cols ? ( $cols - $n ) : ( ( $cols - ( $n % $cols ) ) % $cols );
+	private static function latest_cards() {
+		$q = new WP_Query(
+			array(
+				'post_type'              => LLM_STORY_CPT,
+				'post_status'            => 'publish',
+				'posts_per_page'         => 8,
+				'orderby'                => 'date',
+				'order'                  => 'DESC',
+				'no_found_rows'          => true,
+				'meta_query'             => array(
+					'relation' => 'AND',
+					array(
+						'key'   => LLM_Story_Meta::KNOWN_LANG,
+						'value' => self::$known,
+					),
+					array(
+						'key'   => LLM_Story_Meta::TARGET_LANG,
+						'value' => self::$target,
+					),
+				),
+			)
+		);
+		$out = array();
+		foreach ( $q->posts as $post ) {
+			if ( self::belongs_to_other_pair( (int) $post->ID ) ) {
+				continue;
+			}
+			$out[] = $post;
+			if ( count( $out ) >= 8 ) {
+				break;
+			}
+		}
+		return self::story_cards( $out, self::ui( 'latest' ) );
+	}
+
+	/**
+	 * Completa la griglia (minimo $min_rows righe).
+	 *
+	 * @param array<int,array<string,mixed>> $cards    Card reali.
+	 * @param int                            $cols     Colonne.
+	 * @param int                            $min_rows Righe minime.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function pad_cards( array $cards, $cols = 0, $min_rows = 1 ) {
+		$cols     = $cols > 0 ? (int) $cols : self::COLS;
+		$min_rows = max( 1, (int) $min_rows );
+		$n        = count( $cards );
+		$target   = max( $min_rows * $cols, (int) ( ceil( $n / $cols ) * $cols ) );
+		$need     = max( 0, $target - $n );
 		for ( $i = 0; $i < $need; $i++ ) {
 			$cards[] = array(
 				'soon'         => true,
@@ -873,6 +1016,48 @@ class LLM_Italian_English_Stories_Shortcode {
 	}
 
 	/**
+	 * Titolo pagina: «Storie per imparare il polacco».
+	 *
+	 * @param string $known  Lingua nota.
+	 * @param string $target Lingua obiettivo.
+	 * @return string
+	 */
+	private static function page_heading( $known, $target ) {
+		$map = array(
+			'it' => array(
+				'en' => 'Storie per imparare l\'inglese',
+				'pl' => 'Storie per imparare il polacco',
+				'es' => 'Storie per imparare lo spagnolo',
+				'it' => 'Storie per imparare l\'italiano',
+			),
+			'en' => array(
+				'it' => 'Stories to learn Italian',
+				'pl' => 'Stories to learn Polish',
+				'es' => 'Stories to learn Spanish',
+				'en' => 'Stories to learn English',
+			),
+			'pl' => array(
+				'it' => 'Historie do nauki włoskiego',
+				'en' => 'Historie do nauki angielskiego',
+				'es' => 'Historie do nauki hiszpańskiego',
+				'pl' => 'Historie do nauki polskiego',
+			),
+			'es' => array(
+				'it' => 'Historias para aprender italiano',
+				'en' => 'Historias para aprender inglés',
+				'pl' => 'Historias para aprender polaco',
+				'es' => 'Historias para aprender español',
+			),
+		);
+		if ( isset( $map[ $known ][ $target ] ) ) {
+			return $map[ $known ][ $target ];
+		}
+		return class_exists( 'LLM_Nav_Menu_Shortcode' )
+			? LLM_Nav_Menu_Shortcode::pair_title( $known, $target )
+			: '';
+	}
+
+	/**
 	 * Testi UI del catalogo nella lingua 1 della coppia.
 	 *
 	 * @param string $key Chiave.
@@ -882,6 +1067,7 @@ class LLM_Italian_English_Stories_Shortcode {
 		$lang = self::$known;
 		$all  = array(
 			'it' => array(
+				'latest'        => 'Ultime uscite',
 				'magazines'     => 'Riviste',
 				'other_stories' => 'Altre storie',
 				'open_story'    => 'Apri storia',
@@ -896,6 +1082,7 @@ class LLM_Italian_English_Stories_Shortcode {
 				'verses'        => 'versi',
 			),
 			'en' => array(
+				'latest'        => 'Latest releases',
 				'magazines'     => 'Magazines',
 				'other_stories' => 'Other stories',
 				'open_story'    => 'Open story',
@@ -910,6 +1097,7 @@ class LLM_Italian_English_Stories_Shortcode {
 				'verses'        => 'lines',
 			),
 			'pl' => array(
+				'latest'        => 'Ostatnie publikacje',
 				'magazines'     => 'Magazyny',
 				'other_stories' => 'Inne historie',
 				'open_story'    => 'Otwórz historię',
@@ -924,6 +1112,7 @@ class LLM_Italian_English_Stories_Shortcode {
 				'verses'        => 'wersów',
 			),
 			'es' => array(
+				'latest'        => 'Últimas salidas',
 				'magazines'     => 'Revistas',
 				'other_stories' => 'Otras historias',
 				'open_story'    => 'Abrir historia',

@@ -1,6 +1,6 @@
 /*
  * llm-crossword.js — cruciverba giocabile: griglia, definizioni collegate,
- * rivela lettera, controllo e ripresa della partita dal browser.
+ * rivela lettera, controllo e ripresa (account se loggato, browser se ospite).
  */
 (function (window, document) {
 	'use strict';
@@ -25,24 +25,56 @@
 		});
 	}
 
-	/** Categoria grammaticale + definizione inglese, con l'italiano a capo tra parentesi. */
-	function formatDefHtml(def) {
+	/** Toglie "(Soluzione: Frase n. XX)" dal testo e ne ricava il numero. */
+	function splitSolutionHint(text) {
+		var n = 0;
+		var cleaned = String(text || '').replace(
+			/\s*[\(\[]?\s*(?:Soluzione|Solution|Soluci[oó]n|Rozwi[aą]zanie)\s*:?\s*(?:Frase|Phrase|Zdanie)?\s*n\.?\s*(\d+)\s*[\)\]]?\s*/gi,
+			function (_m, num) {
+				var parsed = parseInt(num, 10);
+				if (parsed) {
+					n = parsed;
+				}
+				return ' ';
+			}
+		);
+		cleaned = cleaned.replace(/\s+/g, ' ').replace(/^[\s.;,–—-]+|[\s.;,–—-]+$/g, '').trim();
+		return { text: cleaned, n: n };
+	}
+
+	/** Due righe: bandiera + definizione nota in grassetto, poi bandiera + obiettivo. Hint frase una sola volta. */
+	function formatDefHtml(def, flags, i18n) {
 		if (!def) {
 			return '';
 		}
-		var en = def.en ? String(def.en) : '';
-		var it = def.it ? String(def.it) : '';
-		var pos = def.pos ? String(def.pos) : '';
-		if (!en) {
-			return escapeHtml(it);
+		var known = splitSolutionHint(def.en ? String(def.en) : '');
+		var target = splitSolutionHint(def.it ? String(def.it) : '');
+		var en = known.text;
+		var it = target.text;
+		var phraseN = known.n || target.n;
+		var knownFlag = flags && flags.known ? String(flags.known) : '';
+		var targetFlag = flags && flags.target ? String(flags.target) : '';
+		if (!en && !it) {
+			return '';
 		}
 		var html = '';
-		if (pos) {
-			html += '<span class="cw-def-pos">' + escapeHtml(pos) + '</span> ';
+		if (en) {
+			html += '<span class="cw-def-line cw-def-line--known">';
+			if (knownFlag) {
+				html += '<span class="cw-def-flag" aria-hidden="true">' + escapeHtml(knownFlag) + '</span>';
+			}
+			html += '<strong class="cw-def-known">' + escapeHtml(en) + '</strong></span>';
 		}
-		html += escapeHtml(en);
 		if (it) {
-			html += '<br><em>(' + escapeHtml(it) + ')</em>';
+			html += '<span class="cw-def-line cw-def-line--target">';
+			if (targetFlag) {
+				html += '<span class="cw-def-flag" aria-hidden="true">' + escapeHtml(targetFlag) + '</span>';
+			}
+			html += '<span class="cw-def-target">' + escapeHtml(it) + '</span></span>';
+		}
+		if (phraseN) {
+			var tpl = i18n && i18n.solution_phrase ? i18n.solution_phrase : 'Soluzione Frase n. %d';
+			html += '<span class="cw-def-solution">' + escapeHtml(format(tpl, [phraseN])) + '</span>';
 		}
 		return html;
 	}
@@ -80,9 +112,13 @@
 		var statusEl = root.querySelector('[data-cw-status]');
 		var checkBtn = root.querySelector('[data-cw-check]');
 		var restartBtn = root.querySelector('[data-cw-restart]');
+		var zoomInBtn = root.querySelector('[data-cw-zoom-in]');
+		var zoomOutBtn = root.querySelector('[data-cw-zoom-out]');
 		var revealBtn = root.querySelector('[data-cw-reveal]');
 		var revealBtnsMobile = root.querySelectorAll('[data-cw-reveal-mobile]');
 		var mobileClueEls = root.querySelectorAll('[data-cw-mobile-clue]');
+		var keyboardToggle = root.querySelector('[data-cw-keyboard-toggle]');
+		var keyboardPanel = root.querySelector('[data-cw-keyboard-panel]');
 		if (!gridEl || !clueListEl) {
 			return;
 		}
@@ -93,14 +129,20 @@
 		var activeCell = null;
 		var activeDirection = null;
 		var saveTimer = null;
+		var stickySolved = !!cfg.savedSolved;
+		var ZOOM_MIN = 0.6;
+		var ZOOM_MAX = 1.8;
+		var ZOOM_STEP = 0.1;
+		var zoom = 1;
 
 		function t(key) {
 			return i18n[key] != null ? i18n[key] : '';
 		}
 
-		function setStatus(text) {
+		function setStatus(text, kind) {
 			if (statusEl) {
 				statusEl.textContent = text;
+				statusEl.classList.toggle('cw-status--success', kind === 'success');
 			}
 		}
 
@@ -109,6 +151,46 @@
 				return true;
 			}
 			return gridRows[r].charAt(c) === '#';
+		}
+
+		function isTouchPlay() {
+			if (window.matchMedia) {
+				if (window.matchMedia('(pointer: coarse)').matches) {
+					return true;
+				}
+				if (window.matchMedia('(max-width: 782px)').matches) {
+					return true;
+				}
+			}
+			return window.innerWidth <= SIDE_BY_SIDE_WIDTH;
+		}
+
+		function applyCellInputMode(input) {
+			if (!input) {
+				return;
+			}
+			if (isTouchPlay()) {
+				input.readOnly = true;
+				input.setAttribute('inputmode', 'none');
+				input.setAttribute('virtualkeyboardpolicy', 'manual');
+			} else {
+				input.readOnly = false;
+				input.setAttribute('inputmode', 'text');
+				input.removeAttribute('virtualkeyboardpolicy');
+			}
+		}
+
+		function syncTouchMode() {
+			inputs.forEach(applyCellInputMode);
+		}
+
+		function openKeyboard() {
+			if (!keyboardToggle || !keyboardPanel) {
+				return;
+			}
+			paintCrosswordKeyboard();
+			keyboardToggle.setAttribute('aria-expanded', 'true');
+			keyboardPanel.hidden = false;
 		}
 
 		function buildGrid() {
@@ -142,6 +224,7 @@
 					input.dataset.answer = gridRows[r].charAt(c);
 					input.dataset.row = String(r);
 					input.dataset.col = String(c);
+					applyCellInputMode(input);
 					rowArr.push(input);
 					inputs.push(input);
 				}
@@ -255,7 +338,12 @@
 				}
 				var dirLabel = entry.direction === 'across' ? t('across') : t('down');
 				if (mobileClueMeta) {
-					mobileClueMeta.textContent = entry.number + ' · ' + dirLabel;
+					var metaTpl = t('clue_meta') || '%1$d. %2$s - %3$d letters';
+					mobileClueMeta.textContent = format(metaTpl, [
+						entry.number,
+						dirLabel,
+						entry.cells.length,
+					]);
 				}
 				if (mobileClueText) {
 					mobileClueText.innerHTML = clueText(entry);
@@ -280,14 +368,15 @@
 				return;
 			}
 			updateMobileClue(entry);
+			openKeyboard();
 			var clueEl = clueListEl.querySelector(
 				'[data-number="' + entry.number + '"][data-direction="' + entry.direction + '"]'
 			);
 			if (clueEl) {
 				clueEl.classList.add('cw-clue-active');
-				/* Su mobile la definizione e' gia' sopra: non scrollare alla lista sotto. */
-				var isMobile = window.matchMedia('(max-width: 782px)').matches;
-				if (!opts.skipScroll && !isMobile) {
+				/* La definizione e' gia' sopra la griglia: non scrollare alla lista. */
+				var inStory = !!(root.closest && root.closest('.llm-story-view--crossword'));
+				if (!opts.skipScroll && !inStory) {
 					clueEl.scrollIntoView({ block: 'nearest' });
 				}
 			}
@@ -338,6 +427,28 @@
 		 * "lampeggio" a 110ms in digitazione veloce faceva accumulare
 		 * timeout e cascate di focus su molte celle insieme.
 		 */
+		function deleteFromCell(cell) {
+			if (!cell) {
+				return;
+			}
+			if (cell.value) {
+				cell.value = '';
+				cell.classList.remove('cw-correct', 'cw-wrong');
+				scheduleSave();
+				return;
+			}
+			var entry = activeDirection === 'across' ? cell._acrossEntry : cell._downEntry;
+			if (entry) {
+				var prev = entry.cells[entry.cells.indexOf(cell) - 1];
+				if (prev) {
+					prev.value = '';
+					prev.classList.remove('cw-correct', 'cw-wrong');
+					moveTo(prev);
+					scheduleSave();
+				}
+			}
+		}
+
 		var isWriting = false;
 		function writeLetter(cell, letter, fromKeydown) {
 			if (!cell || !letter || isWriting) {
@@ -370,41 +481,34 @@
 				var isSame = activeCell === input;
 				clearCheckColors();
 				selectCell(input, isSame);
-				// Riseleziona anche se la casella era gia' a fuoco: senza questo
-				// un secondo click non farebbe ripartire l'evento 'focus'.
-				window.setTimeout(function () {
-					input.select();
-				}, 0);
+				if (!isTouchPlay()) {
+					window.setTimeout(function () {
+						input.select();
+					}, 0);
+				}
 			});
 
 			input.addEventListener('focus', function () {
 				if (activeCell !== input) {
 					selectCell(input, false);
 				}
-				window.setTimeout(function () {
-					input.select();
-				}, 0);
+				if (!isTouchPlay()) {
+					window.setTimeout(function () {
+						input.select();
+					}, 0);
+				}
+			});
+
+			input.addEventListener('beforeinput', function (event) {
+				if (isTouchPlay()) {
+					event.preventDefault();
+				}
 			});
 
 			input.addEventListener('keydown', function (event) {
 				if (event.key === 'Backspace' || event.key === 'Delete') {
 					event.preventDefault();
-					if (event.target.value) {
-						event.target.value = '';
-						event.target.classList.remove('cw-correct', 'cw-wrong');
-						scheduleSave();
-						return;
-					}
-					var entry = activeDirection === 'across' ? event.target._acrossEntry : event.target._downEntry;
-					if (entry) {
-						var prev = entry.cells[entry.cells.indexOf(event.target) - 1];
-						if (prev) {
-							prev.value = '';
-							prev.classList.remove('cw-correct', 'cw-wrong');
-							moveTo(prev);
-							scheduleSave();
-						}
-					}
+					deleteFromCell(event.target);
 					return;
 				}
 
@@ -446,7 +550,10 @@
 		function clueText(entry) {
 			var def = clues[entry.number + '-' + entry.direction];
 			if (def) {
-				var html = formatDefHtml(def);
+				var html = formatDefHtml(def, {
+					known: cfg.knownFlag || '',
+					target: cfg.targetFlag || '',
+				}, i18n);
 				if (html) {
 					return html;
 				}
@@ -557,18 +664,72 @@
 			});
 		}
 
-		function persist() {
-			var api = store();
-			if (!cfg.saveProgress || !api || !api.setCrossword) {
-				return;
+		function isLoggedIn() {
+			if (cfg.loggedIn != null) {
+				return parseInt(cfg.loggedIn, 10) === 1;
 			}
-			api.setCrossword(cfg.id, {
+			var remote = window.llmCrossword || {};
+			if (remote.loggedIn != null) {
+				return parseInt(remote.loggedIn, 10) === 1;
+			}
+			return !!(document.body && document.body.classList && document.body.classList.contains('logged-in'));
+		}
+
+		function remoteCfg() {
+			var remote = window.llmCrossword || {};
+			return {
+				ajaxUrl: cfg.ajaxUrl || remote.ajaxUrl || '',
+				nonce: cfg.nonce || remote.nonce || ''
+			};
+		}
+
+		function persistPayload() {
+			if (isSolved()) {
+				stickySolved = true;
+			}
+			return {
 				title: cfg.title || '',
 				cells: snapshotLetters(),
 				filled: countFilled(),
 				total: inputs.length,
-				solved: isSolved()
-			});
+				solved: stickySolved || isSolved()
+			};
+		}
+
+		function persist() {
+			var payload = persistPayload();
+			if (!isLoggedIn()) {
+				var api = store();
+				if (cfg.saveProgress && api && api.setCrossword) {
+					api.setCrossword(cfg.id, payload);
+				}
+				return;
+			}
+			persistServer(payload);
+		}
+
+		function persistServer(payload) {
+			if (!cfg.saveProgress || !isLoggedIn()) {
+				return;
+			}
+			var remote = remoteCfg();
+			if (!remote.ajaxUrl || !remote.nonce) {
+				return;
+			}
+			var body = new window.FormData();
+			body.append('action', 'llm_crossword_progress_save');
+			body.append('nonce', remote.nonce);
+			body.append('id', String(cfg.id || 0));
+			body.append('story', String(cfg.storyId || 0));
+			body.append('cells', JSON.stringify(payload.cells || []));
+			body.append('filled', String(payload.filled || 0));
+			body.append('total', String(payload.total || 0));
+			body.append('solved', payload.solved ? '1' : '0');
+			window.fetch(remote.ajaxUrl, {
+				method: 'POST',
+				body: body,
+				credentials: 'same-origin'
+			}).catch(function () {});
 		}
 
 		function scheduleSave() {
@@ -582,15 +743,70 @@
 		}
 
 		function restore() {
+			if (!cfg.saveProgress) {
+				return { ok: false, source: '' };
+			}
+			if (cfg.savedSolved) {
+				stickySolved = true;
+			}
+			if (cfg.savedCells && cfg.savedCells.length) {
+				return { ok: applyLetters(cfg.savedCells), source: 'account' };
+			}
 			var api = store();
-			if (!cfg.saveProgress || !api || !api.getCrossword) {
-				return false;
+			if (!api || !api.getCrossword) {
+				return { ok: false, source: '' };
 			}
 			var saved = api.getCrossword(cfg.id);
 			if (!saved) {
-				return false;
+				return { ok: false, source: '' };
 			}
-			return applyLetters(saved.cells);
+			if (saved.solved) {
+				stickySolved = true;
+			}
+			var applied = applyLetters(saved.cells);
+			if (!applied && !stickySolved) {
+				return { ok: false, source: '' };
+			}
+			if (isLoggedIn()) {
+				persistServer(persistPayload());
+				return { ok: applied, source: 'account' };
+			}
+			return { ok: applied, source: 'browser' };
+		}
+
+		function zoomStorageKey() {
+			return 'llm_cw_zoom_' + String(cfg.id || '0');
+		}
+
+		function readZoom() {
+			try {
+				var raw = window.localStorage.getItem(zoomStorageKey());
+				var n = parseFloat(raw);
+				if (n >= ZOOM_MIN && n <= ZOOM_MAX) {
+					return Math.round(n * 10) / 10;
+				}
+			} catch (e) {
+				/* privacy mode */
+			}
+			return 1;
+		}
+
+		function applyZoom(next) {
+			zoom = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next)) * 10) / 10;
+			root.style.setProperty('--cw-zoom', String(zoom));
+			root.classList.toggle('llm-crossword--zoomed-in', zoom > 1);
+			if (zoomOutBtn) {
+				zoomOutBtn.disabled = zoom <= ZOOM_MIN + 0.001;
+			}
+			if (zoomInBtn) {
+				zoomInBtn.disabled = zoom >= ZOOM_MAX - 0.001;
+			}
+			try {
+				window.localStorage.setItem(zoomStorageKey(), String(zoom));
+			} catch (e) {
+				/* privacy mode */
+			}
+			syncCellSize();
 		}
 
 		function syncCellSize() {
@@ -598,9 +814,10 @@
 			if (!width) {
 				return;
 			}
+			var inStory = !!(root.closest && root.closest('.llm-story-view--crossword'));
 			var isMobile = width < SIDE_BY_SIDE_WIDTH;
-			var available = isMobile ? width : width - PANEL_RESERVE;
-			var maxCell = isMobile ? 22 : MAX_CELL;
+			var available = isMobile || inStory ? width : width - PANEL_RESERVE;
+			var maxCell = inStory ? 96 : isMobile ? 22 : MAX_CELL;
 			var minCell = isMobile ? 15 : MIN_CELL;
 			var size = Math.floor((available - (isMobile ? 4 : 8)) / cols);
 			if (size > maxCell) {
@@ -609,21 +826,107 @@
 			if (size < minCell) {
 				size = minCell;
 			}
+			size = Math.max(12, Math.round(size * zoom));
 			root.style.setProperty('--cw-cell-size', size + 'px');
 		}
 
 		function watchResize() {
+			function onResize() {
+				syncCellSize();
+				syncTouchMode();
+			}
 			if (window.ResizeObserver) {
-				var observer = new window.ResizeObserver(syncCellSize);
+				var observer = new window.ResizeObserver(onResize);
 				observer.observe(root);
+			}
+			window.addEventListener('resize', onResize);
+		}
+
+		function paintCrosswordKeyboard() {
+			if (!keyboardPanel || keyboardPanel.dataset.cwReady === '1') {
 				return;
 			}
-			var timer = null;
-			window.addEventListener('resize', function () {
-				if (timer) {
-					window.clearTimeout(timer);
+			keyboardPanel.dataset.cwReady = '1';
+			keyboardPanel.innerHTML = '';
+			var rowsKb = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
+			rowsKb.forEach(function (letters, idx) {
+				var row = document.createElement('div');
+				row.className = 'cw-keyboard__row llm-phrase-game__keyboard-row';
+				letters.split('').forEach(function (ch) {
+					var btn = document.createElement('button');
+					btn.type = 'button';
+					btn.className = 'cw-keyboard__key llm-phrase-game__kb-key';
+					btn.textContent = ch;
+					btn.setAttribute('data-cw-key', ch);
+					row.appendChild(btn);
+				});
+				if (idx === rowsKb.length - 1) {
+					var bs = document.createElement('button');
+					bs.type = 'button';
+					bs.className = 'cw-keyboard__key cw-keyboard__key--util llm-phrase-game__kb-key llm-phrase-game__kb-key--util';
+					bs.setAttribute('data-cw-key', 'backspace');
+					bs.setAttribute('aria-label', t('keyboard_backspace') || 'Backspace');
+					bs.textContent = '⌫';
+					row.appendChild(bs);
 				}
-				timer = window.setTimeout(syncCellSize, 150);
+				keyboardPanel.appendChild(row);
+			});
+		}
+
+		function bindCrosswordKeyboard() {
+			if (!keyboardToggle || !keyboardPanel) {
+				return;
+			}
+			paintCrosswordKeyboard();
+			keyboardToggle.addEventListener('mousedown', function (event) {
+				event.preventDefault();
+			});
+			keyboardToggle.addEventListener('click', function (event) {
+				event.preventDefault();
+				var open = keyboardToggle.getAttribute('aria-expanded') === 'true';
+				keyboardToggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+				keyboardPanel.hidden = open;
+			});
+			keyboardPanel.addEventListener('mousedown', function (event) {
+				event.preventDefault();
+			});
+			keyboardPanel.addEventListener('pointerdown', function (event) {
+				var btn = event.target.closest ? event.target.closest('[data-cw-key]') : null;
+				if (!btn) {
+					return;
+				}
+				if (event.pointerType && event.pointerType !== 'touch') {
+					return;
+				}
+				try {
+					if (navigator.vibrate) {
+						navigator.vibrate(12);
+					}
+				} catch (err) {
+					/* ignore */
+				}
+			});
+			keyboardPanel.addEventListener('click', function (event) {
+				var btn = event.target.closest ? event.target.closest('[data-cw-key]') : null;
+				if (!btn) {
+					return;
+				}
+				event.preventDefault();
+				var key = btn.getAttribute('data-cw-key');
+				var cell = activeCell;
+				if (!cell && entries[0] && entries[0].cells[0]) {
+					activeDirection = entries[0].direction;
+					moveTo(entries[0].cells[0]);
+					cell = activeCell;
+				}
+				if (!cell) {
+					return;
+				}
+				if (key === 'backspace') {
+					deleteFromCell(cell);
+					return;
+				}
+				writeLetter(cell, key, true);
 			});
 		}
 
@@ -659,10 +962,11 @@
 			});
 
 			if (correct === inputs.length) {
-				setStatus(format(t('solved'), [inputs.length, entries.length]));
+				setStatus(format(t('solved'), [inputs.length, entries.length]), 'success');
 			} else {
 				setStatus(
-					format(t('check_progress'), [correct, inputs.length, wrong, empty, wordsOk, entries.length])
+					format(t('check_progress'), [correct, inputs.length, wrong, empty, wordsOk, entries.length]),
+					'success'
 				);
 			}
 			persist();
@@ -696,6 +1000,9 @@
 			if (countFilled() && !window.confirm(t('restart_confirm'))) {
 				return;
 			}
+			if (isSolved()) {
+				stickySolved = true;
+			}
 			inputs.forEach(function (input) {
 				input.value = '';
 				input.classList.remove('cw-correct', 'cw-wrong');
@@ -704,18 +1011,61 @@
 			activeCell = null;
 			activeDirection = null;
 			setStatus(t('cleared'));
+			var cleared = {
+				title: cfg.title || '',
+				cells: snapshotLetters(),
+				filled: 0,
+				total: inputs.length,
+				solved: stickySolved
+			};
 			var api = store();
-			if (cfg.saveProgress && api && api.removeCrossword) {
-				api.removeCrossword(cfg.id);
+			if (cfg.saveProgress && api) {
+				if (isLoggedIn() && api.removeCrossword) {
+					api.removeCrossword(cfg.id);
+				} else if (!isLoggedIn() && stickySolved && api.setCrossword) {
+					api.setCrossword(cfg.id, cleared);
+				} else if (!isLoggedIn() && api.removeCrossword) {
+					api.removeCrossword(cfg.id);
+				}
+			}
+			if (isLoggedIn()) {
+				persistServer(cleared);
 			}
 		}
 
 		buildGrid();
 		renderClues();
-		syncCellSize();
+		applyZoom(readZoom());
+		syncTouchMode();
+		bindCrosswordKeyboard();
 		watchResize();
 		updateMobileClue(null);
-		setStatus(restore() ? t('resumed') : t('start_hint'));
+		var restored = restore();
+		if (isSolved()) {
+			runCheck();
+		} else if (restored.ok) {
+			setStatus(
+				restored.source === 'account' ? t('resumed_account') : t('resumed'),
+				'success'
+			);
+		} else {
+			setStatus(t('start_hint'));
+		}
+
+		function bindZoomBtn(btn, delta) {
+			if (!btn) {
+				return;
+			}
+			btn.addEventListener('mousedown', function (event) {
+				event.preventDefault();
+			});
+			btn.addEventListener('click', function (event) {
+				event.preventDefault();
+				applyZoom(zoom + delta);
+			});
+		}
+		bindZoomBtn(zoomOutBtn, -ZOOM_STEP);
+		bindZoomBtn(zoomInBtn, ZOOM_STEP);
 
 		if (checkBtn) {
 			checkBtn.addEventListener('click', runCheck);

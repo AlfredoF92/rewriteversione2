@@ -55,6 +55,15 @@
 	line-height: 0;
 }
 
+.llm-header-user__avatar {
+	display: block;
+	width: 1.55rem;
+	height: 1.55rem;
+	border-radius: 999px;
+	object-fit: cover;
+	background: rgba(255, 255, 255, 0.12);
+}
+
 .llm-header-user__copy {
 	display: inline-flex;
 	flex-direction: column;
@@ -272,5 +281,33 @@
 	.llm-header-user__login,
 	.llm-stat-chip {
 		transition-duration: 0.01ms;
+	}
+}
+
+/*
+ * Header Elementor: la barra desktop (hidden-mobile) resta sticky anche su telefono
+ * e copre il logo visibile, mangiando il tap. La nascondiamo davvero.
+ */
+@media (max-width: 767px) {
+	.elementor-location-header .elementor-hidden-mobile,
+	.elementor-location-header .elementor-sticky--active.elementor-hidden-mobile {
+		display: none !important;
+		pointer-events: none !important;
+		visibility: hidden !important;
+		height: 0 !important;
+		min-height: 0 !important;
+		overflow: hidden !important;
+	}
+
+	.elementor-location-header .elementor-hidden-desktop {
+		position: relative;
+		z-index: 40;
+		pointer-events: auto;
+	}
+
+	.elementor-location-header .elementor-heading-title a {
+		position: relative;
+		z-index: 41;
+		pointer-events: auto !important;
 	}
 }

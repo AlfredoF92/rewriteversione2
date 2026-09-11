@@ -13,9 +13,10 @@ class LLM_Crossword_Shortcode {
 
 	public static function init() {
 		add_shortcode( 'llm_crossword', array( __CLASS__, 'render' ) );
+		add_action( 'wp_ajax_llm_crossword_progress_save', array( __CLASS__, 'ajax_save_progress' ) );
 	}
 
-	private static function enqueue() {
+	public static function enqueue() {
 		wp_enqueue_style( 'llm-ui' );
 		wp_enqueue_style(
 			'llm-crossword',
@@ -37,6 +38,19 @@ class LLM_Crossword_Shortcode {
 			LLM_TABELLE_VERSION,
 			true
 		);
+		static $localized = false;
+		if ( ! $localized ) {
+			$localized = true;
+			wp_localize_script(
+				'llm-crossword',
+				'llmCrossword',
+				array(
+					'ajaxUrl'  => admin_url( 'admin-ajax.php' ),
+					'nonce'    => wp_create_nonce( 'llm_crossword_progress' ),
+					'loggedIn' => is_user_logged_in() ? 1 : 0,
+				)
+			);
+		}
 	}
 
 	/**
@@ -58,6 +72,7 @@ class LLM_Crossword_Shortcode {
 		$atts = shortcode_atts(
 			array(
 				'id'       => 0,
+				'story'    => 0,
 				'progress' => 'yes',
 			),
 			$atts,
@@ -83,15 +98,38 @@ class LLM_Crossword_Shortcode {
 
 		self::enqueue();
 
-		$i18n   = LLM_Crossword_I18n::bundle();
-		$config = array(
+		$story_id = absint( $atts['story'] );
+		$i18n     = LLM_Crossword_I18n::bundle();
+		$known_code  = LLM_Crossword::get_known( $post_id );
+		$target_code = LLM_Crossword::get_target( $post_id );
+		$config      = array(
 			'id'           => $post_id,
+			'storyId'      => $story_id,
 			'title'        => $data['title'],
 			'grid'         => $data['grid'],
 			'clues'        => $data['clues'],
+			'knownFlag'    => class_exists( 'LLM_Languages' ) ? LLM_Languages::flag_emoji( $known_code ) : '',
+			'targetFlag'   => class_exists( 'LLM_Languages' ) ? LLM_Languages::flag_emoji( $target_code ) : '',
 			'i18n'         => $i18n,
 			'saveProgress' => 'no' !== strtolower( (string) $atts['progress'] ),
+			'loggedIn'     => is_user_logged_in() ? 1 : 0,
+			'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
+			'nonce'        => wp_create_nonce( 'llm_crossword_progress' ),
+			'savedCells'   => array(),
+			'savedSolved'  => false,
 		);
+
+		$uid = get_current_user_id();
+		if ( $uid && class_exists( 'LLM_User_Crossword_Progress' ) ) {
+			$saved = LLM_User_Crossword_Progress::get( $uid, $post_id );
+			if ( $saved ) {
+				$config['savedCells']  = $saved['cells'];
+				$config['savedSolved'] = ! empty( $saved['solved'] );
+				if ( ! $story_id && ! empty( $saved['story_id'] ) ) {
+					$config['storyId'] = (int) $saved['story_id'];
+				}
+			}
+		}
 
 		ob_start();
 		?>
@@ -110,8 +148,32 @@ class LLM_Crossword_Shortcode {
 						</button>
 					</div>
 					<div class="cw-controls">
+						<button type="button" class="llm-ui-btn llm-ui-btn--ghost cw-btn cw-btn--zoom" data-cw-zoom-out aria-label="<?php echo esc_attr( $i18n['zoom_out'] ); ?>">
+							<span aria-hidden="true">🔍−</span>
+						</button>
+						<button type="button" class="llm-ui-btn llm-ui-btn--ghost cw-btn cw-btn--zoom" data-cw-zoom-in aria-label="<?php echo esc_attr( $i18n['zoom_in'] ); ?>">
+							<span aria-hidden="true">🔍+</span>
+						</button>
 						<button type="button" class="llm-ui-btn llm-ui-btn--ghost cw-btn" data-cw-check><?php echo esc_html( $i18n['check'] ); ?></button>
 						<button type="button" class="llm-ui-btn llm-ui-btn--ghost cw-btn" data-cw-restart><?php echo esc_html( $i18n['restart'] ); ?></button>
+						<button
+							type="button"
+							class="llm-ui-btn llm-ui-btn--ghost llm-phrase-game__helper-acc cw-btn cw-keyboard__toggle"
+							data-cw-keyboard-toggle
+							aria-expanded="false"
+							aria-controls="cw-keyboard-panel-<?php echo esc_attr( (string) $post_id ); ?>"
+						>
+							<span class="llm-phrase-game__helper-acc-emoji" aria-hidden="true">⌨️</span>
+							<span class="llm-phrase-game__helper-acc-text"><?php echo esc_html( isset( $i18n['keyboard'] ) ? $i18n['keyboard'] : 'Tastiera' ); ?></span>
+						</button>
+					</div>
+					<div class="cw-keyboard" data-cw-keyboard>
+						<div
+							class="cw-keyboard__panel llm-phrase-game__keyboard-panel"
+							id="cw-keyboard-panel-<?php echo esc_attr( (string) $post_id ); ?>"
+							data-cw-keyboard-panel
+							hidden
+						></div>
 					</div>
 					<p class="cw-status" data-cw-status role="status" aria-live="polite"></p>
 					<?php echo self::render_mobile_clue( $i18n, 'below' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
@@ -126,6 +188,49 @@ class LLM_Crossword_Shortcode {
 	}
 
 	/**
+	 * AJAX: salva griglia (solo utenti loggati).
+	 */
+	public static function ajax_save_progress() {
+		check_ajax_referer( 'llm_crossword_progress', 'nonce' );
+
+		$uid = get_current_user_id();
+		if ( ! $uid || ! class_exists( 'LLM_User_Crossword_Progress' ) ) {
+			wp_send_json_error( array( 'message' => 'auth' ), 403 );
+		}
+
+		$crossword_id = isset( $_POST['id'] ) ? absint( wp_unslash( $_POST['id'] ) ) : 0;
+		$story_id     = isset( $_POST['story'] ) ? absint( wp_unslash( $_POST['story'] ) ) : 0;
+		$filled       = isset( $_POST['filled'] ) ? absint( wp_unslash( $_POST['filled'] ) ) : 0;
+		$total        = isset( $_POST['total'] ) ? absint( wp_unslash( $_POST['total'] ) ) : 0;
+		$solved       = isset( $_POST['solved'] ) && '1' === (string) wp_unslash( $_POST['solved'] );
+		$cells_raw    = isset( $_POST['cells'] ) ? wp_unslash( $_POST['cells'] ) : '[]';
+		$cells        = LLM_User_Crossword_Progress::sanitize_cells( $cells_raw );
+
+		if ( ! $crossword_id ) {
+			wp_send_json_error( array( 'message' => 'id' ), 400 );
+		}
+
+		$post = get_post( $crossword_id );
+		if ( ! $post || LLM_Crossword::CPT !== $post->post_type ) {
+			wp_send_json_error( array( 'message' => 'crossword' ), 400 );
+		}
+
+		if ( $filled < 1 && ! $solved ) {
+			$ok = LLM_User_Crossword_Progress::clear_grid( $uid, $crossword_id, $story_id, $cells, $total );
+			if ( ! $ok ) {
+				wp_send_json_error( array( 'message' => 'db' ), 500 );
+			}
+			wp_send_json_success( array( 'ok' => 1, 'cleared' => 1 ) );
+		}
+
+		$ok = LLM_User_Crossword_Progress::upsert( $uid, $crossword_id, $story_id, $cells, $filled, $total, $solved );
+		if ( ! $ok ) {
+			wp_send_json_error( array( 'message' => 'db' ), 500 );
+		}
+		wp_send_json_success( array( 'ok' => 1 ) );
+	}
+
+	/**
 	 * Riquadro definizione attiva + rivela lettera.
 	 *
 	 * @param array<string,string> $i18n Testi.
@@ -137,6 +242,10 @@ class LLM_Crossword_Shortcode {
 		ob_start();
 		?>
 		<div class="cw-mobile-clue cw-mobile-clue--<?php echo esc_attr( $place ); ?>" data-cw-mobile-clue hidden>
+			<div class="cw-mobile-clue__body">
+				<span class="cw-mobile-clue__meta" data-cw-mobile-clue-meta></span>
+				<div class="cw-mobile-clue__text" data-cw-mobile-clue-text></div>
+			</div>
 			<button
 				type="button"
 				class="cw-mobile-clue__hint"
@@ -147,10 +256,6 @@ class LLM_Crossword_Shortcode {
 				<span class="cw-mobile-clue__hint-emoji" aria-hidden="true">💡</span>
 				<span class="cw-mobile-clue__hint-label"><?php echo esc_html( $i18n['reveal_letter'] ); ?></span>
 			</button>
-			<div class="cw-mobile-clue__body">
-				<span class="cw-mobile-clue__meta" data-cw-mobile-clue-meta></span>
-				<div class="cw-mobile-clue__text" data-cw-mobile-clue-text></div>
-			</div>
 		</div>
 		<?php
 		return (string) ob_get_clean();

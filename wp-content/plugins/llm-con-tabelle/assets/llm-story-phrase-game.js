@@ -18,6 +18,45 @@
 		return stripTagsHtml(s).replace(/\s+/g, ' ').trim();
 	}
 
+	function escapeTopicHtml(s) {
+		return String(s || '')
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;');
+	}
+
+	/** Virgolette → corsivo (parole della lingua obiettivo). */
+	function formatGrammarTopicHtml(s) {
+		return escapeTopicHtml(s).replace(/"([^"]+)"/g, '<em>$1</em>');
+	}
+
+	function parseGrammarTopicItems(text) {
+		var items = [];
+		var current = null;
+		String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').forEach(function (line) {
+			var trimmed = line.trim();
+			if (!trimmed) {
+				return;
+			}
+			var numbered = trimmed.match(/^(\d+)[\.)]\s+(.+)$/);
+			var isTitle = !!numbered || (!/[.?!…]$/.test(trimmed) && trimmed.indexOf(': ') === -1);
+			if (isTitle) {
+				current = {
+					title: numbered ? numbered[1] + '. ' + numbered[2] : trimmed,
+					lines: []
+				};
+				items.push(current);
+				return;
+			}
+			if (!current) {
+				current = { title: '', lines: [] };
+				items.push(current);
+			}
+			current.lines.push(trimmed);
+		});
+		return items;
+	}
+
 	/**
 	 * Spezza HTML in sequenza di tag (stringa completa) e blocchi di testo (animabili).
 	 * Non usa il tag-split naive: un maggiore in attributo tra virgolette o un minore da confronto
@@ -239,6 +278,50 @@
 		return { drop: drop, text: kept.join(' ') };
 	}
 
+	/**
+	 * Tiene solo le parole esatte della traduzione, nell'ordine della traduzione.
+	 * Non inventa parole mancanti; scarta le superflue.
+	 */
+	function OrdinaParoleEsatte(userText, targetText) {
+		var refs = splitSymbolTokens(plainSpeechText(targetText));
+		var users = splitSymbolTokens(userText);
+		if (!refs.length || !users.length) {
+			return { text: '', changed: !!(String(userText || '').trim()) };
+		}
+		var usedUser = [];
+		var i;
+		for (i = 0; i < users.length; i++) {
+			usedUser[i] = false;
+		}
+		var kept = [];
+		var lastKept = -1;
+		var anyKept = false;
+		for (i = 0; i < refs.length; i++) {
+			var uMatch = controllaFindUnusedRef(refs[i].word, users, usedUser);
+			if (uMatch < 0) {
+				continue;
+			}
+			usedUser[uMatch] = true;
+			if (!anyKept && i > 0) {
+				kept.push('...');
+			} else if (anyKept && i > lastKept + 1) {
+				kept.push('...');
+			}
+			kept.push(formatSymbolToken(refs[i]));
+			lastKept = i;
+			anyKept = true;
+		}
+		if (anyKept && lastKept < refs.length - 1) {
+			kept.push('...');
+		}
+		if (!anyKept) {
+			kept.push('...');
+		}
+		var next = kept.join(' ');
+		var prev = String(userText || '').replace(/\s+/g, ' ').trim();
+		return { text: next, changed: next !== prev };
+	}
+
 	function rewindArrowsLabel(count) {
 		var parts = [];
 		var i;
@@ -248,11 +331,36 @@
 		return parts.join(' ');
 	}
 
+	var CONTROLLA_NUM_WORDS = {
+		zero: '0', oh: '0',
+		one: '1', two: '2', three: '3', four: '4', five: '5',
+		six: '6', seven: '7', eight: '8', nine: '9', ten: '10',
+		eleven: '11', twelve: '12', thirteen: '13', fourteen: '14',
+		fifteen: '15', sixteen: '16', seventeen: '17', eighteen: '18',
+		nineteen: '19', twenty: '20', twentyone: '21', twentytwo: '22',
+		twentythree: '23', twentyfour: '24', twentyfive: '25',
+		twentysix: '26', twentyseven: '27', twentyeight: '28',
+		twentynine: '29', thirty: '30'
+	};
+
 	function symbolWordKey(word) {
 		var k = removeAccents(String(word || '').normalize('NFKC').trim())
 			.toLowerCase()
 			.replace(/[\u200B-\u200D\uFEFF]/g, '')
-			.replace(/['’\-_.]/g, '');
+			.replace(/['’\-_.]/g, '')
+			.replace(/:/g, '');
+		if (/^[0-9]+00$/.test(k) && k.length >= 3 && k.length <= 4) {
+			k = k.replace(/00$/, '');
+		}
+		if (CONTROLLA_NUM_WORDS[k]) {
+			k = CONTROLLA_NUM_WORDS[k];
+		}
+		if (k === 'am' || k === 'aem') {
+			return 'am';
+		}
+		if (k === 'pm' || k === 'pem') {
+			return 'pm';
+		}
 		if (k === 'theater' || k === 'theather' || k === 'thiether' || k === 'thetre' || k === 'theatere') {
 			return 'theatre';
 		}
@@ -409,7 +517,54 @@
 			}
 			tokens.push({ lead: lead, word: word, trail: trail });
 		}
-		return tokens;
+		return mergeTimeSymbolTokens(tokens);
+	}
+
+	/**
+	 * Unisce 3:00 e a.m. / p.m. in un solo token, così 2AM e 2 a.m. coincidono.
+	 */
+	function mergeTimeSymbolTokens(tokens) {
+		if (!tokens || tokens.length < 2) {
+			return tokens;
+		}
+		var out = [];
+		var i = 0;
+		while (i < tokens.length) {
+			var cur = tokens[i];
+			var nxt = tokens[i + 1];
+			var w = cur.word || '';
+			var trail = cur.trail || '';
+			if (
+				nxt &&
+				/^\d+$/.test(w) &&
+				/^[:.]/.test(trail) &&
+				/^0+$/.test(nxt.word || '')
+			) {
+				out.push({
+					lead: cur.lead || '',
+					word: w + ':00',
+					trail: nxt.trail || ''
+				});
+				i += 2;
+				continue;
+			}
+			if (
+				nxt &&
+				/^[ap]$/i.test(w) &&
+				/^[m]$/i.test(nxt.word || '')
+			) {
+				out.push({
+					lead: cur.lead || '',
+					word: w.toLowerCase() + '.m.',
+					trail: nxt.trail || ''
+				});
+				i += 2;
+				continue;
+			}
+			out.push(cur);
+			i += 1;
+		}
+		return out;
 	}
 
 	function controllaConcatKeys(tokens, start, end) {
@@ -1160,6 +1315,8 @@
 		var noOsKeyboard = suppressOsKeyboard();
 		if (noOsKeyboard) {
 			root.classList.add('llm-phrase-game--no-osk');
+		} else {
+			root.classList.add('llm-phrase-game--native-caret');
 		}
 
 		var HINT_STORE_KEY = 'llm_mobile_field_hints';
@@ -1481,13 +1638,25 @@
 		var clear1 = qs(root, '.llm-phrase-game__clear-input--1');
 		var clear2 = qs(root, '.llm-phrase-game__clear-input--2');
 		var clearVoice = qs(root, '.llm-phrase-game__clear-input--voice');
+		var exactOkWriteEl = qs(root, '.llm-phrase-game__exact-ok--1');
+		var exactOkVoiceEl = qs(root, '.llm-phrase-game__exact-ok--voice');
 		var rewind2 = qs(root, '.llm-phrase-game__rewind-input--2');
 		var rewindVoice = qs(root, '.llm-phrase-game__rewind-input--voice');
+		var ordinaVoice = qs(root, '.llm-phrase-game__ordina-input--voice');
 		var phase2RecapCounter   = qs(root, '.llm-phrase-game__phase2-recap__counter');
 	var phase2RecapIface     = qs(root, '.llm-phrase-game__phase2-recap__interface');
 	var phase2RecapPrompt    = qs(root, '.llm-phrase-game__phase2-recap__prompt');
 	var listenTargetBtn      = qs(root, '.llm-phrase-game__listen-target:not(.llm-phrase-game__listen-target--phase2):not(.llm-phrase-game__peek-target):not(.llm-phrase-game__random-words-toggle)');
 		var listenTargetBtnPhase2 = qs(root, '.llm-phrase-game__listen-target--phase2');
+		var listenThinkEl = qs(root, '.llm-phrase-game__listen-think');
+		var listenThinkBackdrop = qs(root, '.llm-phrase-game__listen-think-backdrop');
+		var listenThinkText = qs(root, '.llm-phrase-game__listen-think-text');
+		var storyNotesPopEl = qs(root, '.llm-phrase-game__story-notes-pop');
+		var storyNotesPopBackdrop = qs(root, '.llm-phrase-game__story-notes-pop-backdrop');
+		var storyNotesPopBody = qs(root, '.llm-phrase-game__story-notes-pop-body');
+		var storyNotesPopClose = qs(root, '.llm-phrase-game__story-notes-pop-close');
+		var storyRememberBox = qs(root, '.llm-phrase-game__story-remember');
+		var storyRememberText = qs(root, '.llm-phrase-game__story-remember-text');
 		var phraseAudioEl = null;
 		var listenVoiceGender = 'male';
 		var composePhase1 = qs(root, '.llm-phrase-game__compose--phase1');
@@ -1516,6 +1685,7 @@
 	var fieldPronIpa = qs(root, '.llm-phrase-game__field-pron-ipa');
 	var fieldPronApprox = qs(root, '.llm-phrase-game__field-pron-approx');
 	var showFieldTransBtn = qs(root, '.llm-phrase-game__show-field-trans');
+	var notesReadMoreBtn = qs(root, '.llm-phrase-game__notes-read-more');
 	var fieldTransWrap = qs(root, '.llm-phrase-game__field-trans');
 	var fieldTransToggle = qs(root, '.llm-phrase-game__field-trans-toggle');
 	var fieldTransPanel = qs(root, '.llm-phrase-game__field-trans-panel');
@@ -1532,6 +1702,19 @@
 	var invertedHintBtn = qs(root, '.llm-phrase-game__inverted-hint');
 	var invertedHintLabel = qs(root, '.llm-phrase-game__inverted-hint-text-label');
 	var invertedHintPanel = qs(root, '.llm-phrase-game__inverted-hint-panel');
+	var phraseHelpWrap = qs(root, '.llm-phrase-game__phrase-help');
+	var phraseHelpBtn = qs(root, '.llm-phrase-game__phrase-help-btn');
+	var phraseHelpBox = qs(root, '.llm-phrase-game__phrase-help-box');
+	var phraseHelpSecTrans = qs(root, '.llm-phrase-game__phrase-help-section--trans');
+	var phraseHelpSecPron = qs(root, '.llm-phrase-game__phrase-help-section--pron');
+	var phraseHelpTrans = qs(root, '.llm-phrase-game__phrase-help-trans');
+	var phraseHelpIpa = qs(root, '.llm-phrase-game__phrase-help-ipa');
+	var phraseHelpApprox = qs(root, '.llm-phrase-game__phrase-help-approx');
+	var phraseHelpLabelIpa = qs(root, '.llm-phrase-game__phrase-help-label--ipa');
+	var phraseHelpLabelApprox = qs(root, '.llm-phrase-game__phrase-help-label--approx');
+	var phraseHelpLockEl = qs(root, '.llm-phrase-game__phrase-help-lock');
+	var helpTransUnlocked = false;
+	var helpPronUnlocked = false;
 
 	function randomWordsBlock(suffix, inputEl) {
 		var wrap = qs(root, '.llm-phrase-game__random-words--' + suffix);
@@ -1618,13 +1801,272 @@
 		var hasVoiceField    = isWriteTranslate || isPlayInverted;
 		/* Modalità con la sola fase 1: stesso layout, cambia solo cosa succede al click. */
 		var isSinglePhase = isResolveGo || isWriteTranslate || isReadGoFast || isPlayInverted;
+		var exactWriteState = { ok: false, sealed: false, text: '' };
+		var exactVoiceState = { ok: false, sealed: false, text: '' };
+		var exactSealRun = { write: 0, voice: 0 };
 		var writeTargetInput = input1;
+		var activeCaretField = null;
 		root.classList.add('llm-phrase-game--mode-' + learningMode.replace(/_/g, '-'));
 		if (isSinglePhase) {
 			root.classList.add('llm-phrase-game--single-phase');
 		}
 		if (hasVoiceField && voiceFieldEl) {
 			voiceFieldEl.hidden = false;
+		}
+
+		function exactStateForField(ta) {
+			if (ta === inputVoice) {
+				return exactVoiceState;
+			}
+			if (ta === input1) {
+				return exactWriteState;
+			}
+			return null;
+		}
+
+		function exactOkElForField(ta) {
+			if (ta === inputVoice) {
+				return exactOkVoiceEl;
+			}
+			if (ta === input1) {
+				return exactOkWriteEl;
+			}
+			return null;
+		}
+
+		function exactOkMessageForField(ta) {
+			if (ta === inputVoice) {
+				return i18n.exactOkSpeak || 'Bravo! La pronuncia della frase è corretta.';
+			}
+			return i18n.exactOkWrite || 'Bravo! La traduzione della frase è corretta.';
+		}
+
+		function exactTargetForField(ta) {
+			var p = phrases[phraseIx] || {};
+			if (isPlayInverted) {
+				if (ta === input1) {
+					return String(p.interface || '');
+				}
+				if (ta === inputVoice) {
+					return String(p.target || '');
+				}
+			}
+			return String(p.target || '');
+		}
+
+		function isFieldExactOk(ta) {
+			var st = exactStateForField(ta);
+			return !!(st && st.ok);
+		}
+
+		function isFieldExactSealed(ta) {
+			var st = exactStateForField(ta);
+			return !!(st && st.sealed);
+		}
+
+		function fieldAnswerText(ta) {
+			var st = exactStateForField(ta);
+			if (st && st.text) {
+				return st.text;
+			}
+			return (ta && ta.value ? ta.value : '').trim();
+		}
+
+		function exactOkRowForField(ta) {
+			var el = exactOkElForField(ta);
+			return el ? el.closest('.llm-phrase-game__exact-ok-row') : null;
+		}
+
+		function exactThanksBtnForRow(row) {
+			return row ? row.querySelector('.llm-phrase-game__exact-thanks') : null;
+		}
+
+		function hideExactOkMessage(ta) {
+			var el = exactOkElForField(ta);
+			if (el) {
+				exactSealRun[exactSealRunKey(ta)] += 1;
+				el.hidden = true;
+				el.textContent = '';
+			}
+			var row = exactOkRowForField(ta);
+			if (row) {
+				row.hidden = true;
+			}
+			var btn = exactThanksBtnForRow(row);
+			if (btn) {
+				btn.hidden = true;
+			}
+		}
+
+		function showExactOkMessage(ta) {
+			var el = exactOkElForField(ta);
+			if (!el) {
+				return;
+			}
+			var msg = exactOkMessageForField(ta);
+			var row = exactOkRowForField(ta);
+			var btn = exactThanksBtnForRow(row);
+			if (btn) {
+				btn.hidden = true;
+			}
+			if (row) {
+				row.hidden = false;
+			}
+			el.hidden = false;
+			var key = exactSealRunKey(ta);
+			var run = ++exactSealRun[key];
+			var tick = typeof TYPE_TICK_MS === 'number' ? TYPE_TICK_MS : 36;
+			function revealThanks() {
+				if (exactSealRun[key] !== run || isFieldExactSealed(ta) || !btn) {
+					return;
+				}
+				btn.hidden = false;
+			}
+			if (typeof typewriterInto === 'function') {
+				typewriterInto(el, msg, function () {
+					return exactSealRun[key] === run && !isFieldExactSealed(ta);
+				}, tick).then(revealThanks);
+			} else {
+				el.textContent = msg;
+				revealThanks();
+			}
+		}
+
+		function hideExactFieldActions(ta) {
+			if (!ta) {
+				return;
+			}
+			var wrap = ta.closest('.llm-phrase-game__input-block');
+			wrap = wrap ? wrap.querySelector('.llm-phrase-game__clear-wrap') : null;
+			if (wrap) {
+				setActionFadeVisible(wrap, false);
+			}
+			hideRewindExactButton(ta._llmRewindBtn);
+			hideOrdinaExactButton(ta._llmOrdinaBtn);
+		}
+
+		function setExactFieldBlocked(ta, blocked) {
+			if (!ta) {
+				return;
+			}
+			ta.classList.toggle('llm-phrase-game__input--exact-ok', !!blocked);
+			setPhraseInputLocked(ta, !!blocked);
+			var shell = ta.closest('.llm-phrase-game__input-shell');
+			if (shell) {
+				shell.classList.toggle('llm-phrase-game__input-shell--exact-ok', !!blocked);
+			}
+		}
+
+		function exactSealRunKey(ta) {
+			return ta === inputVoice ? 'voice' : 'write';
+		}
+
+		function resetExactPhraseChecks() {
+			exactSealRun.write += 1;
+			exactSealRun.voice += 1;
+			[input1, inputVoice].forEach(function (ta) {
+				var st = exactStateForField(ta);
+				if (st) {
+					st.ok = false;
+					st.sealed = false;
+					st.text = '';
+				}
+				if (ta) {
+					ta.classList.remove('llm-phrase-game__input--exact-ok', 'llm-phrase-game__input--exact-sealed', 'llm-phrase-game__input--exact-sealed-fade');
+					var shell = ta.closest('.llm-phrase-game__input-shell');
+					if (shell) {
+						shell.classList.remove('llm-phrase-game__input-shell--exact-ok');
+					}
+				}
+				hideExactOkMessage(ta);
+			});
+		}
+
+		function sealExactField(ta) {
+			var st = exactStateForField(ta);
+			if (!st || !st.ok || st.sealed) {
+				return;
+			}
+			st.sealed = true;
+			var msg = exactOkMessageForField(ta);
+			hideExactOkMessage(ta);
+			hideExactFieldActions(ta);
+			setExactFieldBlocked(ta, true);
+			if (ta === inputVoice) {
+				hideVoiceExtrasMark();
+			}
+			ta.value = msg;
+			ta.classList.remove('llm-phrase-game__input--exact-sealed-fade');
+			void ta.offsetWidth;
+			ta.classList.add('llm-phrase-game__input--exact-sealed', 'llm-phrase-game__input--exact-sealed-fade');
+			if (activeCaretField === ta) {
+				setActiveCaretField(null);
+			} else {
+				syncVirtualCaret(ta);
+			}
+			if (typeof ta._llmSyncClearBtn === 'function') {
+				ta._llmSyncClearBtn();
+			}
+			fitPhraseInputHeight(ta);
+			if (typeof syncWriteTranslatePeekBlur === 'function') {
+				syncWriteTranslatePeekBlur();
+			}
+		}
+
+		function sealExactFieldsIfOutside(target) {
+			[input1, inputVoice].forEach(function (ta) {
+				if (!ta || !isFieldExactOk(ta) || isFieldExactSealed(ta)) {
+					return;
+				}
+				var block = ta.closest('.llm-phrase-game__input-block');
+				if (block && target && block.contains(target)) {
+					return;
+				}
+				sealExactField(ta);
+			});
+		}
+
+		/**
+		 * Controlla se è esatta la frase: se il campo coincide con la traduzione,
+		 * mostra Bravo sotto e blocca il campo (niente Ricomincia, niente click).
+		 */
+		function ControllaSeEsattaLaFrase(ta) {
+			if (!hasVoiceField || !ta || (ta !== input1 && ta !== inputVoice)) {
+				return false;
+			}
+			var st = exactStateForField(ta);
+			if (!st || st.sealed) {
+				return !!st && st.ok;
+			}
+			var user = String(ta.value || '').trim();
+			var ok = !!(user && phase2PassesLocal(user, exactTargetForField(ta), PHASE2_SIM, PHASE2_WR));
+			st.ok = ok;
+			if (ok) {
+				st.text = user;
+				showExactOkMessage(ta);
+				hideExactFieldActions(ta);
+				setExactFieldBlocked(ta, true);
+				if (activeCaretField === ta) {
+					setActiveCaretField(null);
+				} else {
+					syncVirtualCaret(ta);
+				}
+				try {
+					ta.blur();
+				} catch (e) { /* ignore */ }
+			} else {
+				st.text = '';
+				hideExactOkMessage(ta);
+				ta.classList.remove('llm-phrase-game__input--exact-sealed');
+				setExactFieldBlocked(ta, false);
+			}
+			if (typeof ta._llmSyncClearBtn === 'function') {
+				ta._llmSyncClearBtn();
+			}
+			if (typeof syncWriteTranslatePeekBlur === 'function') {
+				syncWriteTranslatePeekBlur();
+			}
+			return ok;
 		}
 
 		/* Dove finiscono i messaggi di completamento frase. */
@@ -1686,6 +2128,19 @@
 		syncLangFlags();
 
 		/* Opzioni di aiuto: stessa regola della modalità, profilo o localStorage. */
+		function sameOptionSet(a, b) {
+			if (!a || !b || a.length !== b.length) {
+				return false;
+			}
+			return a.slice().sort().join(',') === b.slice().sort().join(',');
+		}
+
+		function guestDefaultLearningOptions() {
+			return Array.isArray(cfg.learningOptionsDefault) && cfg.learningOptionsDefault.length
+				? cfg.learningOptionsDefault.slice()
+				: ['random_words', 'listen_replay_loop', 'story_target_only'];
+		}
+
 		function resolveLearningOptions() {
 			if (isPlayInverted) {
 				return [];
@@ -1693,9 +2148,8 @@
 			if (cfg.learningModeIsSaved) {
 				return Array.isArray(cfg.learningOptions) ? cfg.learningOptions : [];
 			}
-			var defaults = Array.isArray(cfg.learningOptionsDefault) && cfg.learningOptionsDefault.length
-				? cfg.learningOptionsDefault.slice()
-				: ['random_words', 'listen_replay_loop'];
+			var defaults = guestDefaultLearningOptions();
+			var legacy = ['random_words', 'listen_replay_loop'];
 			try {
 				var key = cfg.learningOptionsStorageKey || 'llm_learning_options';
 				var raw = window.localStorage.getItem(key);
@@ -1707,7 +2161,16 @@
 					}
 					return defaults;
 				}
-				return raw ? raw.split(',') : [];
+				var stored = raw ? raw.split(',') : [];
+				if (sameOptionSet(stored, legacy) && !sameOptionSet(stored, defaults)) {
+					try {
+						window.localStorage.setItem(key, defaults.join(','));
+					} catch (migErr) {
+						/* Storage non disponibile. */
+					}
+					return defaults;
+				}
+				return stored;
 			} catch (e) {
 				return defaults;
 			}
@@ -1717,6 +2180,11 @@
 			resolveLearningOptions().indexOf(cfg.optionRandomWords || 'random_words') !== -1;
 		var extraCharsOn =
 			resolveLearningOptions().indexOf(cfg.optionExtraChars || 'extra_chars') !== -1;
+		var stickyTranslateOn =
+			resolveLearningOptions().indexOf(cfg.optionStickyTranslate || 'sticky_translate') !== -1;
+		if (stickyTranslateOn) {
+			root.classList.add('llm-phrase-game--sticky-translate');
+		}
 		var listenReplayAfterMic =
 			resolveLearningOptions().indexOf(cfg.optionListenReplayLoop || 'listen_replay_loop') !== -1;
 
@@ -2033,6 +2501,42 @@
 			if (typeof syncWriteTranslatePeekBlur === 'function') {
 				syncWriteTranslatePeekBlur();
 			}
+			ControllaSeEsattaLaFrase(input1);
+			ControllaSeEsattaLaFrase(inputVoice);
+		});
+	}
+
+	var completeStoryBtn = qs(root, '.llm-phrase-game__admin-complete-story');
+	if (completeStoryBtn && canEditNotes()) {
+		completeStoryBtn.addEventListener('click', function (e) {
+			e.preventDefault();
+			if (completeStoryBtn.disabled) {
+				return;
+			}
+			completeStoryBtn.disabled = true;
+			var body = new URLSearchParams();
+			body.set('action', 'llm_fe_admin_complete_story');
+			body.set('nonce', String(cfg.editNotesNonce || ''));
+			body.set('story_id', String(storyId));
+			fetch(ajaxUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+				body: body.toString()
+			})
+				.then(function (res) { return res.json(); })
+				.then(function (json) {
+					if (!json || !json.success) {
+						completeStoryBtn.disabled = false;
+						window.alert((json && json.data && json.data.message) || (i18n.ajaxError || ''));
+						return;
+					}
+					window.location.reload();
+				})
+				.catch(function () {
+					completeStoryBtn.disabled = false;
+					window.alert(i18n.ajaxError || '');
+				});
 		});
 	}
 
@@ -2066,6 +2570,10 @@
 	var speechInsertSuffix = '';
 	var speechSessionStartValue = '';
 	var speechSegmentTranscript = '';
+	var micBlueFadeTimer = null;
+	var micFreshTokenCount = 0;
+	var ordinaAnimTimer = null;
+	var ordinaAnimPlaying = false;
 	var voiceCaret = { start: null, end: null };
 	var controllaStrikeTimer = null;
 	var activeMicTa = null;
@@ -2090,6 +2598,7 @@
 	var LISTEN_REPLAY_DELAY_MS = 0;
 	var MIC_FEEDBACK_DISPLAY_MS = 8000;
 	var listenReplayTimer = null;
+	var listenReplayTurn = 0;
 	var targetPeekTimer = null;
 	var TARGET_PEEK_MS = 10000;
 	var TARGET_PEEK_FADE_MS = 400;
@@ -2273,15 +2782,24 @@
 				/* ignore */
 			}
 		}
-		if (ta === inputVoice) {
-			voiceCaret.start = mid.length;
-			voiceCaret.end = mid.length;
-		}
+		storeInputCaret(ta, mid.length, mid.length);
 		if (typeof ta._llmSyncClearBtn === 'function') {
 			ta._llmSyncClearBtn();
 		}
 		fitPhraseInputHeight(ta);
 		syncWriteTranslatePeekBlur();
+		if (ta === inputVoice && micSessionActive) {
+			paintMicNewWords(ta, micLiveNewFrom(mid));
+		}
+	}
+
+	function micLiveNewFrom(mid) {
+		var midTokens = splitSymbolTokens(mid);
+		var segTokens = splitSymbolTokens(speechSegmentTranscript);
+		if (segTokens.length) {
+			return Math.max(0, midTokens.length - segTokens.length);
+		}
+		return Math.max(0, midTokens.length - micFreshTokenCount);
 	}
 
 	function commitMicSpeechToBase(ta) {
@@ -2294,11 +2812,13 @@
 		if (key === lastCommittedSpeechKey || isDuplicateSpeechChunk(speechBase, chunk)) {
 			return;
 		}
+		var beforeN = splitSymbolTokens(speechBase).length;
 		speechBase += chunk;
 		if (speechBase.length && !/\s$/.test(speechBase)) {
 			speechBase += ' ';
 		}
 		lastCommittedSpeechKey = key;
+		micFreshTokenCount = Math.max(0, splitSymbolTokens(speechBase).length - beforeN);
 		writeMicTextarea(ta);
 	}
 
@@ -2351,14 +2871,15 @@
 			});
 		}
 
-		/** Scroll morbido: elemento allineato circa al centro del viewport. */
-		function smoothScrollIntoCenter(el) {
+		/** Scroll morbido: block start | center | nearest | end. */
+		function smoothScrollIntoBlock(el, block) {
 			if (!el || typeof el.scrollIntoView !== 'function') {
 				return Promise.resolve();
 			}
+			var align = block || 'center';
 			return new Promise(function (resolve) {
 				try {
-					el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+					el.scrollIntoView({ behavior: 'smooth', block: align, inline: 'nearest' });
 				} catch (e) {
 					try {
 						el.scrollIntoView(true);
@@ -2371,9 +2892,141 @@
 			});
 		}
 
-		function smoothScrollStoryToCenter() {
-			var wrap = storyEl ? storyEl.closest('.llm-phrase-game__story-wrap') : null;
-			return smoothScrollIntoCenter(wrap || storyEl);
+		/** Scroll morbido: elemento allineato circa al centro del viewport. */
+		function smoothScrollIntoCenter(el) {
+			return smoothScrollIntoBlock(el, 'center');
+		}
+
+		function learningOptionIds() {
+			return resolveLearningOptions();
+		}
+
+		function isLearningOptionOn(optionId) {
+			return learningOptionIds().indexOf(optionId) !== -1;
+		}
+
+		function isStoryNotesHidden() {
+			return isLearningOptionOn((cfg && cfg.optionHideStoryNotes) || 'hide_story_notes');
+		}
+
+		function isStoryTargetOnly() {
+			return isLearningOptionOn((cfg && cfg.optionStoryTargetOnly) || 'story_target_only');
+		}
+
+		function storyLineAsideText(iface, notes) {
+			var it = stripTagsHtml(iface || '').replace(/\s+/g, ' ').trim();
+			var nt = stripTagsHtml(notes || '').replace(/\s+/g, ' ').trim();
+			return [it, nt].filter(Boolean).join(' ');
+		}
+
+		function asideTextForPhrase(p, ifaceFallback) {
+			if (isStoryNotesHidden()) {
+				return '';
+			}
+			if (isStoryTargetOnly()) {
+				return stripTagsHtml((p && p.notesTarget) || '').replace(/\s+/g, ' ').trim();
+			}
+			return storyLineAsideText(ifaceFallback || (p && p.interface) || '', (p && p.notes) || '');
+		}
+
+		function appendStoryLineAside(block, p, ifaceFallback, fade) {
+			if (!block || isStoryNotesHidden()) {
+				return Promise.resolve();
+			}
+			if (qs(block, '.llm-phrase-game__story-line-aside')) {
+				return Promise.resolve();
+			}
+			var aside = asideTextForPhrase(p, ifaceFallback);
+			if (!aside) {
+				return Promise.resolve();
+			}
+			var el = document.createElement('span');
+			el.className = 'llm-phrase-game__story-line-aside';
+			el.textContent = ' ' + aside;
+			if (fade) {
+				el.classList.add('llm-phrase-game__story-line-aside--enter');
+			}
+			block.appendChild(el);
+			if (!fade) {
+				return Promise.resolve();
+			}
+			void el.offsetWidth;
+			el.classList.add('llm-phrase-game__story-line-aside--visible');
+			return sleepMs(400).then(function () {
+				el.classList.remove('llm-phrase-game__story-line-aside--enter');
+				el.classList.remove('llm-phrase-game__story-line-aside--visible');
+			});
+		}
+
+		function fillStoryLineNow(block, targetHtml, p, ifaceFallback) {
+			if (!block) {
+				return;
+			}
+			block.innerHTML = '';
+			var targetSpan = document.createElement('span');
+			targetSpan.className = 'llm-phrase-game__story-line-target';
+			var strong = document.createElement('strong');
+			try {
+				strong.innerHTML = String(targetHtml || '');
+			} catch (e) {
+				strong.textContent = stripTagsHtml(targetHtml || '');
+			}
+			targetSpan.appendChild(strong);
+			block.appendChild(targetSpan);
+			appendStoryLineAside(block, p, ifaceFallback);
+		}
+
+		function writeCompletedStoryLine(sentence, displayInterface, onDone) {
+			hideUpcomingHint();
+			if (cardEl) {
+				cardEl.hidden = true;
+			}
+			var block = document.createElement('div');
+			block.className = 'llm-phrase-game__story-line';
+			block.dataset.phraseIndex = String(phraseIx);
+			if (displayInterface) {
+				block.dataset.translation = displayInterface;
+			}
+			var pNow = phrases[phraseIx] || {};
+			if (pNow.notes) {
+				block.dataset.storyNotes = pNow.notes;
+			}
+			var targetSpan = document.createElement('span');
+			targetSpan.className = 'llm-phrase-game__story-line-target';
+			var strong = document.createElement('strong');
+			targetSpan.appendChild(strong);
+			block.appendChild(targetSpan);
+			storyEl.appendChild(block);
+			hydrateStoryLineTranslations();
+			return smoothScrollIntoCenter(block).then(function () {
+				var sr = ++storyStreamRun;
+				return typewriterHtmlInto(strong, sentence, function () {
+					return storyStreamRun === sr;
+				}, TYPE_TICK_MS).then(function () {
+					if (storyStreamRun !== sr) {
+						return;
+					}
+					return sleepMs(1000);
+				}).then(function () {
+					if (storyStreamRun !== sr) {
+						return;
+					}
+					appendStoryPhotosAfter(phraseIx);
+					return appendStoryLineAside(block, pNow, displayInterface || pNow.interface || '', true);
+				}).then(function () {
+					if (storyStreamRun !== sr) {
+						return;
+					}
+					return sleepMs(1500);
+				}).then(function () {
+					if (storyStreamRun !== sr) {
+						return;
+					}
+					if (typeof onDone === 'function') {
+						onDone();
+					}
+				});
+			});
 		}
 
 		function typewriterInto(el, text, isAlive, tickMs) {
@@ -2531,6 +3184,10 @@
 	 */
 	var notesLoaded = false;
 	var phraseNotesOpened = false;
+	var notesRevealBlocks = [];
+	var notesRevealShown = 0;
+	var notesRevealAlt = '';
+	var notesRevealBusy = false;
 
 	function setStoryNotesOpen(open) {
 		if (!storyNotesToggle || !storyNotesPanel) {
@@ -2554,11 +3211,109 @@
 		showFieldTransBtn.style.transition = '';
 	}
 
+	function hideNotesReadMoreBtn() {
+		if (!notesReadMoreBtn) {
+			return;
+		}
+		notesReadMoreBtn.hidden = true;
+		notesReadMoreBtn.style.opacity = '';
+		notesReadMoreBtn.style.transition = '';
+	}
+
+	function resetNotesReveal() {
+		notesRevealBlocks = [];
+		notesRevealShown = 0;
+		notesRevealAlt = '';
+		notesRevealBusy = false;
+		hideNotesReadMoreBtn();
+	}
+
+	function appendNotesGrammarBlock(blockHtml, visible) {
+		var p = document.createElement('p');
+		p.className = 'llm-phrase-game__grammar-block';
+		try {
+			p.innerHTML = blockHtml;
+		} catch (e) {
+			p.textContent = blockHtml;
+		}
+		p.style.opacity = visible ? '1' : '0';
+		if (grammarEl) {
+			grammarEl.appendChild(p);
+		}
+		return p;
+	}
+
+	function showNotesAltNow() {
+		if (!notesRevealAlt || !altShow) {
+			return;
+		}
+		try {
+			altShow.innerHTML = notesRevealAlt;
+		} catch (e) {
+			altShow.textContent = notesRevealAlt;
+		}
+		altShow.hidden = false;
+		altShow.style.opacity = '1';
+		if (labelAltEl) {
+			labelAltEl.hidden = false;
+			labelAltEl.style.opacity = '1';
+		}
+	}
+
+	function syncNotesRevealButtons() {
+		if (notesRevealShown < notesRevealBlocks.length) {
+			hideShowFieldTransBtn();
+			if (notesReadMoreBtn) {
+				notesReadMoreBtn.hidden = false;
+				notesReadMoreBtn.style.opacity = '1';
+				notesReadMoreBtn.style.transition = '';
+			}
+			return;
+		}
+		hideNotesReadMoreBtn();
+		showNotesAltNow();
+		revealShowFieldTransBtn();
+	}
+
+	function startNotesParagraphReveal(grammar, alt) {
+		notesRevealBlocks = grammar ? splitGrammarBlocks(grammar) : [];
+		notesRevealShown = 0;
+		notesRevealAlt = alt || '';
+		notesRevealBusy = false;
+		hideShowFieldTransBtn();
+		hideNotesReadMoreBtn();
+		if (grammarEl && notesRevealBlocks.length) {
+			appendNotesGrammarBlock(notesRevealBlocks[0], true);
+			notesRevealShown = 1;
+		}
+	}
+
+	function revealNextNotesParagraph() {
+		if (notesRevealBusy || notesRevealShown >= notesRevealBlocks.length) {
+			syncNotesRevealButtons();
+			return;
+		}
+		notesRevealBusy = true;
+		hideNotesReadMoreBtn();
+		var p = appendNotesGrammarBlock(notesRevealBlocks[notesRevealShown], false);
+		notesRevealShown += 1;
+		fadeElementOpacity(p, 1, 400).then(function () {
+			p.style.transition = '';
+			notesRevealBusy = false;
+			syncNotesRevealButtons();
+		});
+	}
+
 	function revealShowFieldTransBtn() {
 		if (!showFieldTransBtn || isPlayInverted) {
 			return Promise.resolve();
 		}
 		showFieldTransBtn.hidden = false;
+		if (isPhraseGameMobile()) {
+			showFieldTransBtn.style.opacity = '1';
+			showFieldTransBtn.style.transition = '';
+			return Promise.resolve();
+		}
 		showFieldTransBtn.style.opacity = '0';
 		return fadeElementOpacity(showFieldTransBtn, 1, 400);
 	}
@@ -2574,10 +3329,6 @@
 			notesToggleText.textContent = isOpen
 				? (i18n.notesToggleHide || 'Nascondi i consigli sulla traduzione')
 				: (i18n.notesToggleShow || 'Consigli sulla traduzione');
-		}
-		if (isOpen) {
-			setStoryNotesOpen(false);
-			setPronTipsOpen(false);
 		}
 		if (!isOpen || notesLoaded) {
 			return;
@@ -2632,6 +3383,61 @@
 			writeTargetInput = el;
 			syncKeyboardVoiceMode();
 		}
+		if (el === input1 || el === inputVoice || el === input2) {
+			setActiveCaretField(el);
+		}
+	}
+
+	function setActiveCaretField(ta) {
+		activeCaretField = ta || null;
+		[input1, input2, inputVoice].forEach(function (el) {
+			if (el) {
+				syncVirtualCaret(el);
+			}
+		});
+		syncFieldContextUi();
+	}
+
+	var micToolsVisible = false;
+
+	function isWriteTranslateInput(el) {
+		return el === input1 || el === input2;
+	}
+
+	function syncFieldContextUi() {
+		var writeOn = isWriteTranslateInput(activeCaretField);
+		var voiceOn = activeCaretField === inputVoice;
+		if (writeOn) {
+			micToolsVisible = false;
+		} else if (voiceOn) {
+			micToolsVisible = true;
+		}
+		root.classList.toggle('llm-phrase-game--field-write', writeOn);
+		root.classList.toggle('llm-phrase-game--field-voice', voiceOn);
+		root.classList.toggle('llm-phrase-game--mic-visible', micToolsVisible);
+		[input1, input2, inputVoice].forEach(function (el) {
+			if (!el) {
+				return;
+			}
+			var shell = el.closest('.llm-phrase-game__input-shell');
+			if (!shell) {
+				return;
+			}
+			var on = isCaretFieldActive(el);
+			shell.classList.toggle('llm-phrase-game__input-shell--write-on', on && isWriteTranslateInput(el));
+			shell.classList.toggle('llm-phrase-game__input-shell--voice-on', on && el === inputVoice);
+		});
+		qsa(root, '.llm-phrase-game__phase1-tools .llm-phrase-game__mic-row').forEach(function (row) {
+			row.hidden = !micToolsVisible;
+		});
+	}
+
+	function isCaretFieldActive(ta) {
+		return !!(ta && activeCaretField === ta);
+	}
+
+	function usesVirtualCaret(ta) {
+		return !!noOsKeyboard && (ta === input1 || ta === input2 || ta === inputVoice);
 	}
 
 	function destForPhase1Helper(blockInput) {
@@ -2660,12 +3466,29 @@
 		}
 		start = Math.max(0, Math.min(Number(start) || 0, val.length));
 		end = Math.max(start, Math.min(Number(end) || start, val.length));
+		if (inputEl === inputVoice) {
+			start = snapCaretToWordEdge(val, start);
+			end = start;
+		}
 		return { start: start, end: end };
 	}
 
 	function storeInputCaret(inputEl, start, end) {
 		if (!inputEl) {
 			return;
+		}
+		start = Math.max(0, Number(start) || 0);
+		end = end === undefined || end === null ? start : Math.max(start, Number(end) || start);
+		if (inputEl === inputVoice) {
+			start = snapCaretToWordEdge(inputEl.value || '', start);
+			end = start;
+			if (typeof inputEl.selectionStart === 'number' && (inputEl.selectionStart !== start || inputEl.selectionEnd !== start)) {
+				try {
+					inputEl.setSelectionRange(start, start);
+				} catch (e) {
+					/* ignore */
+				}
+			}
 		}
 		if (!inputEl._llmCaret) {
 			inputEl._llmCaret = {};
@@ -2675,6 +3498,183 @@
 		if (inputEl === inputVoice) {
 			voiceCaret.start = start;
 			voiceCaret.end = end;
+		}
+		syncVirtualCaret(inputEl);
+		syncCaretNavButtons();
+	}
+
+	function caretTargetForNav(navWrap) {
+		if (navWrap && navWrap.classList.contains('llm-phrase-game__caret-nav--2')) {
+			return input2;
+		}
+		return destForPhase1Helper(input1);
+	}
+
+	function wordStops(text) {
+		var stops = [0];
+		var re = /\S+/g;
+		var m;
+		while ((m = re.exec(String(text || '')))) {
+			if (stops[stops.length - 1] !== m.index) {
+				stops.push(m.index);
+			}
+		}
+		if (stops[stops.length - 1] !== String(text || '').length) {
+			stops.push(String(text || '').length);
+		}
+		return stops;
+	}
+
+	function snapCaretToWordEdge(text, pos) {
+		text = String(text || '');
+		pos = Math.max(0, Math.min(Number(pos) || 0, text.length));
+		if (pos === 0 || pos === text.length) {
+			return pos;
+		}
+		var prev = text.charAt(pos - 1);
+		var next = text.charAt(pos);
+		if (/\s/.test(prev) || /\s/.test(next)) {
+			return pos;
+		}
+		var start = pos;
+		while (start > 0 && !/\s/.test(text.charAt(start - 1))) {
+			start--;
+		}
+		var end = pos;
+		while (end < text.length && !/\s/.test(text.charAt(end))) {
+			end++;
+		}
+		return (pos - start) <= (end - pos) ? start : end;
+	}
+
+	function nextWordStop(text, pos, dir) {
+		var stops = wordStops(text);
+		var i;
+		if (dir > 0) {
+			for (i = 0; i < stops.length; i++) {
+				if (stops[i] > pos) {
+					return stops[i];
+				}
+			}
+			return stops[stops.length - 1];
+		}
+		for (i = stops.length - 1; i >= 0; i--) {
+			if (stops[i] < pos) {
+				return stops[i];
+			}
+		}
+		return 0;
+	}
+
+	function ensureVirtualCaret(ta) {
+		if (!ta || !usesVirtualCaret(ta)) {
+			return null;
+		}
+		if (ta._llmVirtualCaret) {
+			return ta._llmVirtualCaret;
+		}
+		var shell = ta.closest('.llm-phrase-game__input-shell');
+		if (!shell) {
+			return null;
+		}
+		var wrap = document.createElement('span');
+		wrap.className = 'llm-phrase-game__virtual-caret';
+		if (ta === inputVoice) {
+			wrap.classList.add('llm-phrase-game__virtual-caret--insert');
+		}
+		wrap.setAttribute('aria-hidden', 'true');
+		wrap.hidden = true;
+		wrap.innerHTML = '<span class="llm-phrase-game__virtual-caret-inner"></span><span class="llm-phrase-game__virtual-caret-bar"></span>';
+		shell.appendChild(wrap);
+		ta._llmVirtualCaret = wrap;
+		ta._llmVirtualCaretInner = wrap.querySelector('.llm-phrase-game__virtual-caret-inner');
+		ta._llmVirtualCaretBar = wrap.querySelector('.llm-phrase-game__virtual-caret-bar');
+		return wrap;
+	}
+
+	function syncVirtualCaret(ta) {
+		if (!ta) {
+			return;
+		}
+		if (!usesVirtualCaret(ta)) {
+			if (ta._llmVirtualCaret) {
+				ta._llmVirtualCaret.hidden = true;
+			}
+			return;
+		}
+		var wrap = ensureVirtualCaret(ta);
+		if (!wrap) {
+			return;
+		}
+		var inner = ta._llmVirtualCaretInner;
+		var bar = ta._llmVirtualCaretBar;
+		var shell = ta.closest('.llm-phrase-game__input-shell');
+		if (!inner || !bar || !shell) {
+			return;
+		}
+		if (!isCaretFieldActive(ta) || isPhraseInputLocked(ta) || isFieldExactOk(ta) || isFieldExactSealed(ta)) {
+			wrap.hidden = true;
+			return;
+		}
+		wrap.classList.toggle('llm-phrase-game__virtual-caret--insert', ta === inputVoice);
+		var caret = readInputCaret(ta);
+		var before = String(ta.value || '').slice(0, caret.start);
+		inner.textContent = before.length ? before : '\u200b';
+		inner.appendChild(bar);
+		bar.style.marginLeft = caret.start === 0 ? '0px' : '-1px';
+		var cs = window.getComputedStyle(ta);
+		inner.style.fontFamily = cs.fontFamily;
+		inner.style.fontSize = cs.fontSize;
+		inner.style.fontWeight = cs.fontWeight;
+		inner.style.fontStyle = cs.fontStyle;
+		inner.style.letterSpacing = cs.letterSpacing;
+		inner.style.wordSpacing = cs.wordSpacing;
+		inner.style.lineHeight = cs.lineHeight;
+		inner.style.boxSizing = cs.boxSizing;
+		inner.style.textAlign = cs.textAlign;
+		inner.style.paddingLeft = cs.paddingLeft;
+		inner.style.paddingRight = cs.paddingRight;
+		inner.style.paddingTop = cs.paddingTop;
+		inner.style.paddingBottom = cs.paddingBottom;
+		var shellRect = shell.getBoundingClientRect();
+		var taRect = ta.getBoundingClientRect();
+		wrap.style.left = (taRect.left - shellRect.left) + 'px';
+		wrap.style.top = (taRect.top - shellRect.top) + 'px';
+		wrap.style.width = ta.clientWidth + 'px';
+		wrap.style.height = ta.clientHeight + 'px';
+		inner.style.transform = 'translate(' + (-ta.scrollLeft) + 'px, ' + (-ta.scrollTop) + 'px)';
+		wrap.hidden = false;
+	}
+
+	function syncCaretNavButtons() {
+		qsa(root, '.llm-phrase-game__caret-nav').forEach(function (nav) {
+			var ta = caretTargetForNav(nav);
+			var val = ta ? String(ta.value || '') : '';
+			var pos = ta ? readInputCaret(ta).start : 0;
+			qsa(nav, '[data-llm-caret-dir]').forEach(function (btn) {
+				var dir = parseInt(btn.getAttribute('data-llm-caret-dir'), 10) || 0;
+				btn.disabled = !ta || nextWordStop(val, pos, dir) === pos;
+			});
+		});
+	}
+
+	function moveCaretByWord(ta, dir) {
+		if (!ta || isPhraseInputLocked(ta)) {
+			return;
+		}
+		var val = String(ta.value || '');
+		var pos = readInputCaret(ta).start;
+		var next = nextWordStop(val, pos, dir);
+		try {
+			ta.setSelectionRange(next, next);
+		} catch (e) {
+			/* ignore */
+		}
+		storeInputCaret(ta, next, next);
+		setActiveCaretField(ta);
+		if (ta === input1 || ta === inputVoice) {
+			writeTargetInput = ta;
+			syncKeyboardVoiceMode();
 		}
 	}
 
@@ -2990,13 +3990,37 @@
 	var KB_DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 	var KB_PUNCT = [',', '.', ':', '?', '!', "'", '"', '”', '„'];
 
+	function buzzKb(e) {
+		if (e && e.pointerType && e.pointerType !== 'touch') {
+			return;
+		}
+		try {
+			if (navigator.vibrate) {
+				navigator.vibrate(12);
+			}
+		} catch (err) {
+			/* ignore */
+		}
+	}
+
 	function bindKbPress(el, fn) {
 		el.addEventListener('mousedown', function (e) {
 			e.preventDefault();
 			e.stopPropagation();
 		});
+		el.addEventListener('pointerdown', function (e) {
+			if (e.button && e.button !== 0) {
+				return;
+			}
+			buzzKb(e);
+			showKbKeyPreview(el);
+		});
+		el.addEventListener('pointerup', scheduleHideKbKeyPreview);
+		el.addEventListener('pointercancel', hideKbKeyPreview);
 		el.addEventListener('click', function (e) {
 			e.stopPropagation();
+			showKbKeyPreview(el);
+			scheduleHideKbKeyPreview();
 			fn(e);
 		});
 	}
@@ -3056,6 +4080,7 @@
 			}
 			e.preventDefault();
 			e.stopPropagation();
+			buzzKb(e);
 			clearTimers();
 			unbindDoc();
 			active = true;
@@ -3098,11 +4123,66 @@
 		var btn = document.createElement('button');
 		btn.type = 'button';
 		btn.className = 'llm-phrase-game__kb-key' + (extraClass ? ' ' + extraClass : '');
-		btn.textContent = label;
+		var glyph = document.createElement('span');
+		glyph.className = 'llm-phrase-game__kb-key-label';
+		glyph.textContent = label;
+		btn.appendChild(glyph);
 		if (aria) {
 			btn.setAttribute('aria-label', aria);
 		}
 		return btn;
+	}
+
+	function kbKeyLabelEl(btn) {
+		return (btn && btn.querySelector('.llm-phrase-game__kb-key-label')) || btn;
+	}
+
+	var kbPreviewBtn = null;
+	var kbPreviewHideTimer = null;
+
+	function hideKbKeyPreview() {
+		if (kbPreviewHideTimer) {
+			clearTimeout(kbPreviewHideTimer);
+			kbPreviewHideTimer = null;
+		}
+		if (!kbPreviewBtn) {
+			return;
+		}
+		kbPreviewBtn.classList.remove('is-preview');
+		var pop = kbPreviewBtn.querySelector('.llm-phrase-game__kb-preview');
+		if (pop) {
+			pop.hidden = true;
+		}
+		kbPreviewBtn = null;
+	}
+
+	function scheduleHideKbKeyPreview() {
+		if (kbPreviewHideTimer) {
+			clearTimeout(kbPreviewHideTimer);
+		}
+		kbPreviewHideTimer = setTimeout(hideKbKeyPreview, 260);
+	}
+
+	function showKbKeyPreview(btn) {
+		if (!btn || btn.classList.contains('llm-phrase-game__kb-key--util')) {
+			return;
+		}
+		hideKbKeyPreview();
+		var text = String((kbKeyLabelEl(btn).textContent || '')).trim();
+		if (!text) {
+			return;
+		}
+		var pop = btn.querySelector('.llm-phrase-game__kb-preview');
+		if (!pop) {
+			pop = document.createElement('span');
+			pop.className = 'llm-phrase-game__kb-preview';
+			pop.setAttribute('aria-hidden', 'true');
+			btn.appendChild(pop);
+		}
+		pop.textContent = text;
+		pop.hidden = false;
+		btn.classList.add('is-preview');
+		kbPreviewBtn = btn;
 	}
 
 	function kbGlyph(btn, shifted) {
@@ -3120,7 +4200,7 @@
 			return;
 		}
 		qsa(block.panel, '[data-kb-lo]').forEach(function (btn) {
-			btn.textContent = kbGlyph(btn, shifted);
+			kbKeyLabelEl(btn).textContent = kbGlyph(btn, shifted);
 		});
 		qsa(block.panel, '.llm-phrase-game__kb-key--shift').forEach(function (btn) {
 			btn.classList.toggle('is-active', shifted);
@@ -3134,6 +4214,7 @@
 			return;
 		}
 		block.panel.innerHTML = '';
+		hideKbKeyPreview();
 		block.panel.classList.remove('is-shifted');
 		block.shift = false;
 		var set = getExtraCharsSet();
@@ -3226,11 +4307,53 @@
 		}
 		block.toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
 		block.panel.hidden = !open;
+		if (!open) {
+			hideKbKeyPreview();
+		}
 		if (open) {
 			block.shift = false;
 			paintKeyboard(block);
 			markHintSeen('kb');
 		}
+	}
+
+	function keyboardBlockForInput(inputEl) {
+		var found = null;
+		keyboardBlocks.forEach(function (block) {
+			if (block.input === inputEl) {
+				found = block;
+			}
+		});
+		if (!found && inputEl === input1 && keyboardBlocks[0]) {
+			found = keyboardBlocks[0];
+		}
+		return found;
+	}
+
+	function isWriteFieldEventTarget(t) {
+		if (!t || !t.closest) {
+			return false;
+		}
+		var shell = t.closest('.llm-phrase-game__input-shell');
+		if (!shell || !root.contains(shell)) {
+			return false;
+		}
+		return isWriteTranslateInput(qs(shell, '.llm-phrase-game__input'));
+	}
+
+	function openKeyboardForWriteField(inputEl) {
+		if (!isWriteTranslateInput(inputEl) || isPhraseInputLocked(inputEl)) {
+			return;
+		}
+		if (!window.matchMedia('(pointer: coarse), (max-width: 768px)').matches) {
+			return;
+		}
+		var block = keyboardBlockForInput(inputEl);
+		if (!block) {
+			return;
+		}
+		closeHelperAccsExcept('keyboard');
+		setKeyboardOpen(block, true);
 	}
 
 	function resetKeyboard() {
@@ -3295,6 +4418,7 @@
 	function resetNotesPanel() {
 		notesLoaded = false;
 		phraseNotesOpened = false;
+		resetNotesReveal();
 		hideShowFieldTransBtn();
 		if (notesToggleBtn && notesPanel) {
 			setNotesOpen(false);
@@ -3319,6 +4443,27 @@
 			restore();
 			requestAnimationFrame(restore);
 		});
+		var until = Date.now() + 420;
+		function onScroll() {
+			if (Date.now() > until) {
+				window.removeEventListener('scroll', onScroll, true);
+				return;
+			}
+			restore();
+		}
+		window.addEventListener('scroll', onScroll, true);
+		window.setTimeout(function () {
+			window.removeEventListener('scroll', onScroll, true);
+			restore();
+		}, 420);
+	}
+
+	function isPhraseGameMobile() {
+		try {
+			return !!(window.matchMedia && window.matchMedia('(pointer: coarse), (max-width: 768px)').matches);
+		} catch (e) {
+			return false;
+		}
 	}
 
 	function focusAccordionToggle(btn) {
@@ -3337,14 +4482,11 @@
 			return;
 		}
 		var isOpen = !!open;
-		keepWindowScroll(function () {
-			pronTipsToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-			pronTipsPanel.hidden = !isOpen;
-			if (isOpen) {
-				setStoryNotesOpen(false);
-				setNotesOpen(false);
-			}
-		});
+		if (isOpen) {
+			fillPronunciationHelpers();
+		}
+		pronTipsToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+		pronTipsPanel.hidden = !isOpen;
 	}
 
 	function isInside(el, node) {
@@ -3375,6 +4517,12 @@
 
 	function closeAccordionsOnOutsideClick(e) {
 		var t = e.target;
+		var notesStack = qs(root, '.llm-phrase-game__notes-stack');
+		var insideNotesFamily = isInside(notesStack, t)
+			|| isInside(notesToggleBtn, t)
+			|| isInside(notesPanel, t)
+			|| isInside(storyNotesWrap, t)
+			|| isInside(pronTipsWrap, t);
 		if (!isInside(fieldTransWrap, t) && !isInside(showFieldTransBtn, t)) {
 			if (fieldHelperIntroKind === 'trans') {
 				stopFieldHelperIntro();
@@ -3389,17 +4537,19 @@
 			}
 			setFieldPronOpen(false);
 		}
-		if (!isInside(storyNotesWrap, t)) {
+		if (!insideNotesFamily) {
 			setStoryNotesOpen(false);
-		}
-		if (!isInside(notesToggleBtn, t) && (!isInside(notesPanel, t) || isInside(showFieldTransBtn, t))) {
 			setNotesOpen(false);
-		}
-		if (!isInside(pronTipsWrap, t) || isInside(showFieldPronBtn, t)) {
 			setPronTipsOpen(false);
+		}
+		if (!isInside(phraseHelpWrap, t) && !keepsPhraseHelpOpenClick(t)) {
+			setPhraseHelpOpen(false);
 		}
 		if (!isInside(invertedHintBtn, t) && !isInside(invertedHintPanel, t)) {
 			setInvertedHintOpen(false);
+		}
+		if (t && t.closest && (t.closest('.llm-phrase-game__caret-nav') || isWriteFieldEventTarget(t))) {
+			return;
 		}
 		randomWordsBlocks.forEach(function (block) {
 			if (!isInsideHelperBlock(block, t)) {
@@ -3412,10 +4562,41 @@
 			}
 		});
 		keyboardBlocks.forEach(function (block) {
-			if (!isInsideHelperBlock(block, t)) {
-				setKeyboardOpen(block, false);
+			if (
+				isWriteTranslateInput(activeCaretField) ||
+				isInsideHelperBlock(block, t) ||
+				keepsKeyboardOpenClick(t)
+			) {
+				return;
 			}
+			setKeyboardOpen(block, false);
 		});
+	}
+
+	function keepsKeyboardOpenClick(t) {
+		if (!t || !t.closest) {
+			return false;
+		}
+		return !!(
+			t.closest('.llm-phrase-game__mic-cluster') ||
+			t.closest('.llm-phrase-game__mic-row') ||
+			t.closest('.llm-phrase-game__mic') ||
+			t.closest('.llm-phrase-game__mic-status') ||
+			t.closest('.llm-phrase-game__listen-cluster') ||
+			t.closest('.llm-phrase-game__listen-target-wrap') ||
+			t.closest('.llm-phrase-game__listen-slow') ||
+			t.closest('.llm-phrase-game__listen-target') ||
+			t.closest('.llm-phrase-game__voice-field') ||
+			t.closest('.llm-phrase-game__input-block--voice') ||
+			t.closest('.llm-phrase-game__input--voice') ||
+			t.closest('.llm-phrase-game__phrase-help')
+		);
+	}
+
+	function keepsPhraseHelpOpenClick(t) {
+		return keepsKeyboardOpenClick(t) ||
+			isInside(showFieldTransBtn, t) ||
+			isInside(showFieldPronBtn, t);
 	}
 
 	function restoreFieldAccTitles() {
@@ -3461,29 +4642,87 @@
 		}
 	}
 
+	function fillHtmlBlocks(container, html) {
+		if (!container) {
+			return;
+		}
+		container.innerHTML = '';
+		var src = String(html || '').trim();
+		if (!src) {
+			return;
+		}
+		splitGrammarBlocks(src).forEach(function (blockHtml) {
+			var el = document.createElement('p');
+			el.className = 'llm-phrase-game__pron-tips-block';
+			if (blockHtml.indexOf('<') === -1) {
+				blockHtml = String(blockHtml).replace(/\n/g, '<br />');
+			}
+			try {
+				el.innerHTML = blockHtml;
+			} catch (e) {
+				el.textContent = blockHtml;
+			}
+			container.appendChild(el);
+		});
+	}
+
+	function syncPhraseHelpSections() {
+		var trans = phraseHelpTrans ? String(phraseHelpTrans.textContent || '').trim() : '';
+		var ipa = phraseHelpIpa ? String(phraseHelpIpa.textContent || '').trim() : '';
+		var approx = phraseHelpApprox ? String(phraseHelpApprox.textContent || '').trim() : '';
+		if (phraseHelpSecTrans) {
+			phraseHelpSecTrans.hidden = !trans;
+			phraseHelpSecTrans.classList.toggle('llm-phrase-game__phrase-help-section--locked', !helpTransUnlocked);
+		}
+		if (phraseHelpLabelIpa) {
+			phraseHelpLabelIpa.hidden = !ipa;
+		}
+		if (phraseHelpIpa) {
+			phraseHelpIpa.hidden = !ipa;
+		}
+		if (phraseHelpLabelApprox) {
+			phraseHelpLabelApprox.hidden = !approx;
+		}
+		if (phraseHelpApprox) {
+			phraseHelpApprox.hidden = !approx;
+		}
+		if (phraseHelpSecPron) {
+			phraseHelpSecPron.hidden = !(ipa || approx);
+			phraseHelpSecPron.classList.toggle('llm-phrase-game__phrase-help-section--locked', !helpPronUnlocked);
+		}
+		if (phraseHelpLockEl) {
+			phraseHelpLockEl.hidden = helpTransUnlocked && helpPronUnlocked;
+		}
+		if (phraseHelpWrap) {
+			phraseHelpWrap.hidden = isPlayInverted;
+		}
+	}
+
+	function setPhraseHelpOpen(open) {
+		if (!phraseHelpBtn || !phraseHelpBox) {
+			return;
+		}
+		var isOpen = !!open && !isPlayInverted;
+		var wasOpen = phraseHelpBtn.getAttribute('aria-expanded') === 'true';
+		if (isOpen === wasOpen && phraseHelpBox.hidden === !isOpen) {
+			return;
+		}
+		keepWindowScroll(function () {
+			if (isOpen) {
+				fillPronunciationHelpers();
+			}
+			phraseHelpBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+			phraseHelpBox.hidden = !isOpen;
+		});
+	}
+
 	function fillPronunciationHelpers() {
 		var p = phrases[phraseIx] || {};
 		var pron = String(p.pronunciation || '').trim();
 		var ipa = String(p.ipa || '').trim();
 		var approx = String(p.approx || '').trim();
-		if (pronTipsText) {
-			pronTipsText.innerHTML = '';
-			if (pron) {
-				splitGrammarBlocks(pron).forEach(function (blockHtml) {
-					var el = document.createElement('p');
-					el.className = 'llm-phrase-game__pron-tips-block';
-					if (blockHtml.indexOf('<') === -1) {
-						blockHtml = String(blockHtml).replace(/\n/g, '<br />');
-					}
-					try {
-						el.innerHTML = blockHtml;
-					} catch (e) {
-						el.textContent = blockHtml;
-					}
-					pronTipsText.appendChild(el);
-				});
-			}
-		}
+		var trans = String(p.target || '').trim();
+		fillHtmlBlocks(pronTipsText, pron);
 		if (fieldPronIpa) {
 			fieldPronIpa.textContent = ipa;
 		}
@@ -3491,8 +4730,18 @@
 			fieldPronApprox.textContent = approx;
 		}
 		if (fieldTransText) {
-			fieldTransText.textContent = String(p.target || '').trim();
+			fieldTransText.textContent = trans;
 		}
+		if (phraseHelpTrans) {
+			phraseHelpTrans.textContent = trans;
+		}
+		if (phraseHelpIpa) {
+			phraseHelpIpa.textContent = ipa;
+		}
+		if (phraseHelpApprox) {
+			phraseHelpApprox.textContent = approx;
+		}
+		syncPhraseHelpSections();
 	}
 
 	function setFieldTransOpen(open) {
@@ -3516,14 +4765,32 @@
 		stopFieldHelperIntro();
 		fieldTransIntroPlayed = false;
 		fieldPronIntroPlayed = false;
+		helpTransUnlocked = false;
+		helpPronUnlocked = false;
 		setPronTipsOpen(false);
 		setFieldPronOpen(false);
 		setFieldTransOpen(false);
+		setPhraseHelpOpen(false);
 		if (fieldPronWrap) {
 			fieldPronWrap.hidden = true;
 		}
 		if (fieldTransWrap) {
 			fieldTransWrap.hidden = true;
+		}
+		if (phraseHelpSecTrans) {
+			phraseHelpSecTrans.classList.add('llm-phrase-game__phrase-help-section--locked');
+		}
+		if (phraseHelpSecPron) {
+			phraseHelpSecPron.classList.add('llm-phrase-game__phrase-help-section--locked');
+		}
+		if (phraseHelpLockEl) {
+			phraseHelpLockEl.hidden = false;
+		}
+		if (showFieldTransBtn) {
+			showFieldTransBtn.removeAttribute('aria-pressed');
+		}
+		if (showFieldPronBtn) {
+			showFieldPronBtn.removeAttribute('aria-pressed');
 		}
 	}
 
@@ -3620,52 +4887,58 @@
 		if (isPlayInverted) {
 			return;
 		}
-		if (fieldPronIntroPlayed) {
-			fillPronunciationHelpers();
-			if (fieldPronWrap) {
-				fieldPronWrap.hidden = false;
-			}
-			restoreFieldAccTitles();
-			setFieldPronOpen(true);
-			if (fieldPronWrap) {
-				smoothScrollIntoCenter(fieldPronWrap);
-			}
-			return;
+		helpPronUnlocked = true;
+		if (showFieldPronBtn) {
+			showFieldPronBtn.setAttribute('aria-pressed', 'true');
 		}
-		if (fieldHelperIntroKind === 'pron') {
-			if (fieldPronWrap) {
-				smoothScrollIntoCenter(fieldPronWrap);
-			}
-			return;
-		}
-		stopFieldHelperIntro();
-		playFieldAccIntro('pron');
+		openPhraseHelpAndScroll('pron');
 	}
 
 	function revealFieldTranslation() {
 		if (isPlayInverted) {
 			return;
 		}
-		if (fieldTransIntroPlayed) {
-			fillPronunciationHelpers();
-			if (fieldTransWrap) {
-				fieldTransWrap.hidden = false;
-			}
-			restoreFieldAccTitles();
-			setFieldTransOpen(true);
-			if (fieldTransWrap) {
-				smoothScrollIntoCenter(fieldTransWrap);
-			}
+		helpTransUnlocked = true;
+		if (showFieldTransBtn) {
+			showFieldTransBtn.setAttribute('aria-pressed', 'true');
+		}
+		openPhraseHelpAndScroll('trans');
+	}
+
+	function openPhraseHelpAndScroll(kind) {
+		if (!phraseHelpBtn || !phraseHelpBox) {
 			return;
 		}
-		if (fieldHelperIntroKind === 'trans') {
-			if (fieldTransWrap) {
-				smoothScrollIntoCenter(fieldTransWrap);
-			}
-			return;
+		fillPronunciationHelpers();
+		phraseHelpBtn.setAttribute('aria-expanded', 'true');
+		phraseHelpBox.hidden = false;
+		syncPhraseHelpSections();
+		var target = phraseHelpBox;
+		if (kind === 'pron' && phraseHelpSecPron && !phraseHelpSecPron.hidden) {
+			target = phraseHelpIpa && String(phraseHelpIpa.textContent || '').trim()
+				? phraseHelpIpa
+				: (phraseHelpApprox || phraseHelpSecPron);
+		} else if (kind === 'trans' && phraseHelpSecTrans && !phraseHelpSecTrans.hidden) {
+			target = phraseHelpTrans || phraseHelpSecTrans;
+		} else if (phraseHelpLockEl && !phraseHelpLockEl.hidden) {
+			target = phraseHelpLockEl;
 		}
-		stopFieldHelperIntro();
-		playFieldAccIntro('trans');
+		window.requestAnimationFrame(function () {
+			window.requestAnimationFrame(function () {
+				if (!target || typeof target.scrollIntoView !== 'function') {
+					return;
+				}
+				try {
+					target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+				} catch (e) {
+					try {
+						target.scrollIntoView(true);
+					} catch (e2) {
+						/* ignore */
+					}
+				}
+			});
+		});
 	}
 
 	function setInvertedHintOpen(open) {
@@ -3833,6 +5106,26 @@
 		prepareAnalysisStreamLayout();
 		setComposePhaseVisible(2, false);
 
+		function appendGrammarBlocks(html) {
+			if (!html || !grammarEl) {
+				return;
+			}
+			splitGrammarBlocks(html).forEach(function (blockHtml) {
+				var p = document.createElement('p');
+				p.className = 'llm-phrase-game__grammar-block';
+				try { p.innerHTML = blockHtml; } catch (e) { p.textContent = blockHtml; }
+				p.style.opacity = '1';
+				grammarEl.appendChild(p);
+			});
+		}
+
+		if (opts.notesOnly) {
+			startNotesParagraphReveal(grammar, alt);
+			return fadeReveal(analysisEl || grammarEl).then(function () {
+				syncNotesRevealButtons();
+			});
+		}
+
 		function alive() { return streamAlive(run); }
 
 		/** Fade lento: elemento inizia opacity 0, transisce a 1. */
@@ -3896,7 +5189,7 @@
 			labelMainEl.style.opacity = '1';
 		}
 
-		/* ── Grammatica → titolo Note: + fade lento per paragrafo ─────── */
+		/* ── Grammatica → un unico fade del blocco ────────────────────── */
 		if (grammar) {
 			if (!opts.notesOnly) {
 			addStep(function () {
@@ -3907,20 +5200,11 @@
 				return fadeReveal(labelNotesEl, 400);
 			}, FADE_GAP);
 			}
-			var blocks = splitGrammarBlocks(grammar);
-			blocks.forEach(function (blockHtml) {
-				addStep((function (bHtml) {
-					return function () {
-						if (!alive()) { return; }
-						var p = document.createElement('p');
-						p.className = 'llm-phrase-game__grammar-block';
-						try { p.innerHTML = bHtml; } catch (e) { p.textContent = bHtml; }
-						p.style.margin = '0 0 0.45em';
-						grammarEl.appendChild(p);
-						return fadeReveal(p);
-					};
-				})(blockHtml), FADE_GAP);
-			});
+			addStep(function () {
+				if (!alive() || !grammarEl) { return; }
+				appendGrammarBlocks(grammar);
+				return fadeReveal(grammarEl);
+			}, FADE_GAP);
 		}
 
 		/* ── Pronuncia → stessa cadenza della grammatica (non negli appunti a richiesta) ─ */
@@ -4043,42 +5327,200 @@
 		return s;
 	}
 
-	function attachStoryTranslationChip(lineEl, translationText, notesHtml, phraseIndex) {
-		if (!lineEl || !translationText) {
+	function closeStoryGrammarPopup() {
+		if (storyNotesPopEl) {
+			storyNotesPopEl.hidden = true;
+		}
+		if (storyNotesPopBody) {
+			storyNotesPopBody.innerHTML = '';
+		}
+		if (storyRememberText) {
+			storyRememberText.innerHTML = '';
+		}
+		if (storyRememberBox) {
+			storyRememberBox.hidden = true;
+		}
+	}
+
+	function openStoryGrammarPopup(phrase) {
+		if (!storyNotesPopEl || !storyNotesPopBody) {
+			return;
+		}
+		if (storyRememberBox) {
+			storyRememberBox.hidden = true;
+		}
+		if (storyRememberText) {
+			storyRememberText.innerHTML = '';
+		}
+		storyNotesPopBody.innerHTML = phrase && phrase.grammar ? String(phrase.grammar) : '';
+		storyNotesPopEl.hidden = false;
+	}
+
+	function rememberHtmlForChip(phrase) {
+		var html = phrase && phrase.remember ? String(phrase.remember).trim() : '';
+		if (!html) {
+			return '';
+		}
+		var target = phrase && phrase.target ? plainSpeechText(phrase.target) : '';
+		if (!target) {
+			return html;
+		}
+		return html.replace(/^\s*<p\b[^>]*>[\s\S]*?<\/p>/i, function (block) {
+			return htmlToChipText(block).replace(/\s+/g, ' ').trim() === target ? '' : block;
+		}).trim();
+	}
+
+	function chipLangFlag(code) {
+		var map = (cfg && cfg.langFlags) || {};
+		if (typeof flagEmoji === 'function') {
+			return flagEmoji(code) || '';
+		}
+		return map[String(code || '').toLowerCase()] || '';
+	}
+
+	function appendChipLangRow(parent, flagCode, text, extraClass) {
+		var raw = stripTagsHtml(text || '').replace(/\s+/g, ' ').trim();
+		if (!raw) {
+			return;
+		}
+		var row = document.createElement('div');
+		row.className = 'llm-phrase-game__story-chip-row' + (extraClass ? ' ' + extraClass : '');
+		var flag = chipLangFlag(flagCode);
+		if (flag) {
+			var flagEl = document.createElement('span');
+			flagEl.className = 'llm-phrase-game__lang-flag llm-phrase-game__story-chip-flag';
+			flagEl.setAttribute('aria-hidden', 'true');
+			flagEl.textContent = flag;
+			row.appendChild(flagEl);
+		}
+		var textEl = document.createElement('span');
+		textEl.className = 'llm-phrase-game__story-chip-row-text';
+		textEl.textContent = raw;
+		row.appendChild(textEl);
+		parent.appendChild(row);
+	}
+
+	function attachStoryTranslationChip(lineEl, translationText, notesHtml, phraseIndex, phraseHint) {
+		if (!lineEl) {
 			return null;
 		}
 		var oldChip = qs(lineEl, '.llm-phrase-game__story-chip');
 		if (oldChip) {
 			oldChip.remove();
 		}
-		var chip = document.createElement('span');
-		chip.className = 'llm-phrase-game__story-chip';
-		var trans = document.createElement('span');
-		trans.className = 'llm-phrase-game__story-chip-translation';
-		trans.innerHTML = String(translationText);
-		chip.appendChild(trans);
-		var notesText = htmlToChipText(notesHtml || '');
-		if (notesText) {
-			var notesEl = document.createElement('span');
-			notesEl.className = 'llm-phrase-game__story-chip-notes';
-			notesEl.textContent = notesText;
-			chip.appendChild(notesEl);
-		}
 		var parsedChipIx = parseInt(phraseIndex, 10);
 		if (isNaN(parsedChipIx) && lineEl.dataset && lineEl.dataset.phraseIndex != null) {
 			parsedChipIx = parseInt(lineEl.dataset.phraseIndex, 10);
 		}
+		var chipPhrase = phraseHint || null;
+		if (!chipPhrase && !isNaN(parsedChipIx) && parsedChipIx >= 0 && phrases[parsedChipIx]) {
+			chipPhrase = phrases[parsedChipIx];
+		}
+		if (!chipPhrase) {
+			var lookEl = qs(lineEl, '.llm-phrase-game__story-line-target');
+			chipPhrase = findPhraseForStoryLine(plainSpeechText((lookEl || lineEl).textContent || ''));
+		}
+		var targetText = (chipPhrase && chipPhrase.target) || '';
+		if (!targetText) {
+			var targetSpeak = qs(lineEl, '.llm-phrase-game__story-line-target');
+			targetText = (targetSpeak || lineEl).textContent || '';
+		}
+		var knownText = translationText || (chipPhrase && chipPhrase.interface) || '';
+		if (!stripTagsHtml(targetText).replace(/\s+/g, ' ').trim() && !stripTagsHtml(knownText).replace(/\s+/g, ' ').trim()) {
+			return null;
+		}
+		var chip = document.createElement('div');
+		chip.className = 'llm-phrase-game__story-chip';
+		if (isStoryTargetOnly()) {
+			var notesKnown = htmlToChipText((chipPhrase && chipPhrase.notes) || notesHtml || '').replace(/\s+/g, ' ').trim();
+			var notesSentence = stripTagsHtml(knownText || '').replace(/\s+/g, ' ').trim();
+			var notesCombined = notesKnown;
+			if (notesSentence && notesKnown) {
+				if (notesKnown.toLowerCase().indexOf(notesSentence.toLowerCase()) !== 0) {
+					notesCombined = notesSentence + (/[.!?…]$/.test(notesSentence) ? ' ' : '. ') + notesKnown;
+				}
+			} else if (notesSentence) {
+				notesCombined = notesSentence;
+			}
+			if (notesCombined) {
+				var notesBox = document.createElement('div');
+				notesBox.className = 'llm-phrase-game__story-chip-notes-tr';
+				var notesLab = document.createElement('p');
+				notesLab.className = 'llm-phrase-game__story-chip-notes-tr-label';
+				notesLab.textContent = i18n.notesTranslation || 'Traduzione delle note';
+				var notesBody = document.createElement('p');
+				notesBody.className = 'llm-phrase-game__story-chip-notes-tr-text';
+				notesBody.textContent = notesCombined;
+				notesBox.appendChild(notesLab);
+				notesBox.appendChild(notesBody);
+				chip.appendChild(notesBox);
+			}
+		}
+		var head = document.createElement('div');
+		head.className = 'llm-phrase-game__story-chip-head';
 		if (!isNaN(parsedChipIx) && parsedChipIx >= 0) {
+			var numEl = document.createElement('p');
+			numEl.className = 'llm-phrase-game__story-chip-num';
+			numEl.textContent = String(i18n.phraseN || 'Frase %d').replace('%d', String(parsedChipIx + 1));
+			head.appendChild(numEl);
+		}
+		var langs = document.createElement('div');
+		langs.className = 'llm-phrase-game__story-chip-langs';
+		appendChipLangRow(langs, cfg.targetLangCode || '', targetText, 'llm-phrase-game__story-chip-row--target');
+		appendChipLangRow(langs, cfg.interfaceLangCode || '', knownText, 'llm-phrase-game__story-chip-row--known');
+		head.appendChild(langs);
+		chip.appendChild(head);
+		var rememberHtml = rememberHtmlForChip(chipPhrase);
+		if (rememberHtml) {
+			var rememberEl = document.createElement('div');
+			rememberEl.className = 'llm-phrase-game__story-chip-remember';
+			rememberEl.innerHTML = rememberHtml;
+			chip.appendChild(rememberEl);
+		}
+		if (!isNaN(parsedChipIx) && parsedChipIx >= 0) {
+			var actions = document.createElement('div');
+			actions.className = 'llm-phrase-game__story-chip-actions';
 			var goBtn = document.createElement('button');
 			goBtn.type = 'button';
-			goBtn.className = 'llm-phrase-game__story-chip-go button';
+			goBtn.className = 'llm-phrase-game__story-chip-go llm-phrase-game__story-action-btn button';
 			goBtn.textContent = i18n.goToPhrase || 'Vai a questa frase';
 			goBtn.addEventListener('click', function (ev) {
 				ev.preventDefault();
 				ev.stopPropagation();
 				setDisplayPhrase(parsedChipIx, goBtn);
 			});
-			chip.appendChild(goBtn);
+			actions.appendChild(goBtn);
+
+			function addChipListenBtn(label, gender) {
+				var listenBtn = document.createElement('button');
+				listenBtn.type = 'button';
+				listenBtn.className = 'llm-phrase-game__story-chip-listen llm-phrase-game__story-action-btn button';
+				listenBtn.textContent = label;
+				listenBtn.addEventListener('click', function (ev) {
+					ev.preventDefault();
+					ev.stopPropagation();
+					var targetText = chipPhrase ? (chipPhrase.target || '') : '';
+					speakTargetTranslation(targetText, listenBtn, {
+						voiceGender: gender,
+						phrase: chipPhrase
+					});
+				});
+				actions.appendChild(listenBtn);
+			}
+			addChipListenBtn(i18n.listenLabelMale || 'Ascolta Traduzione 1', 'male');
+			addChipListenBtn(i18n.listenLabelFemale || 'Ascolta Traduzione 2', 'female');
+
+			var notesBtn = document.createElement('button');
+			notesBtn.type = 'button';
+			notesBtn.className = 'llm-phrase-game__story-chip-notes-btn llm-phrase-game__story-action-btn button';
+			notesBtn.textContent = i18n.readNotesChip || 'Leggi gli appunti';
+			notesBtn.addEventListener('click', function (ev) {
+				ev.preventDefault();
+				ev.stopPropagation();
+				openStoryGrammarPopup(chipPhrase);
+			});
+			actions.appendChild(notesBtn);
+			chip.appendChild(actions);
 		}
 		lineEl.appendChild(chip);
 		return chip;
@@ -4101,8 +5543,15 @@
 		}
 		var lines = storyEl.querySelectorAll('.llm-phrase-game__story-line');
 		lines.forEach(function (line) {
-			var text = plainSpeechText(line.textContent || '');
-			var phrase = findPhraseForStoryLine(text);
+			var phrase = null;
+			var ix = line.dataset && line.dataset.phraseIndex != null ? parseInt(line.dataset.phraseIndex, 10) : NaN;
+			if (!isNaN(ix) && phrases[ix]) {
+				phrase = phrases[ix];
+			} else {
+				var targetEl = qs(line, '.llm-phrase-game__story-line-target');
+				var text = plainSpeechText((targetEl || line).textContent || '');
+				phrase = findPhraseForStoryLine(text);
+			}
 			if (!phrase) {
 				return;
 			}
@@ -4157,8 +5606,12 @@
 			return String(item || '').trim();
 		}).filter(Boolean)
 		: [];
+	var grammarTopicsText = String(cfg.grammarTopicsText || '').trim();
+	if (!grammarTopicsText && grammarTopics.length) {
+		grammarTopicsText = grammarTopics.join('\n');
+	}
 	var hasStoryIntro = !!(cfg.storyIntro && String(cfg.storyIntro).trim());
-	if ((hasStoryIntro || grammarTopics.length) && storyEl) {
+	if ((hasStoryIntro || grammarTopicsText) && storyEl) {
 		var introWrap = document.createElement('div');
 		introWrap.className = 'llm-phrase-game__story-intro';
 		var introLabel = document.createElement('span');
@@ -4171,45 +5624,105 @@
 			introText.className = 'llm-phrase-game__story-intro-text';
 			introWrap.appendChild(introText);
 		}
-		if (grammarTopics.length) {
-			var topicsLang = String(cfg.targetLangLabel || '').trim();
-			var topicsLevel = String(cfg.cefrLevel || '').trim();
-			var topicsList = grammarTopics.join(', ');
-			var topicsBody = String(i18n.grammarTopicsBody || '')
-				.replace('%1$s', topicsLang)
-				.replace('%2$s', topicsLevel)
-				.replace('%3$s', topicsList);
+		if (grammarTopicsText) {
 			var topicsAcc = document.createElement('div');
 			topicsAcc.className = 'llm-phrase-game__grammar-topics';
-			var topicsPanelId = 'llm-grammar-topics-' + String(cfg.storyId || '0');
+			var topicsDialogId = 'llm-grammar-topics-dialog-' + String(cfg.storyId || '0');
 			var topicsBtn = document.createElement('button');
 			topicsBtn.type = 'button';
 			topicsBtn.className = 'llm-phrase-game__notes-acc llm-phrase-game__grammar-topics-toggle';
-			topicsBtn.setAttribute('aria-expanded', 'false');
-			topicsBtn.setAttribute('aria-controls', topicsPanelId);
+			topicsBtn.setAttribute('aria-haspopup', 'dialog');
+			topicsBtn.setAttribute('aria-controls', topicsDialogId);
 			var topicsTitle = document.createElement('span');
 			topicsTitle.className = 'llm-phrase-game__notes-acc-text';
-			topicsTitle.textContent = i18n.grammarTopicsTitle || 'Topic Grammaticali';
-			var topicsChevron = document.createElement('span');
-			topicsChevron.className = 'llm-phrase-game__tool-accordion-chevron';
-			topicsChevron.setAttribute('aria-hidden', 'true');
+			topicsTitle.textContent = i18n.grammarTopicsTitle || 'Topic grammaticali che imparerai →';
 			topicsBtn.appendChild(topicsTitle);
-			topicsBtn.appendChild(topicsChevron);
-			var topicsPanel = document.createElement('div');
-			topicsPanel.id = topicsPanelId;
-			topicsPanel.className = 'llm-phrase-game__grammar-topics-panel';
-			topicsPanel.hidden = true;
-			var topicsP = document.createElement('p');
-			topicsP.className = 'llm-phrase-game__grammar-topics-text';
-			topicsP.textContent = topicsBody;
-			topicsPanel.appendChild(topicsP);
+			var topicsOverlay = document.createElement('div');
+			topicsOverlay.className = 'llm-grammar-topics-overlay';
+			if (root.classList.contains('llm-phrase-game--theme-light')) {
+				topicsOverlay.classList.add('llm-grammar-topics-overlay--light');
+			} else {
+				topicsOverlay.classList.add('llm-grammar-topics-overlay--dark');
+			}
+			topicsOverlay.hidden = true;
+			var topicsDialog = document.createElement('div');
+			topicsDialog.id = topicsDialogId;
+			topicsDialog.className = 'llm-grammar-topics-dialog';
+			topicsDialog.setAttribute('role', 'dialog');
+			topicsDialog.setAttribute('aria-modal', 'true');
+			topicsDialog.setAttribute('aria-labelledby', topicsDialogId + '-title');
+			var topicsClose = document.createElement('button');
+			topicsClose.type = 'button';
+			topicsClose.className = 'llm-grammar-topics-dialog__close';
+			topicsClose.setAttribute('aria-label', i18n.close || 'Chiudi');
+			topicsClose.textContent = '×';
+			var topicsHead = document.createElement('h2');
+			topicsHead.id = topicsDialogId + '-title';
+			topicsHead.className = 'llm-grammar-topics-dialog__title';
+			topicsHead.textContent = i18n.grammarTopicsHeading || i18n.grammarTopicsTitle || 'Cosa imparerai in questa storia';
+			var topicsBody = document.createElement('div');
+			topicsBody.className = 'llm-grammar-topics-dialog__body';
+			parseGrammarTopicItems(grammarTopicsText).forEach(function (item, itemIx) {
+				var wrap = document.createElement('div');
+				wrap.className = 'llm-grammar-topics-dialog__item';
+				if (item.title) {
+					var titleNode = document.createElement('p');
+					titleNode.className = 'llm-grammar-topics-dialog__topic';
+					var titleText = item.title;
+					if (!/^\d+[\.)]\s/.test(titleText)) {
+						titleText = String(itemIx + 1) + '. ' + titleText;
+					}
+					titleNode.innerHTML = formatGrammarTopicHtml(titleText);
+					wrap.appendChild(titleNode);
+				}
+				item.lines.forEach(function (desc) {
+					var lineNode = document.createElement('p');
+					lineNode.className = 'llm-grammar-topics-dialog__line';
+					lineNode.innerHTML = formatGrammarTopicHtml(desc);
+					wrap.appendChild(lineNode);
+				});
+				topicsBody.appendChild(wrap);
+			});
+			topicsDialog.appendChild(topicsClose);
+			topicsDialog.appendChild(topicsHead);
+			topicsDialog.appendChild(topicsBody);
+			topicsOverlay.appendChild(topicsDialog);
+			function closeGrammarTopicsPopup() {
+				topicsOverlay.hidden = true;
+				topicsBtn.setAttribute('aria-expanded', 'false');
+				document.body.classList.remove('llm-grammar-topics-open');
+				if (topicsOverlay.parentNode === document.body) {
+					topicsAcc.appendChild(topicsOverlay);
+				}
+				topicsBtn.focus();
+			}
+			function openGrammarTopicsPopup() {
+				topicsOverlay.hidden = false;
+				topicsBtn.setAttribute('aria-expanded', 'true');
+				document.body.classList.add('llm-grammar-topics-open');
+				document.body.appendChild(topicsOverlay);
+				topicsClose.focus();
+			}
 			topicsBtn.addEventListener('click', function () {
-				var open = topicsBtn.getAttribute('aria-expanded') === 'true';
-				topicsBtn.setAttribute('aria-expanded', open ? 'false' : 'true');
-				topicsPanel.hidden = open;
+				if (topicsOverlay.hidden) {
+					openGrammarTopicsPopup();
+				} else {
+					closeGrammarTopicsPopup();
+				}
+			});
+			topicsClose.addEventListener('click', closeGrammarTopicsPopup);
+			topicsOverlay.addEventListener('click', function (event) {
+				if (event.target === topicsOverlay) {
+					closeGrammarTopicsPopup();
+				}
+			});
+			document.addEventListener('keydown', function (event) {
+				if (event.key === 'Escape' && !topicsOverlay.hidden) {
+					closeGrammarTopicsPopup();
+				}
 			});
 			topicsAcc.appendChild(topicsBtn);
-			topicsAcc.appendChild(topicsPanel);
+			topicsAcc.appendChild(topicsOverlay);
 			introWrap.appendChild(topicsAcc);
 		}
 		if (storyEl.firstChild) {
@@ -4228,7 +5741,7 @@
 					introWrap.classList.add('llm-phrase-game__story-intro--visible');
 				});
 			});
-		} else if (pendingStoryIntroTypewriter || grammarTopics.length) {
+		} else if (pendingStoryIntroTypewriter || grammarTopicsText) {
 			/* Prima visita: niente typewriter, solo fade (transition su opacity) */
 			introWrap.classList.add('llm-phrase-game__story-intro--visible');
 			introComplete = true;
@@ -4255,11 +5768,15 @@
 					phraseIndex = parsedIx;
 				}
 			}
-			block.innerHTML = String(target);
 			block.dataset.phraseIndex = String(phraseIndex);
 			if (iface) {
 				block.dataset.translation = iface;
 			}
+			var pLine = phrases[phraseIndex] || {};
+			if (pLine.notes) {
+				block.dataset.storyNotes = pLine.notes;
+			}
+			fillStoryLineNow(block, target, pLine, iface || pLine.interface || '');
 			storyEl.appendChild(block);
 			appendStoryPhotosAfter(phraseIndex);
 		});
@@ -4322,7 +5839,7 @@
 	mountUpcomingHint();
 	hydrateStoryLineTranslations();
 
-		var restartBtnEl = doneEl ? qs(doneEl, '.llm-phrase-game__restart-btn') : null;
+		var restartBtnEl = qs(root, '.llm-phrase-game__restart-btn');
 
 	/* ── Click su riga storia: TTS + etichetta traduzione ─── */
 	function findPhraseForStoryLine(targetText) {
@@ -4347,7 +5864,8 @@
 	storyEl && storyEl.addEventListener('click', function (e) {
 		if (e.target && e.target.closest && (
 			e.target.closest('.llm-phrase-game__story-photo') ||
-			e.target.closest('.llm-phrase-game__story-chip-go')
+			e.target.closest('.llm-phrase-game__story-chip') ||
+			e.target.closest('.llm-phrase-game__story-notes-pop')
 		)) {
 			return;
 		}
@@ -4355,15 +5873,18 @@
 		if (!line) {
 			return;
 		}
-		/* TTS (solo testo, senza tag) */
-		var text = plainSpeechText(line.textContent || '');
-		if (text) {
-			speakTargetTranslation(text, null);
-		}
+		var targetSpeak = qs(line, '.llm-phrase-game__story-line-target');
+		var text = plainSpeechText((targetSpeak || line).textContent || '');
 		/* Traduzione */
-		var phrase = findPhraseForStoryLine(text);
+		var phrase = null;
+		var lineIx = line.dataset && line.dataset.phraseIndex != null ? parseInt(line.dataset.phraseIndex, 10) : NaN;
+		if (!isNaN(lineIx) && phrases[lineIx]) {
+			phrase = phrases[lineIx];
+		} else {
+			phrase = findPhraseForStoryLine(text);
+		}
 		var translation = line.dataset.translation || (phrase && phrase.interface) || '';
-		if (!translation) {
+		if (!translation && !(phrase && phrase.target)) {
 			return;
 		}
 		line.dataset.translation = translation;
@@ -4382,7 +5903,7 @@
 		if ((chipIx == null || chipIx === '') && phrase && phrase.index != null) {
 			chipIx = phrase.index;
 		}
-		openStoryChip = attachStoryTranslationChip(line, translation, notes, chipIx);
+		openStoryChip = attachStoryTranslationChip(line, translation, notes, chipIx, phrase);
 	});
 	document.addEventListener('click', function (e) {
 		if (!openStoryChip) {
@@ -4393,7 +5914,7 @@
 			closeOpenStoryChip();
 			return;
 		}
-		if (t.closest && (t.closest('.llm-phrase-game__story-line') || t.closest('.llm-phrase-game__story-chip'))) {
+		if (t.closest && (t.closest('.llm-phrase-game__story-line') || t.closest('.llm-phrase-game__story-chip') || t.closest('.llm-phrase-game__story-notes-pop'))) {
 			return;
 		}
 		closeOpenStoryChip();
@@ -4557,6 +6078,10 @@
 		if (!btn || btn._llmListenWrapReady) {
 			return;
 		}
+		if (btn.classList.contains('llm-phrase-game__story-chip-listen')) {
+			btn._llmListenWrapReady = true;
+			return;
+		}
 		var wrap = btn.closest('.llm-phrase-game__listen-target-wrap');
 		if (!wrap) {
 			var parent = btn.parentNode;
@@ -4590,6 +6115,36 @@
 		}
 	}
 
+	function getListenReplaySlots(micPhase) {
+		var voice1 = getListenBtnForPhase(micPhase);
+		if (!voice1) {
+			return [];
+		}
+		var cluster = voice1.closest('.llm-phrase-game__listen-cluster');
+		var files = phraseFileAudio(phrases[phraseIx]);
+		var v1 = cluster ? qs(cluster, '.llm-phrase-game__listen-target--voice-1') : voice1;
+		var v2 = cluster ? qs(cluster, '.llm-phrase-game__listen-target--voice-2') : null;
+		var slow1 = cluster ? qs(cluster, '[data-llm-listen-slow][data-llm-listen-voice="male"]') : null;
+		var slow2 = cluster ? qs(cluster, '[data-llm-listen-slow][data-llm-listen-voice="female"]') : null;
+		var slots = [];
+		if (v1 && !v1.hidden) {
+			slots.push({ btn: v1, gender: 'male', slow: false });
+			if (slow1) {
+				slots.push({ btn: v1, gender: 'male', slow: true });
+			}
+		}
+		if (v2 && !v2.hidden && files.hasBoth) {
+			slots.push({ btn: v2, gender: 'female', slow: false });
+			if (slow2) {
+				slots.push({ btn: v2, gender: 'female', slow: true });
+			}
+		}
+		if (!slots.length && voice1) {
+			slots.push({ btn: voice1, gender: listenVoiceGender || 'male', slow: false });
+		}
+		return slots;
+	}
+
 	function scheduleListenReplayAfterMic(micPhase) {
 		if (!listenReplayAfterMic) {
 			return;
@@ -4597,12 +6152,19 @@
 		clearListenReplayTimer();
 		listenReplayTimer = setTimeout(function () {
 			listenReplayTimer = null;
-			var listenBtn = getListenBtnForPhase(micPhase);
 			var p = phrases[phraseIx];
-			if (!listenBtn || !p) {
+			var slots = getListenReplaySlots(micPhase);
+			if (!p || !slots.length) {
 				return;
 			}
-			speakTargetTranslation(p.target || '', listenBtn);
+			var slot = slots[listenReplayTurn % slots.length];
+			listenReplayTurn += 1;
+			var opts = { voiceGender: slot.gender };
+			if (slot.slow) {
+				opts.slow = true;
+				opts.rate = AUDIO_FILE_SLOW_RATE;
+			}
+			speakTargetTranslation(p.target || '', slot.btn, opts);
 		}, LISTEN_REPLAY_DELAY_MS);
 	}
 
@@ -5063,6 +6625,79 @@
 		}
 	}
 
+	function clearMicBlueFade() {
+		if (micBlueFadeTimer !== null) {
+			clearTimeout(micBlueFadeTimer);
+			micBlueFadeTimer = null;
+		}
+		micFreshTokenCount = 0;
+	}
+
+	function paintMicNewWords(ta, newFrom) {
+		if (!ta || ta !== inputVoice) {
+			return;
+		}
+		var tokens = splitSymbolTokens(ta.value || '');
+		if (!tokens.length || newFrom >= tokens.length) {
+			hideVoiceExtrasMark();
+			return;
+		}
+		var html = [];
+		var i;
+		for (i = 0; i < tokens.length; i++) {
+			var lead = escapeControllaHtml(tokens[i].lead || '');
+			var word = escapeControllaHtml(tokens[i].word || '');
+			var trail = escapeControllaHtml(tokens[i].trail || '');
+			if (i >= newFrom) {
+				html.push(lead + '<strong class="llm-phrase-game__voice-new">' + word + '</strong>' + trail);
+			} else {
+				html.push(escapeControllaHtml(formatSymbolToken(tokens[i])));
+			}
+		}
+		showVoiceExtrasMark(html.join(' '));
+	}
+
+	function flashMicNewWordsThen(ta, startVal, done) {
+		if (!ta || ta !== inputVoice) {
+			return false;
+		}
+		var startN = splitSymbolTokens(startVal || '').length;
+		var nowN = splitSymbolTokens(ta.value || '').length;
+		if (nowN <= startN) {
+			hideVoiceExtrasMark();
+			return false;
+		}
+		paintMicNewWords(ta, startN);
+		clearTimeout(micBlueFadeTimer);
+		micBlueFadeTimer = setTimeout(function () {
+			micBlueFadeTimer = null;
+			micFreshTokenCount = 0;
+			hideVoiceExtrasMark();
+			if (typeof done === 'function') {
+				done();
+			}
+		}, 1100);
+		return true;
+	}
+
+	function afterMicVoiceSettled(ta) {
+		if (hasVoiceField && ta === inputVoice) {
+			resumeControllaAfterVoiceInsert();
+			if (!ControllaSeEsattaLaFrase(ta)) {
+				try {
+					inputVoice.focus({ preventScroll: true });
+				} catch (e) {
+					inputVoice.focus();
+				}
+			}
+		}
+		syncOrdinaExactButton(ta);
+		if (!playOrdinaExactAnimation(ta, 3000) && hasVoiceField && ta === inputVoice) {
+			controllaSimboliVoiceField();
+			ControllaSeEsattaLaFrase(ta);
+		}
+	}
+
 	function setVoiceFieldControllaText(next, html) {
 		next = normalizeControllaSentence(next);
 		var prev = inputVoice.value || '';
@@ -5097,6 +6732,7 @@
 			hideVoiceExtrasMark();
 		}
 		syncWriteTranslatePeekBlur();
+		ControllaSeEsattaLaFrase(inputVoice);
 	}
 
 	function clearControllaStrikeTimer() {
@@ -5117,6 +6753,7 @@
 		}
 		clearControllaStrikeTimer();
 		hideVoiceExtrasMark();
+		clearMicBlueFade();
 	}
 
 	function resumeControllaAfterVoiceInsert() {
@@ -5161,12 +6798,14 @@
 		var raw = stripControllaStrike(inputVoice.value || '');
 		if (!raw.trim()) {
 			hideRewindExactButton(inputVoice._llmRewindBtn);
+			hideOrdinaExactButton(inputVoice._llmOrdinaBtn);
 			return;
 		}
 		var p = phrases[phraseIx] || {};
 		var target = stripTagsHtml(p.target || '');
 		if (!target) {
 			hideRewindExactButton(inputVoice._llmRewindBtn);
+			hideOrdinaExactButton(inputVoice._llmOrdinaBtn);
 			return;
 		}
 		var next = applyControllaSimboliTwice(raw, target);
@@ -5177,6 +6816,7 @@
 			return;
 		}
 		setVoiceFieldControllaText(marked.text, marked.hasExtras ? marked.html : '');
+		syncOrdinaExactButton(inputVoice);
 		if (!marked.hasExtras) {
 			revealRewindAfterControlla(inputVoice);
 			return;
@@ -5210,17 +6850,16 @@
 		function complete() {
 			var sessionText = getMicSessionSpokenText();
 			var recognitionStarted = micRecognitionStarted;
+			var startVal = speechSessionStartValue;
 			stopSpeech();
-			if (hasVoiceField && ta === inputVoice) {
-				resumeControllaAfterVoiceInsert();
-				controllaSimboliVoiceField();
-				try {
-					inputVoice.focus({ preventScroll: true });
-				} catch (e) {
-					inputVoice.focus();
-				}
-			}
 			ensureTrailingMicSpace(ta);
+			syncOrdinaExactButton(ta);
+			var flashed = flashMicNewWordsThen(ta, startVal, function () {
+				afterMicVoiceSettled(ta);
+			});
+			if (!flashed) {
+				afterMicVoiceSettled(ta);
+			}
 			if (opts.feedback !== false && btn) {
 				showMicSessionFeedback(btn, sessionText, recognitionStarted, micPhase);
 				scheduleListenReplayAfterMic(micPhase);
@@ -5347,7 +6986,7 @@
 				gender = 'female';
 			}
 			listenVoiceGender = gender;
-			var stacked = isCompactListenStack() && files.hasBoth;
+			var stacked = !!files.hasBoth;
 			var label = gender === 'female'
 				? (i18n.listenLabelFemale || '')
 				: (i18n.listenLabelMale || '');
@@ -5527,7 +7166,7 @@
 			if (!btnEl) {
 				return;
 			}
-			var files = phraseFileAudio();
+			var files = opts.files || phraseFileAudio(opts.phrase);
 			var rateOpt = typeof opts.rate === 'number' ? opts.rate : null;
 			if (files.hasAny && !opts.forceBrowser) {
 				var gender = opts.voiceGender || listenVoiceGender;
@@ -5618,6 +7257,7 @@
 		if (!useAzure && !useDeepgram && !Rec) { return; }
 
 		stopSpeech();
+		clearOrdinaExactAnimation();
 		cancelTts();
 		clearListenReplayTimer();
 		hideMicSessionFeedback(micBtn);
@@ -5626,32 +7266,19 @@
 		markHintSeen('mic');
 		activeMicTa = textarea;
 		activeMicBtn = micBtn;
+		setActiveCaretField(textarea);
 		speechSessionStartValue = textarea.value;
 		speechInsertSuffix = '';
-		if (hasVoiceField && textarea === inputVoice) {
-			var val = String(textarea.value || '');
-			var caretStart;
-			var caretEnd;
-			if (document.activeElement === textarea && typeof textarea.selectionStart === 'number') {
-				caretStart = textarea.selectionStart;
-				caretEnd = typeof textarea.selectionEnd === 'number' ? textarea.selectionEnd : caretStart;
-			} else if (voiceCaret.start !== null && voiceCaret.start !== undefined) {
-				caretStart = voiceCaret.start;
-				caretEnd = voiceCaret.end !== null && voiceCaret.end !== undefined ? voiceCaret.end : caretStart;
-			} else {
-				caretStart = val.length;
-				caretEnd = val.length;
-			}
-			caretStart = Math.max(0, Math.min(caretStart, val.length));
-			caretEnd = Math.max(caretStart, Math.min(caretEnd, val.length));
-			speechInsertSuffix = val.slice(caretEnd);
-			speechBase = val.slice(0, caretStart);
-		} else {
-			speechBase = textarea.value;
-		}
+		var micVal = String(textarea.value || '');
+		var micCaret = readInputCaret(textarea);
+		speechInsertSuffix = micVal.slice(micCaret.end);
+		speechBase = micVal.slice(0, micCaret.start);
 		if (speechBase.length && !/\s$/.test(speechBase)) { speechBase += ' '; }
 		speechSegmentTranscript = '';
 		lastCommittedSpeechKey = '';
+		clearMicBlueFade();
+		hideVoiceExtrasMark();
+		hideOrdinaExactButton(textarea._llmOrdinaBtn);
 		micState = 'pending';
 		micPendingPhaseDone = false;
 		micRecognitionStarted = false;
@@ -5953,7 +7580,7 @@
 				return;
 			}
 			var ta = typeof textareaOrFn === 'function' ? textareaOrFn() : textareaOrFn;
-			if (!ta) {
+			if (!ta || isFieldExactOk(ta) || isFieldExactSealed(ta)) {
 				return;
 			}
 			startMicSession(ta, micBtn);
@@ -5971,7 +7598,7 @@
 
 		(function bindMicSwitcher() {
 			var STORAGE_KEY = 'llm_stt_engine';
-			var ORDER = ['deepgram', 'azure', 'browser'];
+			var ORDER = ['azure', 'deepgram', 'browser'];
 			var stages = qsa(root, '[data-llm-mic-stage]');
 			if (!stages.length) {
 				return;
@@ -6375,6 +8002,137 @@
 		return stripTagsHtml(p.target || '');
 	}
 
+	function hideOrdinaExactButton(ordinaBtn) {
+		if (!ordinaBtn) {
+			return;
+		}
+		ordinaBtn.hidden = true;
+	}
+
+	function clearOrdinaExactAnimation() {
+		if (ordinaAnimTimer !== null) {
+			clearTimeout(ordinaAnimTimer);
+			ordinaAnimTimer = null;
+		}
+		ordinaAnimPlaying = false;
+		if (inputVoice && inputVoice._llmOrdinaBtn) {
+			inputVoice._llmOrdinaBtn.classList.remove('is-lit');
+		}
+	}
+
+	function paintOrdinaExactWords(ta) {
+		if (!ta || ta !== inputVoice) {
+			return;
+		}
+		var users = splitSymbolTokens(ta.value || '');
+		var refs = splitSymbolTokens(plainSpeechText(currentPhraseTargetText()));
+		if (!users.length) {
+			hideVoiceExtrasMark();
+			return;
+		}
+		var usedUser = [];
+		var exactUser = [];
+		var i;
+		for (i = 0; i < users.length; i++) {
+			usedUser[i] = false;
+			exactUser[i] = false;
+		}
+		for (i = 0; i < refs.length; i++) {
+			var uMatch = controllaFindUnusedRef(refs[i].word, users, usedUser);
+			if (uMatch < 0) {
+				continue;
+			}
+			usedUser[uMatch] = true;
+			exactUser[uMatch] = true;
+		}
+		var html = [];
+		for (i = 0; i < users.length; i++) {
+			var lead = escapeControllaHtml(users[i].lead || '');
+			var word = escapeControllaHtml(users[i].word || '');
+			var trail = escapeControllaHtml(users[i].trail || '');
+			if (exactUser[i]) {
+				html.push(lead + '<span class="llm-phrase-game__voice-exact">' + word + '</span>' + trail);
+			} else {
+				html.push(escapeControllaHtml(formatSymbolToken(users[i])));
+			}
+		}
+		showVoiceExtrasMark(html.join(' '));
+	}
+
+	function applyOrdinaExactResult(textarea, info) {
+		if (!textarea || !info) {
+			return;
+		}
+		var next = info.text;
+		if (textarea === inputVoice && typeof withTrailingMicSpace === 'function') {
+			next = withTrailingMicSpace(next);
+		}
+		textarea.value = next;
+		if (textarea === inputVoice) {
+			hideVoiceExtrasMark();
+		}
+		if (typeof textarea._llmSyncClearBtn === 'function') {
+			textarea._llmSyncClearBtn();
+		} else {
+			syncOrdinaExactButton(textarea);
+		}
+		if (ControllaSeEsattaLaFrase(textarea)) {
+			return;
+		}
+		try {
+			textarea.focus({ preventScroll: true });
+			textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+		} catch (e) {
+			try {
+				textarea.focus();
+			} catch (e2) { /* ignore */ }
+		}
+	}
+
+	function playOrdinaExactAnimation(textarea, holdMs) {
+		if (!textarea || ordinaAnimPlaying) {
+			return false;
+		}
+		var ordinaBtn = textarea._llmOrdinaBtn;
+		var info = OrdinaParoleEsatte(textarea.value || '', currentPhraseTargetText());
+		if (!info || !info.changed) {
+			return false;
+		}
+		var wait = typeof holdMs === 'number' && holdMs > 0 ? holdMs : 1000;
+		ordinaAnimPlaying = true;
+		if (textarea === inputVoice) {
+			clearControllaStrikeTimer();
+			clearMicBlueFade();
+		}
+		if (ordinaBtn) {
+			ordinaBtn.hidden = false;
+		}
+		paintOrdinaExactWords(textarea);
+		ordinaAnimTimer = setTimeout(function () {
+			ordinaAnimTimer = null;
+			ordinaAnimPlaying = false;
+			applyOrdinaExactResult(textarea, info);
+			hideOrdinaExactButton(ordinaBtn);
+		}, wait);
+		return true;
+	}
+
+	function syncOrdinaExactButton(textarea) {
+		var ordinaBtn = textarea && textarea._llmOrdinaBtn;
+		if (!ordinaBtn) {
+			return;
+		}
+		if (ordinaAnimPlaying) {
+			return;
+		}
+		if (micSessionActive || !textarea || !(textarea.value || '').trim()) {
+			hideOrdinaExactButton(ordinaBtn);
+			return;
+		}
+		var info = OrdinaParoleEsatte(textarea.value || '', currentPhraseTargetText());
+		ordinaBtn.hidden = !info || !info.changed;
+	}
+
 	function hideRewindExactButton(rewindBtn) {
 		if (!rewindBtn) {
 			return;
@@ -6409,6 +8167,20 @@
 			return;
 		}
 		syncRewindExactButton(textarea, textarea._llmRewindBtn);
+		syncOrdinaExactButton(textarea);
+	}
+
+	function deleteLastInputWord(text) {
+		var s = String(text || '');
+		s = s.replace(/[\s\u00a0]+$/g, '');
+		try {
+			s = s.replace(/[\p{P}\p{S}]+$/gu, '');
+		} catch (e) {
+			s = s.replace(/[.,;:!?…·'"«»„”()[\]{}—–\-¿¡]+$/g, '');
+		}
+		s = s.replace(/[\s\u00a0]+$/g, '');
+		s = s.replace(/[^\s\u00a0]+$/g, '');
+		return s.replace(/[\s\u00a0]+$/g, '');
 	}
 
 	function syncClearInputVisibility(textarea, clearBtn) {
@@ -6416,6 +8188,13 @@
 			return;
 		}
 		var wrap = clearBtn.closest('.llm-phrase-game__clear-wrap');
+		if (isFieldExactOk(textarea) || isFieldExactSealed(textarea)) {
+			setActionFadeVisible(wrap, false);
+			hideRewindExactButton(textarea._llmRewindBtn);
+			hideOrdinaExactButton(textarea._llmOrdinaBtn);
+			fitPhraseInputHeight(textarea);
+			return;
+		}
 		setActionFadeVisible(wrap, !!(textarea.value || '').trim());
 		if (textarea === inputVoice) {
 			hideRewindExactButton(textarea._llmRewindBtn);
@@ -6425,23 +8204,63 @@
 		fitPhraseInputHeight(textarea);
 	}
 
-		function bindClearInput(clearBtn, rewindBtn, textarea, onClear) {
+		function bindClearInput(clearBtn, rewindBtn, textarea, onClear, ordinaBtn) {
 			if (!clearBtn || !textarea) {
 				return;
 			}
+			var wrap = clearBtn.closest('.llm-phrase-game__clear-wrap');
+			var deleteBtn = wrap ? qs(wrap, '.llm-phrase-game__delete-word') : null;
 			textarea._llmRewindBtn = rewindBtn || null;
+			textarea._llmOrdinaBtn = ordinaBtn || null;
 			function sync() {
 				syncClearInputVisibility(textarea, clearBtn);
+				syncOrdinaExactButton(textarea);
 			}
 			textarea._llmSyncClearBtn = sync;
 			textarea.addEventListener('input', sync);
 			sync();
+			if (deleteBtn) {
+				deleteBtn.addEventListener('mousedown', function (e) {
+					e.preventDefault();
+				});
+				deleteBtn.addEventListener('click', function () {
+					if (isPhraseInputLocked(textarea) || isFieldExactOk(textarea) || isFieldExactSealed(textarea)) {
+						return;
+					}
+					var next = deleteLastInputWord(textarea.value || '');
+					if (next === (textarea.value || '')) {
+						return;
+					}
+					stopSpeech();
+					clearOrdinaExactAnimation();
+					if (textarea === inputVoice) {
+						pauseControllaForVoiceDelete();
+						hideVoiceExtrasMark();
+						clearMicBlueFade();
+					}
+					textarea.value = next;
+					textarea.dispatchEvent(new Event('input', { bubbles: true }));
+					sync();
+					if (typeof onClear === 'function') {
+						onClear();
+					}
+					try {
+						textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+					} catch (e) {
+						/* ignore */
+					}
+					storeInputCaret(textarea, textarea.value.length, textarea.value.length);
+					textarea.focus();
+				});
+			}
 			clearBtn.addEventListener('click', function () {
 				stopSpeech();
+				clearOrdinaExactAnimation();
 				textarea.value = '';
 				if (textarea === inputVoice) {
 					clearControllaStrikeTimer();
 					hideVoiceExtrasMark();
+					clearMicBlueFade();
 				}
 				sync();
 				if (typeof onClear === 'function') {
@@ -6456,9 +8275,11 @@
 						return;
 					}
 					stopSpeech();
+					clearOrdinaExactAnimation();
 					if (textarea === inputVoice) {
 						clearControllaStrikeTimer();
 						hideVoiceExtrasMark();
+						clearMicBlueFade();
 					}
 					var next = info.text;
 					if (textarea === inputVoice && typeof withTrailingMicSpace === 'function') {
@@ -6474,6 +8295,17 @@
 						textarea.setSelectionRange(textarea.value.length, textarea.value.length);
 					} catch (e) {
 						/* ignore */
+					}
+				});
+			}
+			if (ordinaBtn) {
+				ordinaBtn.addEventListener('click', function () {
+					if (ordinaAnimPlaying) {
+						return;
+					}
+					stopSpeech();
+					if (!playOrdinaExactAnimation(textarea)) {
+						hideOrdinaExactButton(ordinaBtn);
 					}
 				});
 			}
@@ -6493,7 +8325,7 @@
 			setMessage('');
 			setMessagePhase2('', '');
 			syncWriteTranslatePeekBlur();
-		});
+		}, ordinaVoice);
 
 		if (input2) {
 			input2.addEventListener('input', function () {
@@ -6521,11 +8353,15 @@
 					cancelTts();
 					return;
 				}
+				if (maybeShowListenThinkPopup()) {
+					return;
+				}
+				hideListenThinkPopup();
 				var p = phrases[phraseIx];
 				var opts = {};
 				var cluster = btn.closest('.llm-phrase-game__listen-cluster');
 				var voice2 = cluster ? qs(cluster, '.llm-phrase-game__listen-target--voice-2') : null;
-				var stacked = voice2 && !voice2.hidden && isCompactListenStack();
+				var stacked = voice2 && !voice2.hidden;
 				if (stacked) {
 					opts.voiceGender = btn.classList.contains('llm-phrase-game__listen-target--voice-2')
 						? 'female'
@@ -6557,10 +8393,18 @@
 				e.preventDefault();
 			});
 			slowBtn.addEventListener('click', function () {
+				if (maybeShowListenThinkPopup()) {
+					return;
+				}
+				hideListenThinkPopup();
 				var cluster = slowBtn.closest('.llm-phrase-game__listen-cluster');
+				var row = slowBtn.closest('.llm-phrase-game__listen-voice-row');
+				var voice = slowBtn.getAttribute('data-llm-listen-voice') || '';
 				var btn = listenTargetBtn;
-				if (cluster) {
-					var sel = listenVoiceGender === 'female'
+				if (row) {
+					btn = qs(row, '.llm-phrase-game__listen-target') || btn;
+				} else if (cluster) {
+					var sel = (voice === 'female' || listenVoiceGender === 'female')
 						? '.llm-phrase-game__listen-target--voice-2'
 						: '.llm-phrase-game__listen-target--voice-1';
 					btn = qs(cluster, sel) || qs(cluster, '.llm-phrase-game__listen-target') || listenTargetBtn;
@@ -6568,7 +8412,8 @@
 				var p = phrases[phraseIx];
 				speakTargetTranslation(p ? p.target : '', btn, {
 					slow: true,
-					rate: AUDIO_FILE_SLOW_RATE
+					rate: AUDIO_FILE_SLOW_RATE,
+					voiceGender: voice === 'female' || voice === 'male' ? voice : undefined
 				});
 			});
 		});
@@ -6751,8 +8596,10 @@
 			if (peekBlurLockedOn !== input1 && peekBlurLockedOn !== inputVoice) {
 				peekBlurLockedOn = inputVoice;
 			}
-			var blurFirst = peekBlurLockedOn === input1 && fieldHasWrittenText(input1) && active !== input1;
-			var blurVoice = peekBlurLockedOn === inputVoice && fieldHasWrittenText(inputVoice) &&
+			var blurFirst = !isFieldExactSealed(input1) && !isFieldExactOk(input1) &&
+				peekBlurLockedOn === input1 && fieldHasWrittenText(input1) && active !== input1;
+			var blurVoice = !isFieldExactSealed(inputVoice) && !isFieldExactOk(inputVoice) &&
+				peekBlurLockedOn === inputVoice && fieldHasWrittenText(inputVoice) &&
 				active !== inputVoice && !voiceMicOn;
 			input1.classList.toggle('llm-phrase-game__input--peek-blur', blurFirst);
 			inputVoice.classList.toggle('llm-phrase-game__input--peek-blur', blurVoice);
@@ -6957,8 +8804,74 @@
 			progressEl.textContent = t('progress', phraseIx + 1, phrases.length);
 		}
 
+	function listenInputsHaveCharAndSpace() {
+		var fields = [input1, input2, inputVoice];
+		var i;
+		for (i = 0; i < fields.length; i++) {
+			if (fields[i] && /\S\s/.test(String(fields[i].value || ''))) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	function hideListenThinkPopup() {
+		if (!listenThinkEl) {
+			return;
+		}
+		listenThinkEl.hidden = true;
+	}
+
+	function maybeShowListenThinkPopup() {
+		if (!listenThinkEl || listenInputsHaveCharAndSpace()) {
+			return false;
+		}
+		var msg = (cfg.listenThinkFirst || i18n.listenThinkFirst || '').trim();
+		if (listenThinkText && msg) {
+			listenThinkText.textContent = msg;
+		}
+		listenThinkEl.hidden = false;
+		return true;
+	}
+
+	if (listenThinkBackdrop) {
+		listenThinkBackdrop.addEventListener('click', function () {
+			hideListenThinkPopup();
+		});
+	}
+	document.addEventListener('pointerdown', function (e) {
+		if (!listenThinkEl || listenThinkEl.hidden) {
+			return;
+		}
+		var card = qs(listenThinkEl, '.llm-phrase-game__listen-think-card');
+		if (card && e.target && card.contains(e.target)) {
+			return;
+		}
+		hideListenThinkPopup();
+	}, true);
+
+	if (storyNotesPopBackdrop) {
+		storyNotesPopBackdrop.addEventListener('click', function () {
+			closeStoryGrammarPopup();
+		});
+	}
+	if (storyNotesPopClose) {
+		storyNotesPopClose.addEventListener('click', function (e) {
+			e.preventDefault();
+			e.stopPropagation();
+			closeStoryGrammarPopup();
+		});
+	}
+	document.addEventListener('keydown', function (e) {
+		if (e.key === 'Escape' && storyNotesPopEl && !storyNotesPopEl.hidden) {
+			closeStoryGrammarPopup();
+		}
+	});
+
 	function loadPhrase(resumeStep2) {
 		micWordsThisPhrase = 0;
+		hideListenThinkPopup();
+		closeStoryGrammarPopup();
 		hidePhase1Feedback();
 		hideLoadingNotes();
 		resetNotesPanel();
@@ -6970,16 +8883,33 @@
 		cancelAnalysisStream();
 			cancelStoryStream();
 			cancelPhraseIntro();
+		if (phraseIx < phrases.length && cardEl) {
+			cardEl.hidden = false;
+		}
 		if (phraseIx >= phrases.length) {
+			var activeInCard = document.activeElement;
+			if (cardEl && activeInCard && cardEl.contains(activeInCard) && typeof activeInCard.blur === 'function') {
+				activeInCard.blur();
+			}
 			cardEl.hidden = true;
 			if (cfg.storyFinale && storyEl && !storyEl.querySelector('.llm-phrase-game__story-finale')) {
 				var finaleWrap = document.createElement('div');
 				finaleWrap.className = 'llm-phrase-game__story-finale';
+				finaleWrap.setAttribute('tabindex', '-1');
 				var finaleText = document.createElement('div');
 				finaleText.className = 'llm-phrase-game__story-finale-text';
 				finaleWrap.appendChild(finaleText);
 				storyEl.appendChild(finaleWrap);
-				smoothScrollStoryToCenter().then(function () {
+				try {
+					finaleWrap.focus({ preventScroll: true });
+				} catch (eFocus) {
+					try {
+						finaleWrap.focus();
+					} catch (eFocus2) {
+						/* ignore */
+					}
+				}
+				smoothScrollIntoBlock(finaleWrap, 'start').then(function () {
 					finaleWrap.classList.add('llm-phrase-game__story-finale--visible');
 					var sr = ++storyStreamRun;
 					typewriterInto(finaleText, String(cfg.storyFinale), function () {
@@ -7008,6 +8938,7 @@
 			if (useResume) {
 				setMessage('');
 				setMessagePhase2('', '');
+				resetExactPhraseChecks();
 				input1.value = '';
 				input2.value = '';
 				if (inputVoice) { inputVoice.value = ''; }
@@ -7046,6 +8977,7 @@
 			}
 
 			resetAnalysis();
+			resetExactPhraseChecks();
 			input1.value = '';
 			input2.value = '';
 			if (inputVoice) { inputVoice.value = ''; }
@@ -7054,6 +8986,7 @@
 			voiceCaret.start = null;
 			voiceCaret.end = null;
 			clearControllaStrikeTimer();
+			clearOrdinaExactAnimation();
 			hideVoiceExtrasMark();
 			if (input1) { input1._llmCaret = null; }
 			if (input2) { input2._llmCaret = null; }
@@ -7276,10 +9209,10 @@
 
 		if (noOsKeyboard) {
 			bindFieldTapHint(input1, function () {
-				flashKeyboardHint(input1);
+				openKeyboardForWriteField(input1);
 			});
 			bindFieldTapHint(input2, function () {
-				flashKeyboardHint(input2);
+				openKeyboardForWriteField(input2);
 			});
 			bindFieldTapHint(inputVoice, function () {
 				flashMicHint();
@@ -7290,6 +9223,7 @@
 		setMessage('');
 		hidePhase1Feedback();
 		syncWriteTranslatePeekBlur();
+		ControllaSeEsattaLaFrase(input1);
 	});
 	if (inputVoice) {
 		inputVoice.addEventListener('input', function () {
@@ -7297,18 +9231,29 @@
 			setMessagePhase2('', '');
 			syncWriteTranslatePeekBlur();
 			scheduleControllaSimboliVoiceField();
+			ControllaSeEsattaLaFrase(inputVoice);
 		});
 		function saveVoiceCaret() {
 			if (!inputVoice || typeof inputVoice.selectionStart !== 'number') {
 				return;
 			}
-			voiceCaret.start = inputVoice.selectionStart;
-			voiceCaret.end = typeof inputVoice.selectionEnd === 'number' ? inputVoice.selectionEnd : voiceCaret.start;
+			if (isFieldExactOk(inputVoice) || isFieldExactSealed(inputVoice)) {
+				return;
+			}
+			storeInputCaret(inputVoice, inputVoice.selectionStart, inputVoice.selectionStart);
 		}
-		inputVoice.addEventListener('pointerdown', function () {
+		inputVoice.addEventListener('pointerdown', function (e) {
+			if (isFieldExactOk(inputVoice) || isFieldExactSealed(inputVoice)) {
+				e.preventDefault();
+				return;
+			}
 			rememberWriteTarget(inputVoice);
 		});
 		inputVoice.addEventListener('focus', function () {
+			if (isFieldExactOk(inputVoice) || isFieldExactSealed(inputVoice)) {
+				try { inputVoice.blur(); } catch (e) { /* ignore */ }
+				return;
+			}
 			rememberWriteTarget(inputVoice);
 			saveVoiceCaret();
 			syncWriteTranslatePeekBlur();
@@ -7319,12 +9264,28 @@
 		});
 		inputVoice.addEventListener('keyup', saveVoiceCaret);
 		inputVoice.addEventListener('mouseup', saveVoiceCaret);
+		inputVoice.addEventListener('pointerup', saveVoiceCaret);
 		document.addEventListener('selectionchange', function () {
 			if (document.activeElement === inputVoice) {
 				saveVoiceCaret();
 			}
 		});
 	}
+	[input1, inputVoice].forEach(function (ta) {
+		if (!ta) {
+			return;
+		}
+		var shell = ta.closest('.llm-phrase-game__input-shell');
+		if (!shell) {
+			return;
+		}
+		shell.addEventListener('pointerdown', function (e) {
+			if (!isFieldExactOk(ta) && !isFieldExactSealed(ta)) {
+				return;
+			}
+			e.preventDefault();
+		});
+	});
 	if (input1) {
 		function saveWriteCaret() {
 			if (!input1 || typeof input1.selectionStart !== 'number') {
@@ -7336,13 +9297,23 @@
 				typeof input1.selectionEnd === 'number' ? input1.selectionEnd : input1.selectionStart
 			);
 		}
-		input1.addEventListener('pointerdown', function () {
+		input1.addEventListener('pointerdown', function (e) {
+			if (isFieldExactOk(input1) || isFieldExactSealed(input1)) {
+				e.preventDefault();
+				return;
+			}
 			rememberWriteTarget(input1);
+			openKeyboardForWriteField(input1);
 		});
 		input1.addEventListener('focus', function () {
+			if (isFieldExactOk(input1) || isFieldExactSealed(input1)) {
+				try { input1.blur(); } catch (e) { /* ignore */ }
+				return;
+			}
 			rememberWriteTarget(input1);
 			saveWriteCaret();
 			syncWriteTranslatePeekBlur();
+			openKeyboardForWriteField(input1);
 		});
 		input1.addEventListener('blur', function () {
 			saveWriteCaret();
@@ -7449,7 +9420,12 @@
 	}
 
 	if (notesToggleBtn) {
-		notesToggleBtn.addEventListener('click', function () {
+		notesToggleBtn.addEventListener('mousedown', function (e) {
+			e.preventDefault();
+		});
+		notesToggleBtn.addEventListener('click', function (ev) {
+			ev.preventDefault();
+			ev.stopPropagation();
 			phraseNotesOpened = true;
 			setNotesOpen(notesToggleBtn.getAttribute('aria-expanded') !== 'true');
 		});
@@ -7460,10 +9436,13 @@
 		});
 	}
 	if (pronTipsToggle && pronTipsPanel) {
+		pronTipsToggle.addEventListener('mousedown', function (e) {
+			e.preventDefault();
+		});
 		pronTipsToggle.addEventListener('click', function (ev) {
 			ev.preventDefault();
+			ev.stopPropagation();
 			setPronTipsOpen(pronTipsToggle.getAttribute('aria-expanded') !== 'true');
-			focusAccordionToggle(pronTipsToggle);
 		});
 	}
 	if (fieldPronToggle && fieldPronPanel) {
@@ -7480,7 +9459,12 @@
 		});
 	}
 	if (showFieldPronBtn) {
-		showFieldPronBtn.addEventListener('click', function () {
+		showFieldPronBtn.addEventListener('mousedown', function (e) {
+			e.preventDefault();
+		});
+		showFieldPronBtn.addEventListener('click', function (e) {
+			e.preventDefault();
+			e.stopPropagation();
 			revealFieldPronunciation();
 		});
 	}
@@ -7494,18 +9478,74 @@
 		});
 	}
 	document.addEventListener('click', closeAccordionsOnOutsideClick);
+	root.querySelectorAll('.llm-phrase-game__exact-thanks').forEach(function (btn) {
+		var thanksLabel = String(i18n.exactOkThanks || 'Grazie!').trim();
+		btn.innerHTML = '';
+		btn.appendChild(document.createTextNode(thanksLabel + ' '));
+		var heart = document.createElement('span');
+		heart.setAttribute('aria-hidden', 'true');
+		heart.textContent = '❤️';
+		btn.appendChild(heart);
+		btn.addEventListener('click', function (e) {
+			e.preventDefault();
+			var row = btn.closest('.llm-phrase-game__exact-ok-row');
+			var block = row ? row.closest('.llm-phrase-game__input-block') : null;
+			var ta = block ? block.querySelector('textarea.llm-phrase-game__input') : null;
+			if (ta) {
+				sealExactField(ta);
+			}
+		});
+	});
+	document.addEventListener('pointerdown', function (e) {
+		if (e.target && e.target.closest && e.target.closest('.llm-phrase-game__exact-thanks')) {
+			return;
+		}
+		sealExactFieldsIfOutside(e.target);
+	}, true);
 	[input1, input2, inputVoice].forEach(function (field) {
 		if (!field) {
 			return;
 		}
 		field.addEventListener('focus', function () {
-			closeHelperAccsExcept(null);
+			if (isWriteTranslateInput(field)) {
+				closeHelperAccsExcept('keyboard');
+			} else {
+				closeHelperAccsExcept(null);
+			}
 		});
 	});
 
+	if (notesReadMoreBtn) {
+		notesReadMoreBtn.addEventListener('mousedown', function (e) {
+			e.preventDefault();
+		});
+		notesReadMoreBtn.addEventListener('click', function (e) {
+			e.preventDefault();
+			e.stopPropagation();
+			revealNextNotesParagraph();
+		});
+	}
+
 	if (showFieldTransBtn) {
-		showFieldTransBtn.addEventListener('click', function () {
+		showFieldTransBtn.addEventListener('mousedown', function (e) {
+			e.preventDefault();
+		});
+		showFieldTransBtn.addEventListener('click', function (e) {
+			e.preventDefault();
+			e.stopPropagation();
 			revealFieldTranslation();
+		});
+	}
+
+	if (phraseHelpBtn && phraseHelpBox) {
+		phraseHelpBtn.addEventListener('mousedown', function (e) {
+			e.preventDefault();
+		});
+		phraseHelpBtn.addEventListener('click', function (e) {
+			e.preventDefault();
+			e.stopPropagation();
+			setPhraseHelpOpen(phraseHelpBtn.getAttribute('aria-expanded') !== 'true');
+			focusAccordionToggle(phraseHelpBtn);
 		});
 	}
 
@@ -7740,39 +9780,21 @@
 						advanceAfterPhrase();
 						return;
 					}
-					smoothScrollStoryToCenter().then(function () {
-						hideUpcomingHint();
-						var block = document.createElement('div');
-						block.className = 'llm-phrase-game__story-line';
-						if (d.display_interface) {
-							block.dataset.translation = d.display_interface;
-						}
-						storyEl.appendChild(block);
-						hydrateStoryLineTranslations();
-						var sr = ++storyStreamRun;
-						typewriterHtmlInto(block, sentence, function () {
-							return storyStreamRun === sr;
-						}, TYPE_TICK_MS).then(function () {
-							if (storyStreamRun === sr) {
-								appendStoryPhotosAfter(phraseIx);
-								advanceAfterPhrase();
-							}
-						});
-					});
+					writeCompletedStoryLine(sentence, d.display_interface, advanceAfterPhrase);
 				});
 		}
 
 		function lockWriteFields(locked) {
-			setPhraseInputLocked(input1, !!locked);
-			setPhraseInputLocked(inputVoice, !!locked);
+			setPhraseInputLocked(input1, !!locked || isFieldExactOk(input1) || isFieldExactSealed(input1));
+			setPhraseInputLocked(inputVoice, !!locked || isFieldExactOk(inputVoice) || isFieldExactSealed(inputVoice));
 		}
 
 		/** Come Risolvi e vai, ma entrambi i campi devono essere la stessa traduzione corretta. */
 		function handleWriteTranslateSubmit() {
 			syncStrictAccentsFromDom();
 
-			var txtWrite = (input1 && input1.value ? input1.value : '').trim();
-			var txtVoice = (inputVoice && inputVoice.value ? inputVoice.value : '').trim();
+			var txtWrite = fieldAnswerText(input1);
+			var txtVoice = fieldAnswerText(inputVoice);
 			if (!txtWrite || !txtVoice) {
 				setMessagePhase2Typewriter(i18n.empty || '', 'error');
 				return;
@@ -7802,18 +9824,19 @@
 			lockWriteFields(true);
 			setNotesOpen(false);
 
-			postCheck(2, txtWrite, false, function (json) {
-				runFeedbackAfterSave(json, [
-					i18n.bravoCorrect || '',
-					i18n.phraseCompletePoints || '',
-					i18n.storyContinue || ''
-				], {
-					scrollTarget: completionMsgEl || phase1,
-					onFail: function () {
-						btn1.disabled = false;
-						lockWriteFields(false);
-					}
-				});
+			var ajaxWrite = new Promise(function (resolve) {
+				postCheck(2, txtWrite, false, resolve);
+			});
+			runFeedbackThenSave(ajaxWrite, [
+				i18n.bravoCorrect || '',
+				i18n.phraseCompletePoints || '',
+				i18n.storyContinue || ''
+			], {
+				scrollTarget: completionMsgEl || phase1,
+				onFail: function () {
+					btn1.disabled = false;
+					lockWriteFields(false);
+				}
 			});
 		}
 
@@ -7839,18 +9862,19 @@
 			setPhraseInputLocked(input1, true);
 			setNotesOpen(false);
 
-			postCheck(2, txt, false, function (json) {
-				runFeedbackAfterSave(json, [
-					i18n.bravoCorrect || '',
-					i18n.phraseCompletePoints || '',
-					i18n.storyContinue || ''
-				], {
-					scrollTarget: completionMsgEl || phase1,
-					onFail: function () {
-						btn1.disabled = false;
-						setPhraseInputLocked(input1, false);
-					}
-				});
+			var ajaxResolve = new Promise(function (resolve) {
+				postCheck(2, txt, false, resolve);
+			});
+			runFeedbackThenSave(ajaxResolve, [
+				i18n.bravoCorrect || '',
+				i18n.phraseCompletePoints || '',
+				i18n.storyContinue || ''
+			], {
+				scrollTarget: completionMsgEl || phase1,
+				onFail: function () {
+					btn1.disabled = false;
+					setPhraseInputLocked(input1, false);
+				}
 			});
 		}
 
@@ -7881,61 +9905,59 @@
 		}
 
 		/**
-		 * Helper condiviso per i flussi AJAX-first (Risolvi e vai, Read and go fast).
-		 * Mostra il messaggio DB in fade, poi la sequenza di messaggi, poi gestisce story line e avanzamento.
+		 * Feedback subito al click; AJAX in parallelo; poi "Salvato nel database" e scroll sulla storia.
 		 *
-		 * @param {object} json      Risposta postCheck
-		 * @param {Array}  messages  Array di stringhe o {text, html}
-		 * @param {object} opts      { holdMs, scrollTarget, onFail }
+		 * @param {Promise} ajaxPromise  postCheck
+		 * @param {Array}   messages     Stringhe o {text, html}
+		 * @param {object}  opts         { holdMs, scrollTarget, onFail }
 		 */
-		function runFeedbackAfterSave(json, messages, opts) {
+		function runFeedbackThenSave(ajaxPromise, messages, opts) {
 			opts = opts || {};
 			var onFail = typeof opts.onFail === 'function' ? opts.onFail : function () {};
 			var scrollTarget = opts.scrollTarget || completionMsgEl || phase2;
-			var holdMs = typeof opts.holdMs === 'number' ? opts.holdMs : 3000;
+			var holdMs = typeof opts.holdMs === 'number' ? opts.holdMs : 800;
 
-			if (!json || !json.success) {
-				var errMsg = (json && json.data && json.data.message)
-					|| i18n.readGoFastSaveError
-					|| i18n.ajaxError
-					|| '';
-				showDbStatus(errMsg, true, 2500).then(function () {
-					onFail(errMsg);
+			setMessagePhase2('', '');
+			if (completionMsgEl) {
+				completionMsgEl.innerHTML = '';
+				completionMsgEl.classList.add('llm-phrase-game__message-phase2--success');
+			}
+
+			var typed = (Array.isArray(messages) ? messages : []).reduce(function (chain, msg, ix) {
+				var isObj = !!msg && 'object' === typeof msg;
+				var text = isObj ? (msg.text || '') : (msg || '');
+				var asHtml = isObj && !!msg.html;
+				return chain.then(function () {
+					return ix > 0 ? sleepMs(300) : null;
+				}).then(function () {
+					return text ? appendMessagePhase2Typewriter(text, asHtml) : null;
 				});
-				return;
-			}
+			}, smoothScrollIntoCenter(scrollTarget));
 
-			var d = json.data || {};
-
-			/* Aggiorna progress bar */
-			if (typeof window.llmUpdateStoryProgressBar === 'function' && d.phrases_total != null) {
-				var doneBar = parseInt(d.phrases_done, 10);
-				if (isNaN(doneBar)) { doneBar = 0; }
-				var totalBar = parseInt(d.phrases_total, 10);
-				if (isNaN(totalBar)) { totalBar = phrases.length; }
-				window.llmUpdateStoryProgressBar(String(storyId), doneBar, totalBar);
-			}
-
-			var savedMsg = i18n.readGoFastSaved || 'Salvato nel database.';
-			showDbStatus(savedMsg, false, 1400).then(function () {
-				setMessagePhase2('', '');
-				if (completionMsgEl) {
-					completionMsgEl.innerHTML = '';
-					completionMsgEl.classList.add('llm-phrase-game__message-phase2--success');
+			typed.then(function () {
+				return ajaxPromise;
+			}).then(function (json) {
+				if (!json || !json.success) {
+					var errMsg = (json && json.data && json.data.message)
+						|| i18n.readGoFastSaveError
+						|| i18n.ajaxError
+						|| '';
+					return showDbStatus(errMsg, true, 2500).then(function () {
+						onFail(errMsg);
+					});
 				}
 
-				var typed = messages.reduce(function (chain, msg, ix) {
-					var isObj = !!msg && 'object' === typeof msg;
-					var text = isObj ? (msg.text || '') : (msg || '');
-					var asHtml = isObj && !!msg.html;
-					return chain.then(function () {
-						return ix > 0 ? sleepMs(300) : null;
-					}).then(function () {
-						return text ? appendMessagePhase2Typewriter(text, asHtml) : null;
-					});
-				}, smoothScrollIntoCenter(scrollTarget));
+				var d = json.data || {};
+				if (typeof window.llmUpdateStoryProgressBar === 'function' && d.phrases_total != null) {
+					var doneBar = parseInt(d.phrases_done, 10);
+					if (isNaN(doneBar)) { doneBar = 0; }
+					var totalBar = parseInt(d.phrases_total, 10);
+					if (isNaN(totalBar)) { totalBar = phrases.length; }
+					window.llmUpdateStoryProgressBar(String(storyId), doneBar, totalBar);
+				}
 
-				typed.then(function () {
+				var savedMsg = i18n.readGoFastSaved || 'Salvato nel database.';
+				return showDbStatus(savedMsg, false, 1400).then(function () {
 					return sleepMs(holdMs);
 				}).then(function () {
 					var sentence = d.display_sentence || '';
@@ -7954,25 +9976,7 @@
 						advanceAfterPhrase();
 						return;
 					}
-					smoothScrollStoryToCenter().then(function () {
-						hideUpcomingHint();
-						var block = document.createElement('div');
-						block.className = 'llm-phrase-game__story-line';
-						if (d.display_interface) {
-							block.dataset.translation = d.display_interface;
-						}
-						storyEl.appendChild(block);
-						hydrateStoryLineTranslations();
-						var sr = ++storyStreamRun;
-						typewriterHtmlInto(block, sentence, function () {
-							return storyStreamRun === sr;
-						}, TYPE_TICK_MS).then(function () {
-							if (storyStreamRun === sr) {
-								appendStoryPhotosAfter(phraseIx);
-								advanceAfterPhrase();
-							}
-						});
-					});
+					writeCompletedStoryLine(sentence, d.display_interface, advanceAfterPhrase);
 				});
 			});
 		}
@@ -8000,28 +10004,29 @@
 				opening = i18n.readGoFastAlmost || i18n.readGoFastTarget || '';
 			}
 
-			postCheck(2, txt, false, function (json) {
-				runFeedbackAfterSave(json, [
-					opening,
-					{ text: targetRef, html: true },
-					i18n.readGoFastComplete || i18n.phraseCompletePoints || ''
-				], {
-					holdMs: 1200,
-					scrollTarget: completionMsgEl || phase1,
-					onFail: function () {
-						btn1.disabled = false;
-						setPhraseInputLocked(input1, false);
-					}
-				});
-			}, true /* bypass */);
+			var ajaxFast = new Promise(function (resolve) {
+				postCheck(2, txt, false, resolve, true /* bypass */);
+			});
+			runFeedbackThenSave(ajaxFast, [
+				opening,
+				{ text: targetRef, html: true },
+				i18n.readGoFastComplete || i18n.phraseCompletePoints || ''
+			], {
+				holdMs: 400,
+				scrollTarget: completionMsgEl || phase1,
+				onFail: function () {
+					btn1.disabled = false;
+					setPhraseInputLocked(input1, false);
+				}
+			});
 		}
 
 		/** Modalità "Gioca al contrario": vedi target, indovina originale (interface). */
 		function handlePlayInvertedSubmit() {
 			syncStrictAccentsFromDom();
 
-			var txtWrite = (input1 && input1.value ? input1.value : '').trim();
-			var txtVoice = (inputVoice && inputVoice.value ? inputVoice.value : '').trim();
+			var txtWrite = fieldAnswerText(input1);
+			var txtVoice = fieldAnswerText(inputVoice);
 			if (!txtWrite || !txtVoice) {
 				setMessagePhase2Typewriter(i18n.empty || '', 'error');
 				return;
@@ -8049,18 +10054,19 @@
 			lockWriteFields(true);
 			setNotesOpen(false);
 
-			postCheck(2, txtWrite, false, function (json) {
-				runFeedbackAfterSave(json, [
-					i18n.playInvertedExact || i18n.bravoCorrect || '',
-					i18n.phraseCompletePoints || '',
-					i18n.storyContinue || ''
-				], {
-					scrollTarget: completionMsgEl || phase1,
-					onFail: function () {
-						btn1.disabled = false;
-						lockWriteFields(false);
-					}
-				});
+			var ajaxInv = new Promise(function (resolve) {
+				postCheck(2, txtWrite, false, resolve);
+			});
+			runFeedbackThenSave(ajaxInv, [
+				i18n.playInvertedExact || i18n.bravoCorrect || '',
+				i18n.phraseCompletePoints || '',
+				i18n.storyContinue || ''
+			], {
+				scrollTarget: completionMsgEl || phase1,
+				onFail: function () {
+					btn1.disabled = false;
+					lockWriteFields(false);
+				}
 			});
 		}
 
@@ -8100,10 +10106,16 @@
 
 	if (isSinglePhase && notesWrap && notesPanel && analysisEl) {
 		notesWrap.hidden = false;
-		if (showFieldTransBtn && showFieldTransBtn.parentNode === notesPanel) {
-			notesPanel.insertBefore(analysisEl, showFieldTransBtn);
+		var notesInsertBefore = (notesReadMoreBtn && notesReadMoreBtn.parentNode === notesPanel)
+			? notesReadMoreBtn
+			: ((showFieldTransBtn && showFieldTransBtn.parentNode === notesPanel) ? showFieldTransBtn : null);
+		if (notesInsertBefore) {
+			notesPanel.insertBefore(analysisEl, notesInsertBefore);
 		} else {
 			notesPanel.appendChild(analysisEl);
+			if (notesReadMoreBtn) {
+				notesPanel.appendChild(notesReadMoreBtn);
+			}
 			if (showFieldTransBtn) {
 				notesPanel.appendChild(showFieldTransBtn);
 			}
@@ -8129,6 +10141,9 @@
 		if (showFieldTransBtn) {
 			showFieldTransBtn.hidden = true;
 		}
+		if (notesReadMoreBtn) {
+			notesReadMoreBtn.hidden = true;
+		}
 		if (showFieldPronBtn) {
 			showFieldPronBtn.hidden = true;
 		}
@@ -8137,6 +10152,9 @@
 		}
 		if (fieldPronWrap) {
 			fieldPronWrap.hidden = true;
+		}
+		if (phraseHelpWrap) {
+			phraseHelpWrap.hidden = true;
 		}
 		if (invertedHintBtn) {
 			invertedHintBtn.hidden = false;
@@ -8219,7 +10237,89 @@
 		});
 	});
 
+	qsa(root, '.llm-phrase-game__caret-nav-btn').forEach(function (btn) {
+		btn.addEventListener('mousedown', function (e) {
+			e.preventDefault();
+			e.stopPropagation();
+		});
+		btn.addEventListener('click', function (e) {
+			e.stopPropagation();
+			var nav = btn.closest('.llm-phrase-game__caret-nav');
+			var ta = caretTargetForNav(nav);
+			var dir = parseInt(btn.getAttribute('data-llm-caret-dir'), 10) || 0;
+			moveCaretByWord(ta, dir);
+		});
+	});
+	function caretKeepInside(el) {
+		if (!el || !el.closest) {
+			return false;
+		}
+		return !!(
+			el.closest('.llm-phrase-game__input-shell') ||
+			el.closest('.llm-phrase-game__caret-nav') ||
+			el.closest('.llm-phrase-game__helper-acc') ||
+			el.closest('.llm-phrase-game__keyboard-panel') ||
+			el.closest('.llm-phrase-game__random-words-list') ||
+			el.closest('.llm-phrase-game__extra-chars-panel') ||
+			el.closest('.llm-phrase-game__mic-row') ||
+			el.closest('.llm-phrase-game__listen-cluster') ||
+			el.closest('.llm-phrase-game__listen-target-wrap') ||
+			el.closest('.llm-phrase-game__phrase-help')
+		);
+	}
+	root.addEventListener('pointerdown', function (e) {
+		var t = e.target;
+		if (!t || !t.closest) {
+			return;
+		}
+		var shell = t.closest('.llm-phrase-game__input-shell');
+		if (shell && root.contains(shell)) {
+			var ta = qs(shell, '.llm-phrase-game__input');
+			if (ta) {
+				if (isPhraseInputLocked(ta) || isFieldExactOk(ta) || isFieldExactSealed(ta)) {
+					setActiveCaretField(null);
+					return;
+				}
+				setActiveCaretField(ta);
+				openKeyboardForWriteField(ta);
+			}
+			return;
+		}
+		if (caretKeepInside(t)) {
+			return;
+		}
+		setActiveCaretField(null);
+	}, true);
+	syncFieldContextUi();
+	[input1, input2, inputVoice].forEach(function (el) {
+		if (!el) {
+			return;
+		}
+		el.addEventListener('focus', function () {
+			setActiveCaretField(el);
+		});
+		el.addEventListener('scroll', function () {
+			syncVirtualCaret(el);
+		});
+		el.addEventListener('input', function () {
+			syncVirtualCaret(el);
+			syncCaretNavButtons();
+		});
+		syncVirtualCaret(el);
+	});
+	window.addEventListener('resize', function () {
+		[input1, input2, inputVoice].forEach(function (el) {
+			if (el) {
+				syncVirtualCaret(el);
+			}
+		});
+	});
+	syncCaretNavButtons();
+
 	(function initMobileStickyTranslate() {
+		if (!stickyTranslateOn) {
+			return;
+		}
 		var stickyEl = qs(root, '.llm-phrase-game__sticky-translate');
 		var phaseEl = qs(root, '.llm-phrase-game__phase--1');
 		if (!stickyEl || !phaseEl || !stickyEl.parentNode) {

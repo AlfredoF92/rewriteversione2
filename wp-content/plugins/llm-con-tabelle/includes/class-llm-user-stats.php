@@ -391,6 +391,69 @@ class LLM_User_Stats {
 		);
 	}
 
+	/**
+	 * Segna tutte le frasi della storia come fatte, senza coin e senza community.
+	 * Serve all’admin per vedere la storia già completata.
+	 *
+	 * @param int $user_id  ID utente.
+	 * @param int $story_id ID storia.
+	 * @return bool
+	 */
+	public static function mark_story_complete_silent( $user_id, $story_id ) {
+		global $wpdb;
+		$user_id  = absint( $user_id );
+		$story_id = absint( $story_id );
+		if ( ! $user_id || ! $story_id ) {
+			return false;
+		}
+
+		$phrases = LLM_Story_Repository::get_phrases( $story_id );
+		$total   = count( $phrases );
+		if ( $total < 1 ) {
+			return false;
+		}
+
+		$done_table = LLM_Tabelle_Database::table( 'llm_user_phrase_done' );
+		for ( $i = 0; $i < $total; $i++ ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query(
+				$wpdb->prepare(
+					"INSERT IGNORE INTO {$done_table} (user_id, story_id, phrase_index) VALUES (%d, %d, %d)",
+					$user_id,
+					$story_id,
+					$i
+				)
+			);
+		}
+
+		$unlock_table = LLM_Tabelle_Database::table( 'llm_user_unlocked_story' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query(
+			$wpdb->prepare(
+				"INSERT IGNORE INTO {$unlock_table} (user_id, story_id) VALUES (%d, %d)",
+				$user_id,
+				$story_id
+			)
+		);
+
+		$done_table_story = LLM_Tabelle_Database::table( 'llm_user_story_completed' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query(
+			$wpdb->prepare(
+				"INSERT IGNORE INTO {$done_table_story} (user_id, story_id, completed_at_gmt) VALUES (%d, %d, %s)",
+				$user_id,
+				$story_id,
+				current_time( 'mysql', true )
+			)
+		);
+
+		if ( class_exists( 'LLM_Story_Game_Progress' ) ) {
+			LLM_Story_Game_Progress::delete( $user_id, $story_id );
+		}
+
+		return true;
+	}
+
 	public static function set_balance_admin( $user_id, $new_balance, $note = '' ) {
 		$new_balance = max( 0, (int) $new_balance );
 		$old         = self::get_balance( $user_id );
@@ -575,6 +638,13 @@ class LLM_User_Stats {
 		return count( self::get_completed_stories_map( $user_id ) );
 	}
 
+	public static function count_completed_crosswords( $user_id ) {
+		if ( ! class_exists( 'LLM_User_Crossword_Progress' ) ) {
+			return 0;
+		}
+		return LLM_User_Crossword_Progress::count_solved( $user_id );
+	}
+
 	/**
 	 * @return array{earned:int, spent:int, phrase_gain:int, story_reward:int}
 	 */
@@ -624,6 +694,8 @@ class LLM_User_Stats {
 				'llm_user_unlocked_story',
 				'llm_user_story_completed',
 				'llm_user_story_game_progress',
+				'llm_user_story_play_time',
+				'llm_user_crossword_progress',
 				'llm_user_coin_ledger',
 				'llm_user_bravo_given',
 				'llm_user_coin_balance',

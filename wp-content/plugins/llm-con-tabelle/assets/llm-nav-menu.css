@@ -1,9 +1,196 @@
-/* Shortcode [menù] — trigger header + popup dark */
+/* Shortcode [menù] — barra header full-width + popup dark */
+
+.elementor-widget:has(.llm-nav-menu),
+.elementor-element:has(.llm-nav-menu),
+.elementor-widget-container:has(.llm-nav-menu),
+.e-con:has(.llm-nav-menu),
+.e-con-inner:has(.llm-nav-menu) {
+	width: 100% !important;
+	max-width: 100% !important;
+	flex-grow: 1 !important;
+	align-self: stretch !important;
+}
 
 .llm-nav-menu {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.85rem 1.1rem;
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 100%;
+	margin: 0;
+	color: #fff;
+	font-family: "Manrope", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.llm-nav-menu__brand {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	justify-content: center;
+	min-width: 0;
+	flex: 0 1 auto;
+	position: relative;
+	z-index: 2;
+	pointer-events: auto;
+	text-decoration: none !important;
+	color: inherit;
+	line-height: 1.12;
+}
+
+.llm-nav-menu__brand:hover,
+.llm-nav-menu__brand:focus,
+.llm-nav-menu__brand:focus-visible {
+	text-decoration: none !important;
+	outline: none;
+	opacity: 1;
+}
+
+.llm-nav-menu__logo {
+	display: block;
+	margin: 0;
+	padding: 0;
+	color: #d10000 !important;
+	font-family: "Playfair Display", Georgia, "Times New Roman", serif !important;
+	font-size: 38px !important;
+	font-weight: 900 !important;
+	font-style: normal !important;
+	font-synthesis: none;
+	letter-spacing: 0 !important;
+	line-height: 1.2 !important;
+	text-transform: none !important;
+	text-decoration: none !important;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+.llm-nav-menu__brand-sub {
+	display: flex;
+	align-items: center;
+	gap: 0.32rem;
+	margin-top: 0.06rem;
+	max-width: min(100%, 22rem);
+	min-width: 0;
+}
+
+.llm-nav-menu__flags {
 	display: inline-flex;
 	align-items: center;
-	font-family: "Manrope", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	gap: 0.1rem;
+	margin-top: 0;
+	font-size: 0.78rem;
+	line-height: 1;
+	flex-shrink: 0;
+}
+
+.llm-nav-menu__flag {
+	flex: 0 0 auto;
+	line-height: 1;
+}
+
+.llm-nav-menu__tagline {
+	display: block;
+	overflow: hidden;
+	margin-top: 0;
+	min-width: 0;
+	max-width: 100%;
+	color: #fff !important;
+	font-family: "Playfair Display", Georgia, "Times New Roman", serif !important;
+	font-size: 14px !important;
+	font-weight: 700 !important;
+	font-style: normal !important;
+	line-height: 1.2 !important;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	opacity: 1;
+}
+
+.llm-nav-menu__actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 0.55rem;
+	flex: 0 1 auto;
+	min-width: 0;
+	margin-left: auto;
+}
+
+.llm-nav-menu__hello,
+.llm-nav-menu__hello-hi,
+.llm-nav-menu__hello-comma,
+.llm-nav-menu__hello-name {
+	font-family: "Playfair Display", Georgia, "Times New Roman", serif !important;
+	font-weight: 700 !important;
+	font-style: normal !important;
+}
+
+.llm-nav-menu__hello {
+	display: flex;
+	align-items: baseline;
+	margin: 0;
+	min-width: 0;
+	max-width: 14rem;
+	color: #fff !important;
+	font-size: 1.2rem !important;
+	letter-spacing: -0.015em;
+	line-height: 1.15;
+	white-space: nowrap;
+}
+
+.llm-nav-menu__hello-comma {
+	display: inline-block;
+	margin: 0 0.22em 0 0.02em;
+	font-size: 0.68em;
+	opacity: 0.72;
+	transform: translateY(-0.08em);
+}
+
+.llm-nav-menu__hello-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.llm-nav-menu__avatar {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.35rem;
+	height: 2.35rem;
+	overflow: hidden;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.12);
+	color: #fff !important;
+	text-decoration: none !important;
+	flex-shrink: 0;
+}
+
+.llm-nav-menu__avatar:hover,
+.llm-nav-menu__avatar:focus-visible {
+	opacity: 0.88;
+	outline: none;
+}
+
+.llm-nav-menu__avatar-img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.llm-nav-menu__avatar-fallback {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+}
+
+.llm-nav-menu__avatar-fallback .llm-header-icon {
+	width: 1.15rem;
+	height: 1.15rem;
+	opacity: 0.85;
 }
 
 .llm-nav-menu__btn {
@@ -16,7 +203,7 @@
 	border-radius: 0;
 	background: transparent !important;
 	background-color: transparent !important;
-	color: inherit !important;
+	color: #fff !important;
 	font: inherit;
 	font-weight: 700;
 	line-height: 1.2;
@@ -33,7 +220,7 @@
 	background: transparent !important;
 	background-color: transparent !important;
 	border-color: transparent !important;
-	color: inherit !important;
+	color: #fff !important;
 	opacity: 1;
 	outline: none;
 	box-shadow: none !important;
@@ -251,12 +438,19 @@ a.llm-nav-menu__card:active {
 	color: #b3b3b3;
 }
 
+.llm-nav-menu__footer {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	margin: 0.95rem 0 0;
+}
+
 .llm-nav-menu__account {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	gap: 0.45rem;
-	margin: 0.95rem 0 0;
+	margin: 0;
 	padding: 0.7rem 0.9rem;
 	border-radius: 999px;
 	background: #fff;
@@ -285,11 +479,62 @@ a.llm-nav-menu__card:active {
 	stroke: #111;
 }
 
+.llm-nav-menu__login {
+	background: transparent;
+	border: 1px solid #fff;
+	color: #fff !important;
+}
+
+.llm-nav-menu__login:hover,
+.llm-nav-menu__login:focus,
+.llm-nav-menu__login:focus-visible,
+.llm-nav-menu__login:active {
+	background: transparent !important;
+	background-color: transparent !important;
+	border-color: #fff !important;
+	color: #fff !important;
+}
+
+.llm-nav-menu__login .llm-header-icon {
+	stroke: #fff;
+}
+
 body.llm-nav-menu-open {
 	overflow: hidden;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 480px) {
+	.llm-nav-menu {
+		gap: 0.45rem;
+	}
+
+	.llm-nav-menu__logo {
+		font-size: 28px !important;
+	}
+
+	.llm-nav-menu__brand-sub {
+		max-width: 13.5rem;
+		gap: 0.2rem;
+	}
+
+	.llm-nav-menu__flags {
+		font-size: 0.68rem;
+	}
+
+	.llm-nav-menu__tagline {
+		font-size: 12px !important;
+	}
+
+	.llm-nav-menu__hello {
+		font-size: 0.98rem !important;
+		max-width: 8.2rem;
+	}
+
+	.llm-nav-menu__avatar {
+		width: 2.1rem;
+		height: 2.1rem;
+	}
+
 	.llm-nav-menu__grid {
 		grid-template-columns: 1fr;
 	}

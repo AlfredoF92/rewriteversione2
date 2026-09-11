@@ -197,6 +197,9 @@ class LLM_Storie_Filtri_Shortcode {
 		if ( is_wp_error( $terms ) || ! is_array( $terms ) ) {
 			return array();
 		}
+		if ( class_exists( 'LLM_Category_Translations' ) ) {
+			return LLM_Category_Translations::filter_public_terms( $terms );
+		}
 		return $terms;
 	}
 }

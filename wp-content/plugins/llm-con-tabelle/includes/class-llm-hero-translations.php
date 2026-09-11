@@ -120,9 +120,6 @@ class LLM_Hero_Translations {
 	 * Restituisce il testo hero nella lingua interfaccia dell'utente corrente,
 	 * con {lingua-selezionata} sostituito.
 	 *
-	 * Per il badge (sopratitolo sotto il logo) antepone anche la bandiera
-	 * della lingua da imparare.
-	 *
 	 * @param string $key 'badge' | 'title' | 'subtitle'
 	 * @return string
 	 */
@@ -147,14 +144,37 @@ class LLM_Hero_Translations {
 			$text = str_replace( self::PLACEHOLDER, self::get_target_lang_name( $lang ), $text );
 		}
 
-		if ( 'badge' === $key ) {
-			$flag = self::get_learning_lang_flag();
+		return $text;
+	}
+
+	/**
+	 * Bandiere della coppia: conosciuta + da imparare, senza freccia.
+	 *
+	 * @return string[]
+	 */
+	public static function get_pair_flags() {
+		if ( ! class_exists( 'LLM_Languages' ) ) {
+			return array();
+		}
+		$known = '';
+		$learn = self::get_learning_lang_code();
+		if ( class_exists( 'LLM_Visitor_Lang' ) ) {
+			$known = LLM_Visitor_Lang::known();
+		}
+		$out = array();
+		if ( $known && LLM_Languages::is_valid( $known ) ) {
+			$flag = LLM_Languages::flag_emoji( $known );
 			if ( '' !== $flag ) {
-				$text = $flag . ' ' . $text;
+				$out[] = $flag;
 			}
 		}
-
-		return $text;
+		if ( $learn && LLM_Languages::is_valid( $learn ) && $learn !== $known ) {
+			$flag = LLM_Languages::flag_emoji( $learn );
+			if ( '' !== $flag ) {
+				$out[] = $flag;
+			}
+		}
+		return $out;
 	}
 
 	/**
@@ -177,19 +197,6 @@ class LLM_Hero_Translations {
 		}
 
 		return '';
-	}
-
-	/**
-	 * Bandiera della lingua da imparare.
-	 *
-	 * @return string
-	 */
-	private static function get_learning_lang_flag() {
-		$code = self::get_learning_lang_code();
-		if ( '' === $code || ! class_exists( 'LLM_Languages' ) ) {
-			return '';
-		}
-		return LLM_Languages::flag_emoji( $code );
 	}
 
 	/**

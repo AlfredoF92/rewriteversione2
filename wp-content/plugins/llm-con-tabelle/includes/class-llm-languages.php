@@ -46,6 +46,15 @@ class LLM_Languages {
 			'en' => '🇬🇧',
 			'pl' => '🇵🇱',
 			'es' => '🇪🇸',
+			'fr' => '🇫🇷',
+			'de' => '🇩🇪',
+			'pt' => '🇵🇹',
+			'nl' => '🇳🇱',
+			'ja' => '🇯🇵',
+			'ru' => '🇷🇺',
+			'zh' => '🇨🇳',
+			'ko' => '🇰🇷',
+			'ar' => '🇸🇦',
 		);
 		$c = sanitize_key( (string) $code );
 		return $flags[ $c ] ?? '';

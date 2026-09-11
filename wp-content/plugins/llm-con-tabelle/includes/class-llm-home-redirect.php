@@ -42,6 +42,9 @@ class LLM_Home_Redirect {
 	 * Redirect server-side dalla home (cookie impostabili prima dell’output).
 	 */
 	public static function maybe_redirect() {
+		if ( ! LLM_Redirects::enabled() ) {
+			return;
+		}
 		if ( is_admin() || wp_doing_ajax() || wp_doing_cron() ) {
 			return;
 		}
@@ -123,6 +126,10 @@ class LLM_Home_Redirect {
 			$atts,
 			self::SHORTCODE
 		);
+
+		if ( ! LLM_Redirects::enabled() ) {
+			return '';
+		}
 
 		if ( ! get_option( self::OPTION_FLAG ) ) {
 			update_option( self::OPTION_FLAG, '1', true );

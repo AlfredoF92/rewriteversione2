@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class LLM_Tabelle_Database {
 
-	const DB_VERSION = '2.6.0';
+	const DB_VERSION = '2.9.5';
 
 	const OPT_VERSION = 'llm_tabelle_db_version';
 
@@ -27,11 +27,15 @@ class LLM_Tabelle_Database {
 			'llm_user_coin_ledger',
 			'llm_guest_story_game_progress',
 			'llm_user_story_game_progress',
+			'llm_user_story_play_time',
+			'llm_user_crossword_progress',
 			'llm_user_story_completed',
 			'llm_user_unlocked_story',
 			'llm_user_phrase_done',
 			'llm_user_coin_balance',
 			'llm_story_media',
+			'llm_cast_roles',
+			'llm_story_cast',
 			'llm_story_phrases',
 		);
 	}
@@ -58,9 +62,15 @@ class LLM_Tabelle_Database {
 			phrase_grammar longtext NOT NULL,
 			phrase_alt longtext NOT NULL,
 			phrase_notes longtext NOT NULL,
+			phrase_notes_target longtext NOT NULL,
+			phrase_remember longtext NOT NULL,
 			phrase_pronunciation longtext NOT NULL,
 			phrase_ipa longtext NOT NULL,
 			phrase_approx longtext NOT NULL,
+			audio_male_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			audio_female_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			audio_azure_male_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			audio_azure_female_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			PRIMARY KEY  (id),
 			KEY story_sort (story_id, sort_order)
 		) $charset_collate;";
@@ -73,6 +83,26 @@ class LLM_Tabelle_Database {
 			after_phrase_index int(11) NOT NULL DEFAULT -1,
 			PRIMARY KEY  (id),
 			KEY story_sort (story_id, sort_order)
+		) $charset_collate;";
+
+		$sql_cast_roles = "CREATE TABLE {$p}llm_cast_roles (
+			role_key varchar(64) NOT NULL,
+			label varchar(191) NOT NULL,
+			sort_order int(11) NOT NULL DEFAULT 0,
+			PRIMARY KEY  (role_key)
+		) $charset_collate;";
+
+		$sql_story_cast = "CREATE TABLE {$p}llm_story_cast (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			story_id bigint(20) unsigned NOT NULL,
+			role_key varchar(64) NOT NULL,
+			user_id bigint(20) unsigned NOT NULL,
+			sort_order int(11) NOT NULL DEFAULT 0,
+			PRIMARY KEY  (id),
+			UNIQUE KEY story_role_user (story_id, role_key, user_id),
+			KEY story_id (story_id),
+			KEY user_id (user_id),
+			KEY role_key (role_key)
 		) $charset_collate;";
 
 		$sql_balance = "CREATE TABLE {$p}llm_user_coin_balance (
@@ -114,6 +144,30 @@ class LLM_Tabelle_Database {
 			updated_gmt datetime NOT NULL,
 			PRIMARY KEY  (user_id, story_id),
 			KEY story_id (story_id)
+		) $charset_collate;";
+
+		$sql_play_time = "CREATE TABLE {$p}llm_user_story_play_time (
+			user_id bigint(20) unsigned NOT NULL,
+			story_id bigint(20) unsigned NOT NULL,
+			seconds bigint(20) unsigned NOT NULL DEFAULT 0,
+			updated_gmt datetime NOT NULL,
+			PRIMARY KEY  (user_id, story_id),
+			KEY story_id (story_id)
+		) $charset_collate;";
+
+		$sql_crossword_progress = "CREATE TABLE {$p}llm_user_crossword_progress (
+			user_id bigint(20) unsigned NOT NULL,
+			crossword_id bigint(20) unsigned NOT NULL,
+			story_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			cells longtext NOT NULL,
+			filled int(11) NOT NULL DEFAULT 0,
+			total int(11) NOT NULL DEFAULT 0,
+			solved tinyint(1) unsigned NOT NULL DEFAULT 0,
+			solved_at_gmt datetime DEFAULT NULL,
+			updated_gmt datetime NOT NULL,
+			PRIMARY KEY  (user_id, crossword_id),
+			KEY crossword_id (crossword_id),
+			KEY user_solved (user_id, solved)
 		) $charset_collate;";
 
 		$sql_guest_progress = "CREATE TABLE {$p}llm_guest_story_game_progress (
@@ -166,20 +220,28 @@ class LLM_Tabelle_Database {
 
 		dbDelta( $sql_phrases );
 		dbDelta( $sql_media );
+		dbDelta( $sql_cast_roles );
+		dbDelta( $sql_story_cast );
 		dbDelta( $sql_balance );
 		dbDelta( $sql_phrase_done );
 		dbDelta( $sql_unlocked );
 		dbDelta( $sql_completed );
 		dbDelta( $sql_game_progress );
+		dbDelta( $sql_play_time );
+		dbDelta( $sql_crossword_progress );
 		dbDelta( $sql_guest_progress );
 		dbDelta( $sql_ledger );
 		dbDelta( $sql_kudos );
 		dbDelta( $sql_bravo );
 
 		self::ensure_phrase_notes_column();
+		self::ensure_phrase_notes_target_column();
+		self::ensure_phrase_remember_column();
 		self::ensure_phrase_pronunciation_column();
 		self::ensure_phrase_ipa_approx_columns();
+		self::ensure_phrase_audio_columns();
 		self::ensure_display_phrase_index_columns();
+		self::seed_default_cast_roles();
 
 		update_option( self::OPT_VERSION, self::DB_VERSION );
 	}
@@ -197,6 +259,36 @@ class LLM_Tabelle_Database {
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( "ALTER TABLE {$table} ADD COLUMN phrase_notes longtext NOT NULL" );
+	}
+
+	/**
+	 * Note della storia nella lingua da imparare.
+	 */
+	private static function ensure_phrase_notes_target_column() {
+		global $wpdb;
+		$table = self::table( 'llm_story_phrases' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$col = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'phrase_notes_target' ) );
+		if ( $col ) {
+			return;
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "ALTER TABLE {$table} ADD COLUMN phrase_notes_target longtext NOT NULL" );
+	}
+
+	/**
+	 * Riassunto da ricordare (consigli + topic grammaticali della frase).
+	 */
+	private static function ensure_phrase_remember_column() {
+		global $wpdb;
+		$table = self::table( 'llm_story_phrases' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$col = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'phrase_remember' ) );
+		if ( $col ) {
+			return;
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "ALTER TABLE {$table} ADD COLUMN phrase_remember longtext NOT NULL" );
 	}
 
 	/**
@@ -232,6 +324,23 @@ class LLM_Tabelle_Database {
 	}
 
 	/**
+	 * Allegati audio IA (Aura-2 pubblico + Azure solo admin) per frase.
+	 */
+	private static function ensure_phrase_audio_columns() {
+		global $wpdb;
+		$table = self::table( 'llm_story_phrases' );
+		foreach ( array( 'audio_male_id', 'audio_female_id', 'audio_azure_male_id', 'audio_azure_female_id' ) as $col_name ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$col = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", $col_name ) );
+			if ( $col ) {
+				continue;
+			}
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN {$col_name} bigint(20) unsigned NOT NULL DEFAULT 0" );
+		}
+	}
+
+	/**
 	 * Indice frase da mostrare (salto temporaneo), distinto dal checkpoint.
 	 */
 	private static function ensure_display_phrase_index_columns() {
@@ -245,6 +354,38 @@ class LLM_Tabelle_Database {
 			}
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN display_phrase_index int(11) NOT NULL DEFAULT -1" );
+		}
+	}
+
+	/**
+	 * Ruoli Cast di default (solo se la tabella è vuota).
+	 */
+	public static function seed_default_cast_roles() {
+		global $wpdb;
+
+		$table = self::table( 'llm_cast_roles' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$n = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+		if ( $n > 0 ) {
+			return;
+		}
+
+		$defaults = array(
+			array( 'director', 'Director', 10 ),
+			array( 'screenplay', 'Sceneggiatura', 20 ),
+			array( 'images', 'Immagini', 30 ),
+			array( 'quality', 'Controllo qualità', 40 ),
+		);
+		foreach ( $defaults as $row ) {
+			$wpdb->insert(
+				$table,
+				array(
+					'role_key'   => $row[0],
+					'label'      => $row[1],
+					'sort_order' => $row[2],
+				),
+				array( '%s', '%s', '%d' )
+			);
 		}
 	}
 

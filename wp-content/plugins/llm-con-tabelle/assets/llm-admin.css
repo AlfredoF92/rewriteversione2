@@ -14,8 +14,28 @@
 
 .llm-col-id {
 	font-variant-numeric: tabular-nums;
+	font-size: 15px;
+	font-weight: 800;
+	color: #1d2327;
+}
+
+.llm-story-id-display {
+	margin: 0 1em 0 0;
+	padding: 0;
+	font-size: 1.15rem;
 	font-weight: 700;
 	color: #1d2327;
+	align-self: center;
+}
+
+.llm-story-id-display strong {
+	font-size: 1.45rem;
+	font-weight: 800;
+	letter-spacing: 0.01em;
+}
+
+.llm-story-id-display--settings {
+	margin: 0 0 0.85em;
 }
 
 .llm-col-thumb {
@@ -172,6 +192,14 @@
 	border-radius: 4px;
 }
 
+.llm-phrase-row__body {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
 .llm-phrase-details {
 	flex: 1;
 	min-width: 0;
@@ -318,6 +346,39 @@
 .llm-phrases-csv-toolbar label.button {
 	display: inline-block;
 	margin: 0;
+}
+
+.llm-phrase-tts-row-status {
+	display: block;
+	margin-top: 2px;
+	font-size: 12px;
+	font-weight: 400;
+	color: #646970;
+}
+
+.llm-phrase-tts-listen {
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
+	gap: 6px;
+	position: static;
+}
+
+.llm-phrase-play {
+	min-height: 28px;
+	padding: 0 8px;
+	line-height: 26px;
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.llm-phrase-play.is-playing {
+	border-color: #2271b1;
+	color: #2271b1;
+}
+
+#llm-phrase-tts-status {
+	margin-left: 4px;
 }
 
 .llm-phrases-csv-paste-panel {
@@ -560,4 +621,73 @@ body.llm-csv-modal-open {
 .llm-import-field-updated {
 	background-color: #ecfdf3 !important;
 	transition: background-color 0.6s ease;
+}
+
+.llm-cast-metabox {
+	display: grid;
+	gap: 12px;
+	margin-top: 8px;
+}
+
+.llm-cast-role {
+	margin: 0;
+	padding: 10px 12px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #f6f7f7;
+}
+
+.llm-cast-role legend {
+	font-weight: 600;
+	padding: 0 6px;
+}
+
+.llm-cast-assigned {
+	margin: 0 0 8px;
+	padding-left: 1.15em;
+}
+
+.llm-cast-assigned li {
+	margin: 0 0 4px;
+}
+
+.llm-cast-empty {
+	margin: 0 0 8px;
+}
+
+.llm-story-cw__preview {
+	margin: 1em 0 1.5em;
+	overflow-x: auto;
+}
+
+.llm-story-cw__lists {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1.25rem;
+	margin-top: 1.25rem;
+}
+
+.llm-story-cw__list h3 {
+	margin: 0 0 0.5em;
+	font-size: 14px;
+}
+
+.llm-story-cw__list h3 span {
+	font-weight: 400;
+	color: #646970;
+}
+
+.llm-story-cw__list ol {
+	margin: 0;
+	padding-left: 1.25em;
+}
+
+.llm-story-cw__list li {
+	margin: 0 0 0.75em;
+}
+
+@media (max-width: 1100px) {
+	.llm-story-cw__lists {
+		grid-template-columns: 1fr;
+	}
 }

@@ -1151,6 +1151,129 @@
 		} );
 	}
 
+	$( '#llm-generate-phrase-tts' ).on( 'click', function ( e ) {
+		e.preventDefault();
+		if ( ! llmAdmin.postId ) {
+			alert( ( llmAdmin && llmAdmin.ttsNeedSave ) ? llmAdmin.ttsNeedSave : 'Salva prima la bozza.' );
+			return;
+		}
+		if ( ! llmAdmin.ttsAzureReady ) {
+			alert( ( llmAdmin && llmAdmin.ttsNeedAzure ) ? llmAdmin.ttsNeedAzure : 'Configura Azure Speech.' );
+			return;
+		}
+		var $btn = $( this );
+		if ( $btn.prop( 'disabled' ) ) {
+			return;
+		}
+		var force = false;
+		if ( $( '.llm-phrase-row[data-phrase-id!="0"] .llm-phrase-play:not(:disabled)' ).length ) {
+			force = window.confirm( ( llmAdmin && llmAdmin.ttsForce ) ? llmAdmin.ttsForce : 'Rigenerare?' );
+		}
+		var $st = $( '#llm-phrase-tts-status' );
+		$btn.prop( 'disabled', true );
+		$st.text( ( llmAdmin && llmAdmin.ttsWorking ) ? llmAdmin.ttsWorking : 'Generazione…' );
+
+		function ttsStatusLabel( ready, shown ) {
+			if ( shown && ready === shown ) {
+				return ( llmAdmin && llmAdmin.ttsStatusBoth ) ? llmAdmin.ttsStatusBoth : 'Audio: completo';
+			}
+			if ( ready > 0 ) {
+				return ( llmAdmin && llmAdmin.ttsStatusPartial ) ? llmAdmin.ttsStatusPartial : 'Audio: incompleto';
+			}
+			return ( llmAdmin && llmAdmin.ttsStatusNone ) ? llmAdmin.ttsStatusNone : 'Audio: mancante';
+		}
+
+		function runIndex( index ) {
+			$.ajax( {
+				url: llmAdmin.ajaxUrl,
+				type: 'POST',
+				dataType: 'json',
+				data: {
+					action:  llmAdmin.ttsAction,
+					nonce:   llmAdmin.ttsNonce,
+					post_id: llmAdmin.postId,
+					index:   index,
+					force:   force ? '1' : '0',
+				},
+			} )
+				.done( function ( res ) {
+					if ( ! res || ! res.success || ! res.data ) {
+						var fail = ( res && res.data && res.data.message ) ? res.data.message : ( ( llmAdmin && llmAdmin.ttsErr ) ? llmAdmin.ttsErr : 'Errore' );
+						$st.text( fail );
+						$btn.prop( 'disabled', false );
+						return;
+					}
+					var d = res.data;
+					if ( d.message ) {
+						$st.text( d.message );
+					}
+					if ( typeof d.index === 'number' ) {
+						var $row = $( '#llm-phrases-list .llm-phrase-row' ).eq( d.index );
+						$row.find( '.llm-phrase-tts-row-status' ).text( ttsStatusLabel( d.ready || 0, d.shown || 0 ) );
+						if ( d.urls && typeof d.urls === 'object' ) {
+							$.each( d.urls, function ( playKey, playUrl ) {
+								$row.attr( 'data-audio-' + playKey, playUrl || '' );
+								$row.find( '.llm-phrase-play[data-llm-play="' + playKey + '"]' ).prop( 'disabled', ! playUrl );
+							} );
+						}
+						if ( d.phraseId ) {
+							$row.attr( 'data-phrase-id', String( d.phraseId ) );
+							$row.find( 'input[name$="[id]"]' ).val( String( d.phraseId ) );
+						}
+					}
+					if ( d.done ) {
+						$btn.prop( 'disabled', false );
+						return;
+					}
+					runIndex( d.nextIndex || ( index + 1 ) );
+				} )
+				.fail( function ( xhr ) {
+					var msg = ( llmAdmin && llmAdmin.ttsErr ) ? llmAdmin.ttsErr : 'Errore';
+					if ( xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message ) {
+						msg = xhr.responseJSON.data.message;
+					}
+					$st.text( msg );
+					$btn.prop( 'disabled', false );
+				} );
+		}
+
+		runIndex( 0 );
+	} );
+
+	var llmAdminPhraseAudio = null;
+	$( document ).on( 'click', '.llm-phrase-play', function ( e ) {
+		e.preventDefault();
+		e.stopPropagation();
+		var $btn = $( this );
+		if ( $btn.prop( 'disabled' ) ) {
+			return;
+		}
+		var playKey = $btn.attr( 'data-llm-play' ) || '';
+		var url = $btn.closest( '.llm-phrase-row' ).attr( 'data-audio-' + playKey ) || '';
+		if ( ! url ) {
+			return;
+		}
+		if ( llmAdminPhraseAudio ) {
+			llmAdminPhraseAudio.pause();
+			$( '.llm-phrase-play.is-playing' ).removeClass( 'is-playing' );
+			if ( llmAdminPhraseAudio.getAttribute( 'src' ) === url && ! llmAdminPhraseAudio.ended ) {
+				llmAdminPhraseAudio = null;
+				return;
+			}
+		}
+		llmAdminPhraseAudio = new Audio( url );
+		llmAdminPhraseAudio.addEventListener( 'ended', function () {
+			$btn.removeClass( 'is-playing' );
+		} );
+		$btn.addClass( 'is-playing' );
+		var playPromise = llmAdminPhraseAudio.play();
+		if ( playPromise && typeof playPromise.catch === 'function' ) {
+			playPromise.catch( function () {
+				$btn.removeClass( 'is-playing' );
+			} );
+		}
+	} );
+
 	} ); // fine DOMReady full export
 
 }( jQuery ) );

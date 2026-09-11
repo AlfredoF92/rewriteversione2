@@ -108,6 +108,9 @@
 		if (totals.crosswords) {
 			html += '<span><b>' + esc(totals.crosswords) + '</b> ' + esc(t('crosswords_count')) + '</span>';
 		}
+		if (totals.playMinutes) {
+			html += '<span><b>' + esc(totals.playMinutes) + '</b> ' + esc(t('play_time_min')) + '</span>';
+		}
 		html += '<span><b>' + esc(formatBytes(storage.totalBytes)) + '</b></span>';
 		html += '</p>';
 

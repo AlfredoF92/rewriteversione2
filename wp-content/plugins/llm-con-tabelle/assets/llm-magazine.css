@@ -714,6 +714,11 @@ body.single-llm_magazine .elementor-widget-theme-post-title {
 	color: rgba(255, 248, 214, 0.75);
 }
 
+.llm-magazine__section--crossword .llm-crossword .cw-status--success {
+	color: #1c6830;
+	font-weight: 700;
+}
+
 .llm-magazine__section--crossword .llm-crossword .cw-clue-row {
 	border-bottom-color: rgba(255, 255, 255, 0.1);
 }

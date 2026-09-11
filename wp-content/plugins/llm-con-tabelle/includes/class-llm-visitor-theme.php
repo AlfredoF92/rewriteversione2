@@ -24,10 +24,11 @@ class LLM_Visitor_Theme {
 	const RESTORE_FLAG = 'llm_theme_restored';
 	const QUERY_VAR    = 'llm_game_theme';
 
-	const COOKIE_LAYOUT       = 'llm_story_layout';
-	const DEFAULT_LAYOUT      = 'one';
-	const RESTORE_FLAG_LAYOUT = 'llm_layout_restored';
-	const QUERY_VAR_LAYOUT    = 'llm_story_layout';
+	const COOKIE_LAYOUT        = 'llm_story_layout';
+	const DEFAULT_LAYOUT       = 'one';
+	const DEFAULT_LAYOUT_GUEST = 'two';
+	const RESTORE_FLAG_LAYOUT  = 'llm_layout_restored';
+	const QUERY_VAR_LAYOUT     = 'llm_story_layout';
 
 	public static function init() {
 		add_action( 'init', array( __CLASS__, 'maybe_save_from_request' ), 5 );
@@ -210,19 +211,30 @@ class LLM_Visitor_Theme {
 	}
 
 	/**
-	 * Layout pagina storia: una colonna (default) o due.
+	 * Default layout: due colonne per gli ospiti, una per il profilo senza scelta.
+	 *
+	 * @return string one|two
+	 */
+	public static function default_layout() {
+		$layout = is_user_logged_in() ? self::DEFAULT_LAYOUT : self::DEFAULT_LAYOUT_GUEST;
+		$layout = sanitize_key( (string) apply_filters( 'llm_visitor_story_layout_default', $layout ) );
+		return self::is_valid_layout( $layout ) ? $layout : self::DEFAULT_LAYOUT;
+	}
+
+	/**
+	 * Layout pagina storia: una colonna o due.
 	 *
 	 * @return string one|two
 	 */
 	public static function get_layout() {
 		$layout = self::stored_layout();
 		if ( '' === $layout ) {
-			$layout = self::DEFAULT_LAYOUT;
+			$layout = self::default_layout();
 		}
 
 		$layout = sanitize_key( (string) apply_filters( 'llm_visitor_story_layout', $layout ) );
 
-		return self::is_valid_layout( $layout ) ? $layout : self::DEFAULT_LAYOUT;
+		return self::is_valid_layout( $layout ) ? $layout : self::default_layout();
 	}
 
 	/**

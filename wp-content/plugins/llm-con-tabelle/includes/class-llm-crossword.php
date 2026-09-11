@@ -910,31 +910,74 @@ class LLM_Crossword {
 	}
 
 	/**
-	 * Definizione formattata come nel gioco: categoria, testo inglese e
-	 * italiano a capo tra parentesi. Senza inglese resta solo l'italiano.
+	 * Toglie "(Soluzione: Frase n. XX)" e ne ricava il numero.
 	 *
-	 * @param array<string,string>|null $clue Definizione.
+	 * @param string $text Testo definizione.
+	 * @return array{text:string,n:int}
+	 */
+	public static function split_solution_hint( $text ) {
+		$n   = 0;
+		$out = preg_replace_callback(
+			'/\s*[\(\[]?\s*(?:Soluzione|Solution|Soluci[oó]n|Rozwi[aą]zanie)\s*:?\s*(?:Frase|Phrase|Zdanie)?\s*n\.?\s*(\d+)\s*[\)\]]?\s*/iu',
+			static function ( $m ) use ( &$n ) {
+				$parsed = isset( $m[1] ) ? absint( $m[1] ) : 0;
+				if ( $parsed ) {
+					$n = $parsed;
+				}
+				return ' ';
+			},
+			(string) $text
+		);
+		$out = trim( preg_replace( '/\s+/u', ' ', (string) $out ) );
+		$out = trim( $out, " \t\n\r\0\x0B.;,–—" );
+		return array(
+			'text' => $out,
+			'n'    => $n,
+		);
+	}
+
+	/**
+	 * Definizione: bandiera + testo noto in grassetto, poi bandiera + obiettivo.
+	 * L'hint "Soluzione Frase n. XX" va una sola volta, in piccolo.
+	 *
+	 * @param array<string,string>|null $clue        Definizione.
+	 * @param string                    $known_flag  Emoji lingua nota.
+	 * @param string                    $target_flag Emoji lingua obiettivo.
 	 * @return string HTML già escapato.
 	 */
-	public static function clue_html( $clue ) {
+	public static function clue_html( $clue, $known_flag = '', $target_flag = '' ) {
 		if ( ! is_array( $clue ) ) {
 			return '';
 		}
-		$pos = isset( $clue['pos'] ) ? (string) $clue['pos'] : '';
-		$en  = isset( $clue['en'] ) ? (string) $clue['en'] : '';
-		$it  = isset( $clue['it'] ) ? (string) $clue['it'] : '';
-
-		if ( '' === $en ) {
-			return esc_html( $it );
+		$known  = self::split_solution_hint( isset( $clue['en'] ) ? (string) $clue['en'] : '' );
+		$target = self::split_solution_hint( isset( $clue['it'] ) ? (string) $clue['it'] : '' );
+		$en     = $known['text'];
+		$it     = $target['text'];
+		$n      = $known['n'] ? $known['n'] : $target['n'];
+		if ( '' === $en && '' === $it ) {
+			return '';
 		}
 
 		$html = '';
-		if ( '' !== $pos ) {
-			$html .= '<span class="cw-def-pos">' . esc_html( $pos ) . '</span> ';
+		if ( '' !== $en ) {
+			$html .= '<span class="cw-def-line cw-def-line--known">';
+			if ( '' !== $known_flag ) {
+				$html .= '<span class="cw-def-flag" aria-hidden="true">' . esc_html( $known_flag ) . '</span>';
+			}
+			$html .= '<strong class="cw-def-known">' . esc_html( $en ) . '</strong></span>';
 		}
-		$html .= esc_html( $en );
 		if ( '' !== $it ) {
-			$html .= '<br><em>(' . esc_html( $it ) . ')</em>';
+			$html .= '<span class="cw-def-line cw-def-line--target">';
+			if ( '' !== $target_flag ) {
+				$html .= '<span class="cw-def-flag" aria-hidden="true">' . esc_html( $target_flag ) . '</span>';
+			}
+			$html .= '<span class="cw-def-target">' . esc_html( $it ) . '</span></span>';
+		}
+		if ( $n ) {
+			$tpl = class_exists( 'LLM_Crossword_I18n' )
+				? LLM_Crossword_I18n::get( 'solution_phrase' )
+				: 'Soluzione Frase n. %d';
+			$html .= '<span class="cw-def-solution">' . esc_html( sprintf( $tpl, $n ) ) . '</span>';
 		}
 		return $html;
 	}

@@ -13,6 +13,8 @@ class LLM_User_Meta {
 
 	const INTERFACE_LANG  = '_llm_interface_lang';
 	const LEARNING_LANG   = '_llm_learning_lang';
+	const PROFILE_PHOTO   = '_llm_profile_photo';
+	const AVATAR          = '_llm_avatar';
 	const DEMO_FLAG       = '_llm_demo_user';
 	const STRICT_ACCENTS  = '_llm_game_strict_accents';
 	const UI_THEME        = '_llm_game_theme';
