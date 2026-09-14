@@ -581,6 +581,13 @@
 	outline: none;
 }
 
+@media (pointer: coarse), (max-width: 768px) {
+	.llm-crossword .cw-keyboard__key:not(.cw-keyboard__key--util) {
+		font-size: 0.9rem;
+		font-weight: 700;
+	}
+}
+
 .llm-crossword .cw-keyboard__key--util {
 	flex: 1.5 1 0;
 	min-width: 2.5rem;

@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class LLM_Tabelle_Database {
 
-	const DB_VERSION = '2.9.5';
+	const DB_VERSION = '2.9.7';
 
 	const OPT_VERSION = 'llm_tabelle_db_version';
 
@@ -71,6 +71,7 @@ class LLM_Tabelle_Database {
 			audio_female_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			audio_azure_male_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			audio_azure_female_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			audio_notes_female_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			PRIMARY KEY  (id),
 			KEY story_sort (story_id, sort_order)
 		) $charset_collate;";
@@ -329,7 +330,7 @@ class LLM_Tabelle_Database {
 	private static function ensure_phrase_audio_columns() {
 		global $wpdb;
 		$table = self::table( 'llm_story_phrases' );
-		foreach ( array( 'audio_male_id', 'audio_female_id', 'audio_azure_male_id', 'audio_azure_female_id' ) as $col_name ) {
+		foreach ( array( 'audio_male_id', 'audio_female_id', 'audio_azure_male_id', 'audio_azure_female_id', 'audio_notes_female_id' ) as $col_name ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$col = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", $col_name ) );
 			if ( $col ) {

@@ -23,7 +23,7 @@ class LLM_Story_Repository {
 		}
 		$table = LLM_Tabelle_Database::table( 'llm_story_phrases' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, phrase_interface, phrase_target, phrase_grammar, phrase_alt, phrase_notes, phrase_notes_target, phrase_remember, phrase_pronunciation, phrase_ipa, phrase_approx, audio_male_id, audio_female_id, audio_azure_male_id, audio_azure_female_id FROM {$table} WHERE story_id = %d ORDER BY sort_order ASC, id ASC", $story_id ), ARRAY_A );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, phrase_interface, phrase_target, phrase_grammar, phrase_alt, phrase_notes, phrase_notes_target, phrase_remember, phrase_pronunciation, phrase_ipa, phrase_approx, audio_male_id, audio_female_id, audio_azure_male_id, audio_azure_female_id, audio_notes_female_id FROM {$table} WHERE story_id = %d ORDER BY sort_order ASC, id ASC", $story_id ), ARRAY_A );
 		if ( ! is_array( $rows ) ) {
 			return array();
 		}
@@ -46,6 +46,7 @@ class LLM_Story_Repository {
 		$female_id    = isset( $r['audio_female_id'] ) ? (int) $r['audio_female_id'] : 0;
 		$az_male_id   = isset( $r['audio_azure_male_id'] ) ? (int) $r['audio_azure_male_id'] : 0;
 		$az_female_id = isset( $r['audio_azure_female_id'] ) ? (int) $r['audio_azure_female_id'] : 0;
+		$notes_f_id   = isset( $r['audio_notes_female_id'] ) ? (int) $r['audio_notes_female_id'] : 0;
 		return array(
 			'id'                     => isset( $r['id'] ) ? (int) $r['id'] : 0,
 			'interface'              => isset( $r['phrase_interface'] ) ? (string) $r['phrase_interface'] : ( isset( $r['interface'] ) ? (string) $r['interface'] : '' ),
@@ -66,6 +67,8 @@ class LLM_Story_Repository {
 			'audio_azure_female_id'  => $az_female_id,
 			'audio_azure_male_url'   => class_exists( 'LLM_Phrase_TTS' ) ? LLM_Phrase_TTS::url( $az_male_id ) : '',
 			'audio_azure_female_url' => class_exists( 'LLM_Phrase_TTS' ) ? LLM_Phrase_TTS::url( $az_female_id ) : '',
+			'audio_notes_female_id'  => $notes_f_id,
+			'audio_notes_female_url' => class_exists( 'LLM_Phrase_TTS' ) ? LLM_Phrase_TTS::url( $notes_f_id ) : '',
 		);
 	}
 
@@ -171,7 +174,7 @@ class LLM_Story_Repository {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT id, phrase_interface, phrase_target, phrase_grammar, phrase_alt, phrase_notes, phrase_notes_target, phrase_remember, phrase_pronunciation, phrase_ipa, phrase_approx, audio_male_id, audio_female_id, audio_azure_male_id, audio_azure_female_id FROM {$table} WHERE story_id = %d ORDER BY sort_order ASC, id ASC LIMIT 1 OFFSET %d",
+				"SELECT id, phrase_interface, phrase_target, phrase_grammar, phrase_alt, phrase_notes, phrase_notes_target, phrase_remember, phrase_pronunciation, phrase_ipa, phrase_approx, audio_male_id, audio_female_id, audio_azure_male_id, audio_azure_female_id, audio_notes_female_id FROM {$table} WHERE story_id = %d ORDER BY sort_order ASC, id ASC LIMIT 1 OFFSET %d",
 				$story_id,
 				$index
 			),
@@ -290,7 +293,7 @@ class LLM_Story_Repository {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$existing = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, phrase_target, audio_male_id, audio_female_id, audio_azure_male_id, audio_azure_female_id FROM {$table} WHERE story_id = %d",
+				"SELECT id, phrase_target, audio_male_id, audio_female_id, audio_azure_male_id, audio_azure_female_id, audio_notes_female_id FROM {$table} WHERE story_id = %d",
 				$story_id
 			),
 			ARRAY_A
@@ -352,10 +355,11 @@ class LLM_Story_Repository {
 				$data['audio_female_id']       = 0;
 				$data['audio_azure_male_id']   = 0;
 				$data['audio_azure_female_id'] = 0;
+				$data['audio_notes_female_id'] = 0;
 				$wpdb->insert(
 					$table,
 					$data,
-					array( '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d' )
+					array( '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%d' )
 				);
 			}
 			++$order;
@@ -367,7 +371,8 @@ class LLM_Story_Repository {
 					isset( $old['audio_male_id'] ) ? (int) $old['audio_male_id'] : 0,
 					isset( $old['audio_female_id'] ) ? (int) $old['audio_female_id'] : 0,
 					isset( $old['audio_azure_male_id'] ) ? (int) $old['audio_azure_male_id'] : 0,
-					isset( $old['audio_azure_female_id'] ) ? (int) $old['audio_azure_female_id'] : 0
+					isset( $old['audio_azure_female_id'] ) ? (int) $old['audio_azure_female_id'] : 0,
+					isset( $old['audio_notes_female_id'] ) ? (int) $old['audio_notes_female_id'] : 0
 				);
 			}
 			$wpdb->delete(
@@ -498,6 +503,61 @@ class LLM_Story_Repository {
 	}
 
 	/**
+	 * @param int $story_id  ID storia.
+	 * @param int $phrase_id ID riga.
+	 * @return int
+	 */
+	public static function get_phrase_notes_audio_id( $story_id, $phrase_id ) {
+		global $wpdb;
+		$story_id  = absint( $story_id );
+		$phrase_id = absint( $phrase_id );
+		if ( ! $story_id || ! $phrase_id ) {
+			return 0;
+		}
+		$table = LLM_Tabelle_Database::table( 'llm_story_phrases' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$val = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT audio_notes_female_id FROM {$table} WHERE id = %d AND story_id = %d LIMIT 1",
+				$phrase_id,
+				$story_id
+			)
+		);
+		return absint( $val );
+	}
+
+	/**
+	 * Audio Azure femminile: frase obiettivo + note nella lingua da imparare.
+	 *
+	 * @param int $story_id  ID storia.
+	 * @param int $phrase_id ID riga.
+	 * @param int $att_id    Allegato.
+	 * @return bool
+	 */
+	public static function set_phrase_notes_audio_id( $story_id, $phrase_id, $att_id ) {
+		global $wpdb;
+		$story_id  = absint( $story_id );
+		$phrase_id = absint( $phrase_id );
+		if ( ! $story_id || ! $phrase_id ) {
+			return false;
+		}
+		$table  = LLM_Tabelle_Database::table( 'llm_story_phrases' );
+		$result = $wpdb->update(
+			$table,
+			array(
+				'audio_notes_female_id' => absint( $att_id ),
+			),
+			array(
+				'id'       => $phrase_id,
+				'story_id' => $story_id,
+			),
+			array( '%d' ),
+			array( '%d', '%d' )
+		);
+		return false !== $result;
+	}
+
+	/**
 	 * @param int $story_id ID post.
 	 * @return array<int, array{attachment_id:int, after_phrase_index:int}>
 	 */
@@ -579,7 +639,7 @@ class LLM_Story_Repository {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$audio_rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT audio_male_id, audio_female_id, audio_azure_male_id, audio_azure_female_id FROM {$p} WHERE story_id = %d",
+					"SELECT audio_male_id, audio_female_id, audio_azure_male_id, audio_azure_female_id, audio_notes_female_id FROM {$p} WHERE story_id = %d",
 					$story_id
 				),
 				ARRAY_A
@@ -590,7 +650,8 @@ class LLM_Story_Repository {
 						isset( $ar['audio_male_id'] ) ? (int) $ar['audio_male_id'] : 0,
 						isset( $ar['audio_female_id'] ) ? (int) $ar['audio_female_id'] : 0,
 						isset( $ar['audio_azure_male_id'] ) ? (int) $ar['audio_azure_male_id'] : 0,
-						isset( $ar['audio_azure_female_id'] ) ? (int) $ar['audio_azure_female_id'] : 0
+						isset( $ar['audio_azure_female_id'] ) ? (int) $ar['audio_azure_female_id'] : 0,
+						isset( $ar['audio_notes_female_id'] ) ? (int) $ar['audio_notes_female_id'] : 0
 					);
 				}
 			}

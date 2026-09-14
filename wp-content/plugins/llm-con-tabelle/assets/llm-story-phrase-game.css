@@ -108,6 +108,131 @@
 	opacity: 1;
 }
 
+.llm-phrase-game__notes-player {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	margin: 0 0 0.45rem;
+	padding: 0 0 0.4rem;
+	border-bottom: 1px solid rgba(128, 128, 128, 0.35);
+	cursor: default;
+	font-weight: 400;
+}
+
+html body .llm-phrase-game button.llm-phrase-game__notes-player-btn,
+.llm-phrase-game button.llm-phrase-game__notes-player-btn,
+button.llm-phrase-game__notes-player-btn {
+	-webkit-appearance: none !important;
+	appearance: none !important;
+	box-sizing: border-box !important;
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	min-width: 3.4rem !important;
+	width: auto !important;
+	height: 1.35rem !important;
+	margin: 0 !important;
+	padding: 0 0.9rem !important;
+	border: 1px solid #2271b1 !important;
+	border-radius: 999px !important;
+	background: #fff !important;
+	color: #2271b1 !important;
+	font-size: 0.72rem !important;
+	font-weight: 700 !important;
+	line-height: 1 !important;
+	letter-spacing: 0.02em !important;
+	text-transform: none !important;
+	cursor: pointer !important;
+	box-shadow: none !important;
+}
+
+html body .llm-phrase-game button.llm-phrase-game__notes-player-play,
+.llm-phrase-game button.llm-phrase-game__notes-player-play {
+	min-width: 3.8rem !important;
+	padding: 0 1.05rem !important;
+}
+
+html body .llm-phrase-game button.llm-phrase-game__notes-player-btn:hover,
+html body .llm-phrase-game button.llm-phrase-game__notes-player-btn:focus-visible,
+.llm-phrase-game button.llm-phrase-game__notes-player-btn:hover,
+.llm-phrase-game button.llm-phrase-game__notes-player-btn:focus-visible {
+	background: #2271b1 !important;
+	color: #fff !important;
+}
+
+html body .llm-phrase-game .llm-phrase-game__notes-player.is-playing button.llm-phrase-game__notes-player-play,
+.llm-phrase-game .llm-phrase-game__notes-player.is-playing button.llm-phrase-game__notes-player-play {
+	background: #2271b1 !important;
+	color: #fff !important;
+}
+
+.llm-phrase-game__notes-player-btn svg {
+	display: block;
+	width: 13px;
+	height: 13px;
+}
+
+.llm-phrase-game__notes-sel {
+	position: fixed;
+	z-index: 10060;
+	box-sizing: border-box;
+	max-width: min(22rem, calc(100vw - 1.25rem));
+	padding: 0.45rem 0.55rem 0.5rem;
+	border: 1px solid #2271b1;
+	border-radius: 10px;
+	background: #fff;
+	color: #1a1a1a;
+	box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+	font-size: 0.85rem;
+	line-height: 1.4;
+	cursor: default;
+}
+
+.llm-phrase-game__notes-sel-text {
+	margin: 0 0 0.4rem;
+	font-weight: 500;
+	word-break: break-word;
+}
+
+.llm-phrase-game__notes-sel-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.3rem;
+}
+
+html body .llm-phrase-game__notes-sel-play,
+.llm-phrase-game__notes-sel-play,
+button.llm-phrase-game__notes-sel-play {
+	-webkit-appearance: none !important;
+	appearance: none !important;
+	box-sizing: border-box !important;
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	min-width: 3.4rem !important;
+	height: 1.4rem !important;
+	margin: 0 !important;
+	padding: 0 0.85rem !important;
+	border: 1px solid #2271b1 !important;
+	border-radius: 999px !important;
+	background: #fff !important;
+	color: #2271b1 !important;
+	font-size: 0.72rem !important;
+	font-weight: 700 !important;
+	line-height: 1 !important;
+	text-transform: none !important;
+	cursor: pointer !important;
+	box-shadow: none !important;
+}
+
+html body .llm-phrase-game__notes-sel-play:hover,
+.llm-phrase-game__notes-sel-play:hover,
+html body .llm-phrase-game__notes-sel-play:focus-visible,
+.llm-phrase-game__notes-sel-play:focus-visible {
+	background: #2271b1 !important;
+	color: #fff !important;
+}
+
 .llm-phrase-game__story-line:last-child {
 	margin-bottom: 0;
 }
@@ -1431,39 +1556,17 @@ html body .llm-phrase-game button.llm-phrase-game__listen-switch[hidden],
 	white-space: nowrap;
 }
 
+.llm-phrase-game__mobile-field-actions {
+	display: none;
+}
+
 @media (pointer: coarse), (max-width: 768px) {
-	.llm-phrase-game__clear-input:not(.llm-phrase-game__rewind-input):not(.llm-phrase-game__ordina-input):not(.llm-phrase-game__delete-word) {
-		display: none !important;
-	}
-
-	.llm-phrase-game__clear-wrap--1 .llm-phrase-game__rewind-input,
-	.llm-phrase-game__clear-wrap--2 .llm-phrase-game__rewind-input {
-		display: none !important;
-	}
-
-	/* Keep the Cancella row in layout so showing/hiding the button does not shift the keyboard. */
-	.llm-phrase-game__clear-wrap.llm-phrase-game__action-fade[hidden] {
-		display: flex !important;
-		visibility: hidden;
-		pointer-events: none;
-	}
-
-	.llm-phrase-game__input-block:has(.llm-phrase-game__exact-ok-row:not([hidden])) .llm-phrase-game__clear-wrap.llm-phrase-game__action-fade[hidden] {
+	.llm-phrase-game__clear-wrap {
 		display: none !important;
 	}
 
 	.llm-phrase-game__input-block--sticky {
-		gap: 0.1rem;
-	}
-
-	.llm-phrase-game__clear-wrap {
-		margin: 0;
-		padding: 0;
-		gap: 0.2rem;
-	}
-
-	.llm-phrase-game__clear-wrap .llm-phrase-game__clear-input {
-		margin: 0 !important;
+		gap: 0;
 	}
 
 	.llm-phrase-game__helper-accs {
@@ -1472,6 +1575,33 @@ html body .llm-phrase-game button.llm-phrase-game__listen-switch[hidden],
 
 	.llm-phrase-game__helper-accs .llm-phrase-game__keyboard-panel {
 		padding-top: 0.35rem;
+	}
+
+	.llm-phrase-game__mobile-field-actions {
+		display: flex;
+		order: 1;
+		flex: 1 0 100%;
+		width: 100%;
+		justify-content: center;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+		margin: 0.15rem 0 0;
+		padding: 0;
+	}
+
+	.llm-phrase-game__mobile-field-actions .llm-phrase-game__clear-input {
+		display: inline-flex !important;
+		margin: 0 !important;
+		opacity: 0.28;
+		pointer-events: none;
+		cursor: default;
+	}
+
+	.llm-phrase-game__mobile-field-actions .llm-phrase-game__clear-input.is-on {
+		opacity: 1;
+		pointer-events: auto;
+		cursor: pointer;
 	}
 }
 
@@ -2495,6 +2625,234 @@ html body .llm-phrase-game .llm-phrase-game__listen-switch .llm-phrase-game__mic
 	margin-bottom: 0;
 }
 
+.llm-phrase-game__grammar-sections {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	width: 100%;
+}
+
+.llm-phrase-game__grammar-section {
+	width: 100%;
+	padding-bottom: 0.2rem;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.llm-phrase-game__grammar-section:last-child {
+	border-bottom: 0;
+	padding-bottom: 0;
+}
+
+.llm-phrase-game .llm-phrase-game__grammar-section-toggle,
+.llm-phrase-game__grammar-section-toggle {
+	-webkit-appearance: none;
+	appearance: none;
+	display: flex;
+	align-items: flex-start;
+	justify-content: flex-start;
+	gap: 0.5rem;
+	width: 100%;
+	min-width: 0;
+	max-width: 100%;
+	margin: 0;
+	padding: 0.55rem 0.1rem 0.7rem;
+	border: 0 !important;
+	border-radius: 0 !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	color: #1c6830 !important;
+	font-family: inherit;
+	font-size: 0.95rem;
+	font-weight: 700;
+	line-height: 1.35;
+	text-align: left;
+	white-space: normal;
+	cursor: pointer;
+}
+
+.llm-phrase-game .llm-phrase-game__grammar-section-toggle:hover,
+.llm-phrase-game .llm-phrase-game__grammar-section-toggle:focus-visible,
+.llm-phrase-game__grammar-section-toggle:hover,
+.llm-phrase-game__grammar-section-toggle:focus-visible {
+	color: #14501f !important;
+	outline: none;
+}
+
+.llm-phrase-game__grammar-section-text {
+	flex: 1 1 auto;
+	min-width: 0;
+	max-width: 100%;
+	white-space: normal;
+	overflow-wrap: anywhere;
+	word-break: break-word;
+}
+
+.llm-phrase-game__grammar-section-toggle .llm-phrase-game__tool-accordion-chevron {
+	margin-top: 0.2rem;
+	width: 0.6rem;
+	height: 0.6rem;
+	border-right-width: 2.5px;
+	border-bottom-width: 2.5px;
+	flex: 0 0 auto;
+}
+
+.llm-phrase-game__grammar-section-toggle[aria-expanded="true"] .llm-phrase-game__tool-accordion-chevron {
+	transform: rotate(-135deg);
+	margin-top: 0.15rem;
+}
+
+.llm-phrase-game__grammar-section-panel {
+	width: 100%;
+	margin: 0;
+	padding: 0.45rem 0 1.05rem 1.9rem;
+	box-sizing: border-box;
+}
+
+.llm-phrase-game__grammar-section-panel[hidden] {
+	display: none;
+}
+
+.llm-phrase-game__grammar-section-panel p {
+	margin: 0 0 0.8em;
+	line-height: 1.55;
+}
+
+.llm-phrase-game__grammar-section-panel p:last-child {
+	margin-bottom: 0;
+}
+
+.llm-phrase-game__solution-card {
+	display: flex;
+	flex-direction: column;
+	gap: 0.45rem;
+	margin: 0 0 0.55rem;
+	padding: 0.7rem 0.85rem;
+	border: 1px solid rgba(0, 0, 0, 0.16);
+	border-radius: 10px;
+	background: transparent;
+	box-sizing: border-box;
+}
+
+.llm-phrase-game__solution-card--source {
+	border-color: transparent;
+	margin-bottom: 0.15rem;
+}
+
+.llm-phrase-game__solution-card--ipa {
+	margin-bottom: 0.7rem;
+}
+
+.llm-phrase-game__solution-line {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.5rem;
+	line-height: 1.45;
+}
+
+.llm-phrase-game__solution-flag {
+	flex: 0 0 auto;
+	margin-top: 0.05rem;
+	font-size: 1.15em;
+	line-height: 1;
+}
+
+.llm-phrase-game__solution-text {
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.llm-phrase-game__solution-line--source .llm-phrase-game__solution-text {
+	font-weight: 700;
+}
+
+.llm-phrase-game__solution-line--target .llm-phrase-game__solution-text {
+	font-weight: 400;
+}
+
+.llm-phrase-game__solution-ipa {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.45rem;
+	margin: 0;
+	padding: 0;
+	line-height: 1.45;
+}
+
+.llm-phrase-game__solution-approx {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0;
+	margin: 0.15rem 0 0;
+	padding: 0;
+	font-size: calc(1em - 1px);
+	line-height: 1.4;
+}
+
+.llm-phrase-game__solution-mic {
+	font-size: 1.05em;
+	line-height: 1;
+}
+
+.llm-phrase-game__solution-ipa-text {
+	min-width: 0;
+	flex: 1 1 auto;
+	font-family: "Segoe UI", "Noto Sans", "DejaVu Sans", sans-serif;
+	letter-spacing: 0.01em;
+}
+
+.llm-phrase-game__grammar-section-panel .llm-phrase-game__solution-approx-title,
+.llm-phrase-game__grammar-section-panel .llm-phrase-game__solution-approx-text,
+.llm-phrase-game__solution-approx-title {
+	display: block;
+	margin: 0;
+	line-height: 1.4;
+}
+
+.llm-phrase-game__solution-approx-label {
+	font-style: italic;
+	font-weight: 400;
+}
+
+.llm-phrase-game__solution-approx-text {
+	margin: 0;
+	padding: 0;
+	min-width: 0;
+	line-height: 1.4;
+}
+
+@media (pointer: coarse), (max-width: 768px) {
+	.llm-phrase-game__notes-panel,
+	.llm-phrase-game__story-notes-panel,
+	.llm-phrase-game__pron-tips-panel {
+		padding-left: 0;
+		padding-right: 0;
+	}
+
+	.llm-phrase-game__grammar-section-toggle {
+		padding-left: 0;
+		padding-right: 0;
+		padding-bottom: 0.65rem;
+	}
+
+	.llm-phrase-game__grammar-section-panel {
+		padding: 0.4rem 0 0.8rem;
+	}
+}
+
+/* Gli aiuti sulla pronuncia sono ora l'ultimo capitolo dentro "Consigli
+ * sulla traduzione" (vedi renderGrammarSections in JS): l'accordion
+ * separato che stava qui prima va nascosto per non duplicare il contenuto. */
+.llm-phrase-game__pron-tips {
+	display: none !important;
+}
+
+/* Stesso discorso per il bottone "Help" con soluzione/pronuncia bloccate:
+ * ora è l'ultimo capitolo (❤️) dentro "Consigli sulla traduzione". */
+.llm-phrase-game__phrase-help {
+	display: none !important;
+}
+
 .llm-phrase-game__pronunciation {
 	margin: 0 0 1.25rem;
 	font-weight: 400;
@@ -2941,6 +3299,276 @@ body.llm-fe-notes-modal-open {
 	border: 1px solid #7fbb90;
 }
 
+.llm-phrase-game__azure-pron {
+	width: min(100%, 22rem);
+	margin: 0 auto 0.55rem;
+	pointer-events: none;
+	opacity: 0;
+	transform: translateY(8px);
+	transition: opacity 0.32s ease, transform 0.32s ease;
+}
+
+.llm-phrase-game__azure-pron.is-visible {
+	pointer-events: auto;
+	opacity: 1;
+	transform: none;
+}
+
+.llm-phrase-game__azure-pron[hidden] {
+	display: none !important;
+}
+
+.llm-phrase-game__azure-pron-card {
+	position: relative;
+	box-sizing: border-box;
+	padding: 0.7rem 0.85rem 0.75rem;
+	border: 2px solid #2271b1;
+	border-radius: 12px;
+	background: #f7fbff;
+	text-align: center;
+}
+
+html body .llm-phrase-game button.llm-phrase-game__azure-pron-close,
+html body .llm-phrase-game button.llm-phrase-game__azure-pron-help-btn,
+html body button.llm-phrase-game__azure-pron-help-close,
+.llm-phrase-game button.llm-phrase-game__azure-pron-close,
+.llm-phrase-game button.llm-phrase-game__azure-pron-help-btn,
+button.llm-phrase-game__azure-pron-help-close {
+	-webkit-appearance: none !important;
+	appearance: none !important;
+	position: absolute !important;
+	top: 0.28rem !important;
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	width: 1.55rem !important;
+	height: 1.55rem !important;
+	min-width: 1.55rem !important;
+	min-height: 1.55rem !important;
+	max-width: 1.55rem !important;
+	max-height: 1.55rem !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	border: 2px solid #2271b1 !important;
+	border-color: #2271b1 !important;
+	border-radius: 50% !important;
+	background: #fff !important;
+	background-color: #fff !important;
+	box-shadow: none !important;
+	outline: none !important;
+	color: #2271b1 !important;
+	font-size: 1.15rem !important;
+	font-weight: 800 !important;
+	line-height: 1 !important;
+	cursor: pointer;
+	filter: none !important;
+	text-decoration: none !important;
+}
+
+html body .llm-phrase-game button.llm-phrase-game__azure-pron-close,
+html body button.llm-phrase-game__azure-pron-help-close,
+.llm-phrase-game button.llm-phrase-game__azure-pron-close,
+button.llm-phrase-game__azure-pron-help-close {
+	right: 0.28rem !important;
+	left: auto !important;
+}
+
+html body .llm-phrase-game button.llm-phrase-game__azure-pron-help-btn,
+.llm-phrase-game button.llm-phrase-game__azure-pron-help-btn {
+	left: 0.42rem !important;
+	right: auto !important;
+	top: 0.48rem !important;
+	width: 0.95rem !important;
+	height: 0.95rem !important;
+	min-width: 0.95rem !important;
+	min-height: 0.95rem !important;
+	max-width: 0.95rem !important;
+	max-height: 0.95rem !important;
+	border-width: 1.5px !important;
+	font-size: 0.62rem !important;
+	font-weight: 700 !important;
+}
+
+.llm-phrase-game__azure-pron-title {
+	margin: 0 1.7rem 0.35rem;
+	font-size: 0.78rem;
+	font-weight: 800;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: #2271b1;
+}
+
+.llm-phrase-game__azure-pron-overall {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin: 0 0 0.45rem;
+	line-height: 1.05;
+}
+
+.llm-phrase-game__azure-pron-overall-n,
+.llm-phrase-game__azure-pron-metric-n {
+	color: #2271b1;
+	font-weight: 800;
+}
+
+.llm-phrase-game__azure-pron-overall-n {
+	display: inline-flex;
+	align-items: baseline;
+	font-size: 1.85rem;
+}
+
+.llm-phrase-game__azure-pron-overall-max {
+	margin-left: 0.12em;
+	font-size: 0.48em;
+	font-weight: 700;
+	letter-spacing: 0;
+	opacity: 0.82;
+}
+
+.llm-phrase-game__azure-pron-overall-l,
+.llm-phrase-game__azure-pron-metric-l {
+	font-size: 0.72rem;
+	font-weight: 700;
+	color: #2271b1;
+}
+
+.llm-phrase-game__azure-pron-metrics {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 0.45rem 0.7rem;
+	margin: 0 0 0.5rem;
+}
+
+.llm-phrase-game__azure-pron-metric {
+	display: flex;
+	flex-direction: column;
+	min-width: 3.6rem;
+	line-height: 1.1;
+}
+
+.llm-phrase-game__azure-pron-metric-n {
+	font-size: 1.05rem;
+}
+
+.llm-phrase-game__azure-pron-metric-l {
+	font-size: 0.68rem;
+}
+
+.llm-phrase-game__azure-pron-words {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 0.28rem 0.4rem;
+}
+
+.llm-phrase-game__azure-pron-word {
+	display: inline-block;
+	padding: 0.08rem 0.28rem;
+	border-radius: 5px;
+	font-size: 0.86rem;
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.llm-phrase-game__azure-pron-word--good {
+	background: #e7f2ff;
+	color: #2271b1;
+}
+
+.llm-phrase-game__azure-pron-word--mid {
+	background: #f6e9f6;
+	color: #8e148e;
+}
+
+.llm-phrase-game__azure-pron-word--bad,
+.llm-phrase-game__azure-pron-word--mis {
+	background: #f3d9f0;
+	color: #8e148e;
+}
+
+.llm-phrase-game__azure-pron-word--omit {
+	background: #eef3f8;
+	color: #5a7aa0;
+	text-decoration: line-through;
+}
+
+.llm-phrase-game__azure-pron-word--ins {
+	background: #e7f2ff;
+	color: #2271b1;
+	font-style: italic;
+}
+
+.llm-phrase-game__azure-pron-empty {
+	margin: 0.15rem 0 0;
+	font-size: 0.86rem;
+	font-weight: 600;
+	line-height: 1.35;
+	color: #2271b1;
+}
+
+.llm-phrase-game__azure-pron-help-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 10060;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 1.1rem;
+	background: rgba(12, 12, 14, 0.48);
+	cursor: pointer;
+}
+
+.llm-phrase-game__azure-pron-help-overlay[hidden] {
+	display: none !important;
+}
+
+.llm-phrase-game__azure-pron-help-box {
+	position: relative;
+	width: min(22rem, calc(100vw - 2.4rem));
+	max-height: min(70vh, 28rem);
+	overflow-y: auto;
+	padding: 1.05rem 1.15rem 1.1rem;
+	border: 2px solid #2271b1;
+	border-radius: 12px;
+	background: #fff;
+	color: #1d4f80;
+	cursor: default;
+	box-shadow: 0 18px 48px rgba(34, 113, 177, 0.22);
+}
+
+.llm-phrase-game__azure-pron-help-title {
+	margin: 0 1.6rem 0.7rem 0;
+	font-size: 1.02rem;
+	font-weight: 800;
+	color: #2271b1;
+}
+
+.llm-phrase-game__azure-pron-help-item {
+	margin: 0 0 0.7rem;
+	text-align: left;
+}
+
+.llm-phrase-game__azure-pron-help-item:last-child {
+	margin-bottom: 0;
+}
+
+.llm-phrase-game__azure-pron-help-item strong {
+	display: block;
+	margin: 0 0 0.18rem;
+	color: #2271b1;
+	font-size: 0.92rem;
+}
+
+.llm-phrase-game__azure-pron-help-item p {
+	margin: 0;
+	font-size: 0.86rem;
+	font-weight: 500;
+	line-height: 1.4;
+	color: #2a3a4d;
+}
+
 /* ─── Mobile: larger tap target ──────────────────────────────────────── */
 
 @media (pointer: coarse), (max-width: 768px) {
@@ -3275,7 +3903,7 @@ body.llm-fe-notes-modal-open {
 .llm-phrase-game__pron-tips-panel {
 	width: 100%;
 	margin: 0;
-	padding: 0.65rem 0 0.65rem 1.55rem;
+	padding: 0.85rem 0 0.65rem 1.55rem;
 	box-sizing: border-box;
 	overflow-anchor: none;
 }
@@ -3564,6 +4192,14 @@ body.llm-fe-notes-modal-open {
 	width: 100%;
 	padding: 0.9rem 0 0.65rem;
 	overflow: visible;
+}
+
+@media (pointer: coarse), (max-width: 768px) {
+	.llm-phrase-game__helper-accs .llm-phrase-game__random-words-list,
+	.llm-phrase-game__helper-accs .llm-phrase-game__extra-chars-panel,
+	.llm-phrase-game__helper-accs .llm-phrase-game__keyboard-panel {
+		order: 2;
+	}
 }
 
 .llm-phrase-game__helper-accs .llm-phrase-game__random-words-list {
@@ -3941,6 +4577,15 @@ body.llm-fe-notes-modal-open {
 .llm-phrase-game .llm-phrase-game__kb-key.is-preview,
 .llm-phrase-game__kb-key.is-preview {
 	z-index: 5;
+}
+
+@media (pointer: coarse), (max-width: 768px) {
+	.llm-phrase-game .llm-phrase-game__kb-key:not(.llm-phrase-game__kb-key--util):not(.llm-phrase-game__kb-key--space):not(.llm-phrase-game__kb-key--digit):not(.llm-phrase-game__kb-key--extra),
+	.llm-phrase-game__kb-key:not(.llm-phrase-game__kb-key--util):not(.llm-phrase-game__kb-key--space):not(.llm-phrase-game__kb-key--digit):not(.llm-phrase-game__kb-key--extra),
+	.llm-crossword .cw-keyboard__key:not(.cw-keyboard__key--util) {
+		font-size: 1.03rem !important;
+		font-weight: 800 !important;
+	}
 }
 
 .llm-phrase-game__kb-key-label {
@@ -4752,5 +5397,15 @@ body.llm-fe-notes-modal-open {
 	.llm-phrase-game__phase1-tools {
 		transition-duration: 0.01ms;
 	}
+}
+
+/* Pulsante "Visualizza Traduzione" sotto gli accordion: nascosto perché
+ * ridondante con il capitolo "Guarda la soluzione". Specificità alta per
+ * vincere su hero.css (.llm-learning-mode__change.llm-phrase-game__show-field-trans). */
+.llm-phrase-game .llm-learning-mode__change.llm-phrase-game__show-field-trans,
+.llm-learning-mode__change.llm-phrase-game__show-field-trans,
+.llm-phrase-game .llm-phrase-game__show-field-trans,
+.llm-phrase-game__show-field-trans {
+	display: none !important;
 }
 

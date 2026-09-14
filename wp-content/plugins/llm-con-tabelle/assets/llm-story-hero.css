@@ -1426,9 +1426,7 @@
 }
 
 .llm-phrase-game .llm-phrase-game__show-field-pron,
-.llm-phrase-game__show-field-pron,
-.llm-phrase-game .llm-phrase-game__show-field-trans,
-.llm-phrase-game__show-field-trans {
+.llm-phrase-game__show-field-pron {
 	display: inline-flex !important;
 	align-items: center;
 	gap: 0.4rem;
@@ -1763,15 +1761,20 @@
 }
 
 .llm-phrase-game .llm-learning-mode__change.llm-phrase-game__show-field-pron,
-.llm-learning-mode__change.llm-phrase-game__show-field-pron,
-.llm-phrase-game .llm-learning-mode__change.llm-phrase-game__show-field-trans,
-.llm-learning-mode__change.llm-phrase-game__show-field-trans {
+.llm-learning-mode__change.llm-phrase-game__show-field-pron {
 	margin-top: 1.15rem !important;
 	margin-left: 0 !important;
 	padding: 0.42rem 0.95rem !important;
 	font-size: 0.86rem !important;
 	line-height: 1.25 !important;
 	border-radius: 999px !important;
+}
+
+.llm-phrase-game .llm-learning-mode__change.llm-phrase-game__show-field-trans,
+.llm-learning-mode__change.llm-phrase-game__show-field-trans,
+.llm-phrase-game .llm-phrase-game__show-field-trans,
+.llm-phrase-game__show-field-trans {
+	display: none !important;
 }
 
 .llm-game-theme__btn.is-active {

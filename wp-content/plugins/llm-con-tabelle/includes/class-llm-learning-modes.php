@@ -37,8 +37,11 @@ class LLM_Learning_Modes {
 	/** Nasconde traduzione + note a fianco delle frasi già tradotte. */
 	const OPTION_HIDE_STORY_NOTES = 'hide_story_notes';
 
-	/** Storia già tradotta solo nella lingua da imparare (frase + note target). */
+	/** Mostra note/storia solo nella lingua da imparare. */
 	const OPTION_STORY_TARGET_ONLY = 'story_target_only';
+
+	/** Evidenzia negli appunti e ascolta il testo selezionato. */
+	const OPTION_LISTEN_NOTES_SEL = 'listen_notes_sel';
 
 	/** Modalità storica a due fasi. */
 	const MODE_LOVEREWRITE = 'loverewrite';
@@ -168,6 +171,11 @@ class LLM_Learning_Modes {
 				'id'          => self::OPTION_STORY_TARGET_ONLY,
 				'label'       => LLM_Phrase_Game_I18n::get( 'option_story_target_only_label' ),
 				'description' => LLM_Phrase_Game_I18n::get( 'option_story_target_only_desc' ),
+			),
+			array(
+				'id'          => self::OPTION_LISTEN_NOTES_SEL,
+				'label'       => LLM_Phrase_Game_I18n::get( 'option_listen_notes_sel_label' ),
+				'description' => LLM_Phrase_Game_I18n::get( 'option_listen_notes_sel_desc' ),
 			),
 		);
 

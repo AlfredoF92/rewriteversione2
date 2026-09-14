@@ -48,6 +48,8 @@ class LLM_Story_Phrase_Game {
 		add_action( 'wp_ajax_nopriv_llm_phrase_game_restart', array( __CLASS__, 'ajax_restart' ) );
 		add_action( 'wp_ajax_llm_phrase_game_set_display', array( __CLASS__, 'ajax_set_display' ) );
 		add_action( 'wp_ajax_nopriv_llm_phrase_game_set_display', array( __CLASS__, 'ajax_set_display' ) );
+		add_action( 'wp_ajax_llm_notes_sel_tts', array( __CLASS__, 'ajax_notes_sel_tts' ) );
+		add_action( 'wp_ajax_nopriv_llm_notes_sel_tts', array( __CLASS__, 'ajax_notes_sel_tts' ) );
 		add_action( 'wp_ajax_llm_fe_save_phrase_notes', array( __CLASS__, 'ajax_save_phrase_notes' ) );
 		add_action( 'wp_ajax_llm_fe_admin_complete_story', array( __CLASS__, 'ajax_admin_complete_story' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_sync_visitor_langs' ), 6 );
@@ -297,6 +299,39 @@ class LLM_Story_Phrase_Game {
 		return $html;
 	}
 
+	/**
+	 * Riga mobile sotto Tastiera / frecce / random: sempre visibile, accesa o spenta via JS.
+	 *
+	 * @param string $suffix Fase ('1' / '2').
+	 * @return string
+	 */
+	private static function render_mobile_field_actions( $suffix ) {
+		$restart      = LLM_Phrase_Game_I18n::get( 'clear_input' );
+		$delete       = LLM_Phrase_Game_I18n::get( 'delete_last_word' );
+		$delete_aria  = LLM_Phrase_Game_I18n::get( 'delete_last_word_aria' );
+		$ordina       = LLM_Phrase_Game_I18n::get( 'sort_exact_words' );
+		$ordina_aria  = LLM_Phrase_Game_I18n::get( 'sort_exact_words_aria' );
+		$idle         = ' aria-disabled="true" tabindex="-1"';
+
+		return '<div class="llm-phrase-game__mobile-field-actions llm-phrase-game__mobile-field-actions--' . esc_attr( $suffix ) . '">'
+			. '<button type="button" class="llm-phrase-game__clear-input llm-phrase-game__mobile-act button" data-llm-mobile-act="restart"' . $idle . ' aria-label="' . esc_attr( $restart ) . '">'
+			. '<span class="llm-phrase-game__clear-input-icon" aria-hidden="true">'
+			. '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>'
+			. '</span>'
+			. '<span class="llm-phrase-game__clear-input-text">' . esc_html( $restart ) . '</span>'
+			. '</button>'
+			. '<button type="button" class="llm-phrase-game__clear-input llm-phrase-game__mobile-act button" data-llm-mobile-act="delete"' . $idle . ' aria-label="' . esc_attr( $delete_aria ) . '" title="' . esc_attr( $delete_aria ) . '">'
+			. '<span class="llm-phrase-game__clear-input-icon" aria-hidden="true">'
+			. '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>'
+			. '</span>'
+			. '<span class="llm-phrase-game__clear-input-text">' . esc_html( $delete ) . '</span>'
+			. '</button>'
+			. '<button type="button" class="llm-phrase-game__clear-input llm-phrase-game__mobile-act button" data-llm-mobile-act="ordina"' . $idle . ' aria-label="' . esc_attr( $ordina_aria ) . '">'
+			. '<span class="llm-phrase-game__clear-input-text">' . esc_html( $ordina ) . '</span>'
+			. '</button>'
+			. '</div>';
+	}
+
 	private static function render_mic_button( $mod_class, $engine, $label ) {
 		$label = (string) $label;
 		return '<button type="button" class="llm-phrase-game__mic ' . esc_attr( $mod_class ) . '" data-llm-stt="' . esc_attr( $engine ) . '" aria-label="' . esc_attr( $label ) . '">'
@@ -310,6 +345,11 @@ class LLM_Story_Phrase_Game {
 		$html  = '<div class="llm-phrase-game__mic-cluster">';
 		$html .= '<div class="llm-phrase-game__mic-stage" data-llm-mic-stage>';
 		if ( $azure_ready ) {
+			$html .= self::render_mic_button(
+				'llm-phrase-game__mic--azure llm-phrase-game__mic--azure-premium llm-phrase-game__mic--azure-premium-' . $phase,
+				'azure-premium',
+				LLM_Phrase_Game_I18n::get( 'mic_button_azure_premium' )
+			);
 			$html .= self::render_mic_button(
 				'llm-phrase-game__mic--azure llm-phrase-game__mic--azure-' . $phase,
 				'azure',
@@ -574,6 +614,7 @@ class LLM_Story_Phrase_Game {
 					<?php echo self::render_caret_nav_block( $uid, '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 					<?php echo self::render_extra_chars_block( $uid, '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 					<?php echo self::render_random_words_block( $uid, '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+					<?php echo self::render_mobile_field_actions( '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 					</div>
 					<div class="llm-phrase-game__phase1-tools">
 						<div class="llm-phrase-game__input-block llm-phrase-game__input-block--tools">
@@ -738,6 +779,7 @@ class LLM_Story_Phrase_Game {
 						<?php echo self::render_caret_nav_block( $uid, '2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 						<?php echo self::render_extra_chars_block( $uid, '2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 						<?php echo self::render_random_words_block( $uid, '2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
+						<?php echo self::render_mobile_field_actions( '2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 						</div>
 					</div>
 					<div class="llm-phrase-game__actions">
@@ -1571,6 +1613,7 @@ class LLM_Story_Phrase_Game {
 				'approx'        => isset( $row['approx'] ) ? $row['approx'] : '',
 				'audioMale'     => $front['male'],
 				'audioFemale'   => $front['female'],
+				'audioNotes'    => isset( $row['audio_notes_female_url'] ) ? (string) $row['audio_notes_female_url'] : '',
 			);
 		}
 
@@ -1831,6 +1874,21 @@ class LLM_Story_Phrase_Game {
 			'micDenied'        => LLM_Phrase_Game_I18n::get( 'mic_denied' ),
 			'micUnavailable'   => LLM_Phrase_Game_I18n::get( 'mic_unavailable' ),
 			'micSttError'      => LLM_Phrase_Game_I18n::get( 'mic_stt_error' ),
+			'azurePronTitle'   => LLM_Phrase_Game_I18n::get( 'azure_pron_title' ),
+			'azurePronOverall' => LLM_Phrase_Game_I18n::get( 'azure_pron_overall' ),
+			'azurePronAccuracy'=> LLM_Phrase_Game_I18n::get( 'azure_pron_accuracy' ),
+			'azurePronFluency' => LLM_Phrase_Game_I18n::get( 'azure_pron_fluency' ),
+			'azurePronProsody' => LLM_Phrase_Game_I18n::get( 'azure_pron_prosody' ),
+			'azurePronWords'   => LLM_Phrase_Game_I18n::get( 'azure_pron_words' ),
+			'azurePronEmpty'   => LLM_Phrase_Game_I18n::get( 'azure_pron_empty' ),
+			'azurePronClose'   => LLM_Phrase_Game_I18n::get( 'azure_pron_close' ),
+			'azurePronHelpAria'=> LLM_Phrase_Game_I18n::get( 'azure_pron_help_aria' ),
+			'azurePronHelpTitle' => LLM_Phrase_Game_I18n::get( 'azure_pron_help_title' ),
+			'azurePronHelpOverall' => LLM_Phrase_Game_I18n::get( 'azure_pron_help_overall' ),
+			'azurePronHelpAccuracy' => LLM_Phrase_Game_I18n::get( 'azure_pron_help_accuracy' ),
+			'azurePronHelpFluency' => LLM_Phrase_Game_I18n::get( 'azure_pron_help_fluency' ),
+			'azurePronHelpProsody' => LLM_Phrase_Game_I18n::get( 'azure_pron_help_prosody' ),
+			'azurePronHelpWords' => LLM_Phrase_Game_I18n::get( 'azure_pron_help_words' ),
 			'micSwitchAria'    => LLM_Phrase_Game_I18n::get( 'mic_switch_aria' ),
 			'listenSwitchAria' => LLM_Phrase_Game_I18n::get( 'listen_switch_aria' ),
 			'listenLabelMale'  => LLM_Phrase_Game_I18n::get( 'listen_label_male' ),
@@ -1849,6 +1907,17 @@ class LLM_Story_Phrase_Game {
 			'notesToggleShow'  => LLM_Phrase_Game_I18n::get( 'notes_toggle_show' ),
 			'notesToggleHide'  => LLM_Phrase_Game_I18n::get( 'notes_toggle_hide' ),
 			'notesReadMore'    => LLM_Phrase_Game_I18n::get( 'notes_read_more' ),
+			'notesAltSectionToggle' => LLM_Phrase_Game_I18n::get( 'notes_alt_section_toggle' ),
+			'notesSpecialCharsSectionToggle' => LLM_Phrase_Game_I18n::get( 'notes_special_chars_section_toggle' ),
+			'notesPronunciationSectionToggle' => LLM_Phrase_Game_I18n::get( 'pronunciation_tips_toggle' ),
+			'notesSolutionSectionToggle' => LLM_Phrase_Game_I18n::get( 'notes_solution_section_toggle' ),
+			'viewTranslation'  => LLM_Phrase_Game_I18n::get( 'view_translation' ),
+			'labelIpa'         => LLM_Phrase_Game_I18n::get( 'label_ipa' ),
+			'labelApprox'      => LLM_Phrase_Game_I18n::format( 'label_approx', LLM_Phrase_Game_I18n::target_lang_label_for_ui( $interface_code ) ),
+			'notesPairIntroTemplate' => LLM_Phrase_Game_I18n::get( 'notes_pair_intro_template' ),
+			'notesConjugationIntroTemplate' => LLM_Phrase_Game_I18n::get( 'notes_conjugation_intro_template' ),
+			'notesConjugationIntroTemplateNoverb' => LLM_Phrase_Game_I18n::get( 'notes_conjugation_intro_template_noverb' ),
+			'notesConjugationExplainerTemplate' => LLM_Phrase_Game_I18n::get( 'notes_conjugation_explainer_template' ),
 			'continueToNotes'  => LLM_Phrase_Game_I18n::get( 'continue_to_notes' ),
 			'resolveGoFail'    => LLM_Phrase_Game_I18n::get( 'resolve_go_fail' ),
 			'writeTranslateFail' => LLM_Phrase_Game_I18n::get( 'write_translate_fail' ),
@@ -1901,6 +1970,15 @@ class LLM_Story_Phrase_Game {
 			'notesEditSaved'     => LLM_Phrase_Game_I18n::get( 'notes_edit_saved' ),
 			'notesEditError'     => LLM_Phrase_Game_I18n::get( 'notes_edit_error' ),
 			'goToPhrase'         => LLM_Phrase_Game_I18n::get( 'go_to_phrase' ),
+			'notesAudioPlay'     => LLM_Phrase_Game_I18n::get( 'notes_audio_play' ),
+			'notesAudioPause'    => LLM_Phrase_Game_I18n::get( 'notes_audio_pause' ),
+			'notesAudioBack'     => LLM_Phrase_Game_I18n::get( 'notes_audio_back' ),
+			'notesAudioFwd'      => LLM_Phrase_Game_I18n::get( 'notes_audio_fwd' ),
+			'notesAudioLabel'    => LLM_Phrase_Game_I18n::get( 'notes_audio_label' ),
+			'notesSelPlay'       => LLM_Phrase_Game_I18n::get( 'notes_sel_play' ),
+			'notesSelPlayIn'     => LLM_Phrase_Game_I18n::get( 'notes_sel_play_in' ),
+			'notesSelLoading'    => LLM_Phrase_Game_I18n::get( 'notes_sel_loading' ),
+			'notesSelError'      => LLM_Phrase_Game_I18n::get( 'notes_sel_error' ),
 			'readNotesChip'      => LLM_Phrase_Game_I18n::get( 'read_notes_chip' ),
 			'readNotesChipClose' => LLM_Phrase_Game_I18n::get( 'read_notes_chip_close' ),
 			'rememberLabel'      => LLM_Phrase_Game_I18n::get( 'remember_label' ),
@@ -1948,6 +2026,7 @@ class LLM_Story_Phrase_Game {
 			'optionStickyTranslate' => LLM_Learning_Modes::OPTION_STICKY_TRANSLATE,
 			'optionHideStoryNotes' => LLM_Learning_Modes::OPTION_HIDE_STORY_NOTES,
 			'optionStoryTargetOnly' => LLM_Learning_Modes::OPTION_STORY_TARGET_ONLY,
+			'optionListenNotesSel' => LLM_Learning_Modes::OPTION_LISTEN_NOTES_SEL,
 			'playTime'            => array(
 				'loggedIn'    => is_user_logged_in(),
 				'seconds'     => ( is_user_logged_in() && class_exists( 'LLM_User_Story_Play_Time' ) )
@@ -2425,6 +2504,66 @@ class LLM_Story_Phrase_Game {
 
 		self::persist_display_phrase_index( $story_id, $index, $checkpoint );
 		wp_send_json_success();
+	}
+
+	/**
+	 * AJAX: TTS on-demand del testo evidenziato negli appunti (voce Azure femminile).
+	 */
+	public static function ajax_notes_sel_tts() {
+		check_ajax_referer( 'llm_phrase_game', 'nonce' );
+
+		$ip  = isset( $_SERVER['REMOTE_ADDR'] ) ? (string) $_SERVER['REMOTE_ADDR'] : '0';
+		$key = 'llm_notes_sel_tts_' . md5( $ip );
+		$n   = (int) get_transient( $key );
+		if ( $n >= 20 ) {
+			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'notes_sel_error' ) ), 429 );
+		}
+		set_transient( $key, $n + 1, MINUTE_IN_SECONDS );
+
+		$story_id = isset( $_POST['story_id'] ) ? absint( wp_unslash( $_POST['story_id'] ) ) : 0;
+		$which    = isset( $_POST['which'] ) ? sanitize_key( wp_unslash( $_POST['which'] ) ) : 'target';
+		$text     = isset( $_POST['text'] ) ? (string) wp_unslash( $_POST['text'] ) : '';
+		$text     = wp_strip_all_tags( $text );
+		$text     = html_entity_decode( $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$text     = preg_replace( '/\s+/u', ' ', $text );
+		$text     = is_string( $text ) ? trim( $text ) : '';
+
+		if ( function_exists( 'mb_strlen' ) ) {
+			$len = mb_strlen( $text );
+		} else {
+			$len = strlen( $text );
+		}
+		if ( $story_id < 1 || $len < 2 || $len > 280 ) {
+			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'notes_sel_error' ) ), 400 );
+		}
+
+		$post = get_post( $story_id );
+		if ( ! $post || LLM_STORY_CPT !== $post->post_type || 'publish' !== $post->post_status ) {
+			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'invalid_story' ) ), 400 );
+		}
+
+		$target_code = (string) get_post_meta( $story_id, LLM_Story_Meta::TARGET_LANG, true );
+		$known_code  = (string) get_post_meta( $story_id, LLM_Story_Meta::KNOWN_LANG, true );
+		$code        = ( 'known' === $which ) ? $known_code : $target_code;
+		if ( '' === $code ) {
+			$code = ( 'known' === $which ) ? 'it' : 'en';
+		}
+		$locale = self::speech_locale( $code );
+		if ( ! class_exists( 'LLM_Phrase_TTS' ) ) {
+			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'notes_sel_error' ) ), 500 );
+		}
+
+		$bytes = LLM_Phrase_TTS::azure_female_mp3( $text, $locale );
+		if ( is_wp_error( $bytes ) ) {
+			wp_send_json_error( array( 'message' => $bytes->get_error_message() ), 502 );
+		}
+
+		wp_send_json_success(
+			array(
+				'mime'  => 'audio/mpeg',
+				'audio' => base64_encode( $bytes ),
+			)
+		);
 	}
 
 	/**

@@ -1658,6 +1658,8 @@
 		var storyRememberBox = qs(root, '.llm-phrase-game__story-remember');
 		var storyRememberText = qs(root, '.llm-phrase-game__story-remember-text');
 		var phraseAudioEl = null;
+		var notesStoryAudio = null;
+		var notesStoryPlayerEl = null;
 		var listenVoiceGender = 'male';
 		var composePhase1 = qs(root, '.llm-phrase-game__compose--phase1');
 		var composePhase2 = qs(root, '.llm-phrase-game__compose--phase2');
@@ -2958,6 +2960,176 @@
 			});
 		}
 
+		function notesPlayerIconPlay() {
+			return '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" focusable="false" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+		}
+
+		function notesPlayerIconPause() {
+			return '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" focusable="false" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';
+		}
+
+		function syncNotesStoryPlayers() {
+			qsa(root, '.llm-phrase-game__notes-player').forEach(function (el) {
+				var playing = notesStoryPlayerEl === el && notesStoryAudio && !notesStoryAudio.paused;
+				el.classList.toggle('is-playing', playing);
+				var playBtn = qs(el, '.llm-phrase-game__notes-player-play');
+				if (!playBtn) {
+					return;
+				}
+				var label = playing
+					? (i18n.notesAudioPause || 'Pausa')
+					: (i18n.notesAudioPlay || 'Ascolta');
+				playBtn.setAttribute('aria-label', label);
+				playBtn.setAttribute('title', label);
+				playBtn.innerHTML = playing ? notesPlayerIconPause() : notesPlayerIconPlay();
+			});
+		}
+
+		function stopNotesStoryAudio() {
+			if (notesStoryAudio) {
+				try {
+					notesStoryAudio.pause();
+				} catch (e) {
+					/* ignore */
+				}
+			}
+			notesStoryPlayerEl = null;
+			syncNotesStoryPlayers();
+		}
+
+		function seekNotesStoryAudio(delta) {
+			if (!notesStoryAudio || !notesStoryAudio.src) {
+				return;
+			}
+			var t = (notesStoryAudio.currentTime || 0) + delta;
+			var dur = notesStoryAudio.duration;
+			if (isFinite(dur) && dur > 0) {
+				t = Math.max(0, Math.min(dur, t));
+			} else {
+				t = Math.max(0, t);
+			}
+			try {
+				notesStoryAudio.currentTime = t;
+			} catch (e) {
+				/* ignore */
+			}
+		}
+
+		function playNotesStoryAudio(el, url) {
+			if (!el || !url) {
+				return;
+			}
+			if (typeof stopPhraseAudio === 'function') {
+				stopPhraseAudio();
+			}
+			if (typeof cancelTts === 'function') {
+				cancelTts();
+			}
+			if (!notesStoryAudio) {
+				notesStoryAudio = new Audio();
+				notesStoryAudio.addEventListener('ended', function () {
+					notesStoryPlayerEl = null;
+					syncNotesStoryPlayers();
+				});
+				notesStoryAudio.addEventListener('pause', syncNotesStoryPlayers);
+				notesStoryAudio.addEventListener('play', syncNotesStoryPlayers);
+			}
+			if (notesStoryPlayerEl === el && notesStoryAudio.src && !notesStoryAudio.paused) {
+				notesStoryAudio.pause();
+				return;
+			}
+			if (notesStoryPlayerEl !== el || !notesStoryAudio.src) {
+				notesStoryAudio.src = url;
+			}
+			notesStoryPlayerEl = el;
+			var playPromise = notesStoryAudio.play();
+			if (playPromise && typeof playPromise.catch === 'function') {
+				playPromise.catch(function () {
+					notesStoryPlayerEl = null;
+					syncNotesStoryPlayers();
+				});
+			}
+			syncNotesStoryPlayers();
+		}
+
+		function mountStoryNotesPlayer(host, p) {
+			if (!host) {
+				return;
+			}
+			if (qs(host, '.llm-phrase-game__notes-player')) {
+				return;
+			}
+			var url = p && p.audioNotes ? String(p.audioNotes) : '';
+			if (!url) {
+				return;
+			}
+			var bar = document.createElement('div');
+			bar.className = 'llm-phrase-game__notes-player';
+			bar.setAttribute('role', 'group');
+			bar.setAttribute('aria-label', i18n.notesAudioLabel || '');
+
+			function makeBtn(cls, label, html) {
+				var btn = document.createElement('button');
+				btn.type = 'button';
+				btn.className = 'llm-phrase-game__notes-player-btn ' + cls;
+				btn.setAttribute('aria-label', label);
+				btn.setAttribute('title', label);
+				btn.innerHTML = html;
+				return btn;
+			}
+
+			var backBtn = makeBtn(
+				'llm-phrase-game__notes-player-back',
+				i18n.notesAudioBack || '',
+				'<span aria-hidden="true">−5</span>'
+			);
+			var playBtn = makeBtn(
+				'llm-phrase-game__notes-player-play',
+				i18n.notesAudioPlay || '',
+				notesPlayerIconPlay()
+			);
+			var fwdBtn = makeBtn(
+				'llm-phrase-game__notes-player-fwd',
+				i18n.notesAudioFwd || '',
+				'<span aria-hidden="true">+5</span>'
+			);
+
+			bar.appendChild(backBtn);
+			bar.appendChild(playBtn);
+			bar.appendChild(fwdBtn);
+
+			bar.addEventListener('click', function (ev) {
+				ev.stopPropagation();
+			});
+			playBtn.addEventListener('click', function (ev) {
+				ev.preventDefault();
+				ev.stopPropagation();
+				playNotesStoryAudio(bar, url);
+			});
+			backBtn.addEventListener('click', function (ev) {
+				ev.preventDefault();
+				ev.stopPropagation();
+				if (notesStoryPlayerEl !== bar || !notesStoryAudio || !notesStoryAudio.src) {
+					playNotesStoryAudio(bar, url);
+					seekNotesStoryAudio(-5);
+					return;
+				}
+				seekNotesStoryAudio(-5);
+			});
+			fwdBtn.addEventListener('click', function (ev) {
+				ev.preventDefault();
+				ev.stopPropagation();
+				if (notesStoryPlayerEl !== bar || !notesStoryAudio || !notesStoryAudio.src) {
+					playNotesStoryAudio(bar, url);
+					seekNotesStoryAudio(5);
+					return;
+				}
+				seekNotesStoryAudio(5);
+			});
+
+			host.insertBefore(bar, host.firstChild);
+		}
+
 		function fillStoryLineNow(block, targetHtml, p, ifaceFallback) {
 			if (!block) {
 				return;
@@ -3188,6 +3360,7 @@
 	var notesRevealShown = 0;
 	var notesRevealAlt = '';
 	var notesRevealBusy = false;
+	var grammarSectionBlocks = [];
 
 	function setStoryNotesOpen(open) {
 		if (!storyNotesToggle || !storyNotesPanel) {
@@ -3225,7 +3398,733 @@
 		notesRevealShown = 0;
 		notesRevealAlt = '';
 		notesRevealBusy = false;
+		grammarSectionBlocks = [];
+		if (grammarEl) {
+			grammarEl.innerHTML = '';
+		}
 		hideNotesReadMoreBtn();
+	}
+
+	/**
+	 * Classifica il testo di un <strong> di apertura paragrafo: restituisce il
+	 * tipo di sezione se è uno dei titoli fissi noti (coppia di traduzione,
+	 * coniugazione, Remember/Ricorda, Etymology curiosity/Curiosità
+	 * etimologia), altrimenti null (es. "Example:"/"Esempio:", "In short:"/
+	 * "In breve:" NON aprono una sezione: restano dentro quella corrente).
+	 * Riconoscimento multilingua via parole chiave, non serve tradurre tutto.
+	 */
+	/**
+	 * Titolo "nudo" di una seconda (o terza) tabella di coniugazione, senza
+	 * verbo tra virgolette: "In the past:"/"In the future:" (EN), "Al
+	 * presente:"/"Al passato:"/"Al futuro:" (IT), "En el presente/pasado/
+	 * futuro:" (ES). Usato sia per la classificazione sia per lo split dei
+	 * paragrafi che contengono due coniugazioni nello stesso <p>.
+	 */
+	function isSecondaryTenseHeading(text) {
+		var t = String(text || '').trim();
+		return /^(in the|al|nel|en el)\s+(present|past|future|presente|passato|futuro|pasado|przeszł\w*|przyszł\w*|teraźniejsz\w*)\b/i.test(t);
+	}
+
+	function classifyGrammarHeading(text) {
+		var t = String(text || '').trim();
+		if (!t) {
+			return null;
+		}
+		if (/→|->/.test(t)) {
+			return 'pair';
+		}
+		if (/conjugat|conjugaci|coniugazione|odmiana|koniugacj/i.test(t)) {
+			return 'conjugation';
+		}
+		/* Seconda (o terza) tabella di coniugazione di un verbo già introdotto
+		 * sopra da "Full conjugation.../Coniugazione...": es. "In the past:",
+		 * "Al presente:". Stesso tipo 'conjugation', gestita come isola a sé
+		 * (vedi splitGrammarIntoSections), col verbo ereditato dall'ultima
+		 * coniugazione incontrata. */
+		if (isSecondaryTenseHeading(t)) {
+			return 'conjugation';
+		}
+		if (/^(remember|ricorda|recuerda|pamiętaj)\b/i.test(t)) {
+			return 'remember';
+		}
+		if (/etimolog|etymolog/i.test(t)) {
+			return 'etymology';
+		}
+		return null;
+	}
+
+	/**
+	 * Data l'intestazione in grassetto di una sezione "coppia" (es. "I'm fine"
+	 * → "<em>Sto bene</em>"), costruisce la frase generica che la sostituisce
+	 * nel pannello (il titolo resta visibile solo sul bottone dell'accordion,
+	 * qui sotto non va ripetuto in grassetto). Ritorna l'HTML originale
+	 * invariato se il formato non è quello atteso (rete di sicurezza).
+	 */
+	function buildPairIntroSentence(headingHtml) {
+		var h = String(headingHtml || '').trim();
+		var m = /^"([^"]*)"\s*(?:→|->)\s*"([\s\S]*)"$/.exec(h);
+		if (!m) {
+			return h;
+		}
+		var tpl = (i18n && i18n.notesPairIntroTemplate) || '"%NOTE%" can be translated as "%TARGET%".';
+		return tpl.replace('%NOTE%', m[1]).replace('%TARGET%', m[2]);
+	}
+
+	/**
+	 * Nome del tempo verbale nella lingua identificata dal codice passato,
+	 * per tipo di tempo (present/past/future). Usata sia per il nome nella
+	 * lingua target (nell'intro della coniugazione) sia per il nome nella
+	 * lingua nota (nella frase esplicativa di paragone).
+	 */
+	var TENSE_NAME_BY_LANG = {
+		present: { it: 'Presente Indicativo', en: 'Present Simple', pl: 'Czas teraźniejszy', es: 'Presente de Indicativo' },
+		past: { it: 'Passato Prossimo', en: 'Past Simple', pl: 'Czas przeszły', es: 'Pretérito Perfecto' },
+		future: { it: 'Futuro Semplice', en: 'Future Simple', pl: 'Czas przyszły', es: 'Futuro Simple' }
+	};
+
+	/**
+	 * Il nome inglese di un tempo verbale composto (present perfect ecc.)
+	 * dipende da come è scritta davvero la lista di coniugazione nel testo
+	 * (es. "I have lived" vs "I lived"): se la lista mostra la forma
+	 * composta con "have"/"has"/"had", il tempo si chiama diversamente.
+	 * Rilevalo guardando il testo della lista stessa, non solo il titolo.
+	 */
+	function refineTenseNameFromList(listText, tenseType, targetLangCode) {
+		if (String(targetLangCode || '').toLowerCase() !== 'en' || tenseType !== 'past') {
+			return null;
+		}
+		var t = String(listText || '');
+		if (/\bI\s+have\s+\w+/i.test(t)) {
+			return 'Present Perfect';
+		}
+		if (/\bI\s+had\s+\w+/i.test(t)) {
+			return 'Past Perfect';
+		}
+		return null;
+	}
+
+	/**
+	 * Estrae il verbo da una lista di coniugazione già presente nel testo
+	 * (es. "I live (io vivo)" → "live", "I carried (io portai)" → "carried"),
+	 * usata quando il titolo originale non nomina il verbo tra virgolette.
+	 */
+	function extractVerbFromConjugationList(html) {
+		var tmp = document.createElement('div');
+		try {
+			tmp.innerHTML = html;
+		} catch (e) {
+			return null;
+		}
+		var text = tmp.textContent || '';
+		var m = /\bI\s+(?:have\s+|had\s+)?([A-Za-zÀ-ÖØ-öø-ÿ']+)\s*\(/.exec(text);
+		return m ? m[1] : null;
+	}
+
+	/**
+	 * Aggiunge "to " davanti a un verbo inglese estratto da una lista al
+	 * presente (lì la forma "I ___" coincide con l'infinito senza "to").
+	 * Non lo fa per forme al passato/futuro, che non sono infiniti.
+	 */
+	function formatVerbForDisplay(verb, targetLangCode, tenseType, fromExplicitQuote) {
+		if (!verb) {
+			return verb;
+		}
+		var isEnglishTarget = String(targetLangCode || '').toLowerCase() === 'en';
+		var alreadyHasTo = /^to\s+/i.test(verb);
+		if (isEnglishTarget && !alreadyHasTo && (fromExplicitQuote || tenseType === 'present')) {
+			return 'to ' + verb;
+		}
+		return verb;
+	}
+
+	/** Cosa si usa a fare un tempo verbale, nella lingua nota (per la frase esplicativa). */
+	var TENSE_USAGE_BY_LANG = {
+		present: {
+			en: 'things that are true right now, habits, and general facts',
+			it: 'cose vere adesso, abitudini e fatti generali',
+			pl: 'rzeczy prawdziwych teraz, nawyków i ogólnych faktów',
+			es: 'cosas que son ciertas ahora, hábitos y hechos generales'
+		},
+		past: {
+			en: 'things that already happened',
+			it: 'cose già successe',
+			pl: 'rzeczy, które już się wydarzyły',
+			es: 'cosas que ya sucedieron'
+		},
+		future: {
+			en: 'things that have not happened yet',
+			it: 'cose che non sono ancora successe',
+			pl: 'rzeczy, które jeszcze się nie wydarzyły',
+			es: 'cosas que aún no han sucedido'
+		}
+	};
+
+	function tenseNameForLangCode(code, tenseType) {
+		var table = TENSE_NAME_BY_LANG[tenseType] || TENSE_NAME_BY_LANG.present;
+		return table[String(code || '').toLowerCase()] || table.en;
+	}
+
+	function tenseUsageForLangCode(code, tenseType) {
+		var table = TENSE_USAGE_BY_LANG[tenseType] || TENSE_USAGE_BY_LANG.present;
+		return table[String(code || '').toLowerCase()] || table.en;
+	}
+
+	/**
+	 * Riconosce se un'intestazione di coniugazione parla del presente, del
+	 * passato o del futuro (funziona su "Full conjugation of the present of
+	 * ...", "In the past:", "In the future:", ecc., in qualunque lingua sia
+	 * scritta l'intestazione, cercando la parola chiave in inglese/italiano/
+	 * polacco/spagnolo).
+	 */
+	function detectTenseType(headingText) {
+		var t = String(headingText || '');
+		if (/\bpast\b|passato|przeszł|pasado|pretérito/i.test(t)) {
+			return 'past';
+		}
+		if (/\bfuture\b|futuro|przyszł/i.test(t)) {
+			return 'future';
+		}
+		return 'present';
+	}
+
+	/**
+	 * Data l'intestazione in grassetto di una sezione "coniugazione" (es.
+	 * "Full conjugation of the present of \"stare\":", oppure una seconda
+	 * tabella senza verbo tipo "In the past:"), costruisce la frase generica
+	 * che la sostituisce nel pannello, col nome del tempo verbale nella
+	 * lingua che si sta imparando (non tradotto). Il verbo va passato da
+	 * fuori (estratto dall'intestazione stessa se presente, altrimenti
+	 * ereditato dall'ultima coniugazione vista).
+	 */
+	function buildConjugationIntroSentence(verb, tenseName) {
+		if (!verb || !tenseName) {
+			return null;
+		}
+		var tpl = (i18n && i18n.notesConjugationIntroTemplate) || 'This is the "%TENSE%" of the verb "%VERB%".';
+		return tpl.replace('%TENSE%', '<em>' + tenseName + '</em>').replace('%VERB%', '<em>' + verb + '</em>');
+	}
+
+	/**
+	 * Frase esplicativa da aggiungere dopo la lista di coniugazione: a cosa
+	 * serve questo tempo verbale, con un paragone al tempo corrispondente
+	 * nella lingua nota (non nella lingua target, già nominata sopra).
+	 */
+	function buildConjugationExplainerSentence(tenseType, knownLangCode) {
+		var tpl = (i18n && i18n.notesConjugationExplainerTemplate) || '';
+		if (!tpl) {
+			return '';
+		}
+		var knownTenseName = tenseNameForLangCode(knownLangCode, tenseType);
+		var usage = tenseUsageForLangCode(knownLangCode, tenseType);
+		return tpl.replace('%USAGE%', usage).replace('%KNOWN_TENSE%', knownTenseName);
+	}
+
+	/**
+	 * Spezza l'HTML di phrase_grammar in sezioni nominate, una per blocco
+	 * introdotto da uno dei titoli fissi riconosciuti da classifyGrammarHeading
+	 * (coppia "x" → "y", coniugazione, Remember, Etymology curiosity). Tutti
+	 * gli altri paragrafi (spiegazione, "Esempio:", "In breve:", ecc.) restano
+	 * agganciati alla sezione aperta più di recente.
+	 */
+	/**
+	 * Una seconda (o terza) tabella di coniugazione spesso non sta nel suo
+	 * <p> a parte: sta nello STESSO paragrafo della prima, separata solo da
+	 * <br /><br /> (es. "...loro bevono (they drink). <br /><br />
+	 * <strong>In the past:</strong> <br />io ho bevuto..."). Qui dentro
+	 * "In the past:" è un <strong> interno, non il primo del paragrafo, e
+	 * verrebbe ignorato da p.querySelector('strong'). Questa funzione spezza
+	 * fisicamente quei paragrafi in più <p> sintetici, uno per ogni titolo
+	 * "In the past/future/present:" trovato, così il resto della logica (che
+	 * guarda solo il PRIMO <strong> di ciascun <p>) li vede entrambi.
+	 */
+	function expandParagraphNodes(pNodeList) {
+		var expanded = [];
+		pNodeList.forEach(function (p) {
+			var html = p.innerHTML;
+			var strongRe = /<strong\b[^>]*>[\s\S]*?<\/strong>/gi;
+			var matches = [];
+			var m;
+			while ((m = strongRe.exec(html))) {
+				matches.push({ index: m.index, text: m[0] });
+			}
+			if (matches.length < 2) {
+				expanded.push(p);
+				return;
+			}
+			var splitIdxs = [];
+			for (var i = 1; i < matches.length; i++) {
+				var tmp = document.createElement('div');
+				tmp.innerHTML = matches[i].text;
+				var strongText = (tmp.textContent || '').trim();
+				if (isSecondaryTenseHeading(strongText)) {
+					splitIdxs.push(matches[i].index);
+				}
+			}
+			if (!splitIdxs.length) {
+				expanded.push(p);
+				return;
+			}
+			var boundaries = [0].concat(splitIdxs).concat([html.length]);
+			for (var b = 0; b < boundaries.length - 1; b++) {
+				var chunkHtml = html.slice(boundaries[b], boundaries[b + 1]).trim();
+				if (!chunkHtml) {
+					continue;
+				}
+				var chunkP = document.createElement('p');
+				chunkP.innerHTML = chunkHtml;
+				expanded.push(chunkP);
+			}
+		});
+		return expanded;
+	}
+
+	function splitGrammarIntoSections(html) {
+		var s = String(html || '').trim();
+		if (!s) {
+			return [];
+		}
+		var div = document.createElement('div');
+		try {
+			div.innerHTML = s;
+		} catch (e) {
+			return [{ type: 'misc', label: '', html: '<p>' + s + '</p>' }];
+		}
+		var rawPNodes = div.querySelectorAll('p');
+		if (!rawPNodes.length) {
+			return [{ type: 'misc', label: '', html: s }];
+		}
+		var pNodes = expandParagraphNodes(rawPNodes);
+		var sections = [];
+		var current = null;
+		var lastVerb = null;
+		pNodes.forEach(function (p) {
+			var innerHtml = p.innerHTML;
+			var firstStrong = p.querySelector('strong');
+			var headingType = firstStrong ? classifyGrammarHeading(firstStrong.textContent) : null;
+			var idx = headingType ? innerHtml.indexOf('<strong') : -1;
+			var EMOJI_RE = new RegExp('(<br\\s*\\/?>|\\s|\\p{Extended_Pictographic}|\\uFE0F)', 'gu');
+			var beforeStrong = idx > 0 ? innerHtml.slice(0, idx).replace(EMOJI_RE, '') : '';
+			var isHeadingPara = !!headingType && (idx === 0 || beforeStrong === '');
+			if (!isHeadingPara) {
+				if (current) {
+					current.htmlParts.push(innerHtml);
+				} else {
+					current = { type: 'misc', label: '', htmlParts: [innerHtml] };
+					sections.push(current);
+				}
+				return;
+			}
+			/* Il "Remember:"/"Ricorda:" non si mostra più: salta il paragrafo
+			 * intero, senza aprire una sezione e senza toccare "current". */
+			if (headingType === 'remember') {
+				return;
+			}
+			var label = firstStrong.innerHTML.replace(/\s+$/, '').replace(/:\s*$/, '');
+			var firstPartHtml = innerHtml;
+			if (headingType === 'pair') {
+				var introSentence = buildPairIntroSentence(firstStrong.innerHTML);
+				firstPartHtml = innerHtml.replace(firstStrong.outerHTML, introSentence);
+			} else if (headingType === 'conjugation') {
+				var headingText = firstStrong.textContent;
+				var verbMatch = /"([^"]+)"\s*:?\s*$/.exec(String(headingText || '').trim());
+				var verbSource = null;
+				var verbFromQuote = false;
+				if (verbMatch) {
+					verbSource = verbMatch[1];
+					verbFromQuote = true;
+					lastVerb = verbSource;
+				} else {
+					verbSource = extractVerbFromConjugationList(innerHtml) || lastVerb;
+					if (verbSource) {
+						lastVerb = verbSource;
+					}
+				}
+				var tenseType = detectTenseType(headingText);
+				var tmpForRefine = document.createElement('div');
+				tmpForRefine.innerHTML = innerHtml;
+				var refinedTenseName = refineTenseNameFromList(tmpForRefine.textContent, tenseType, cfg.targetLangCode);
+				var tenseName = refinedTenseName || tenseNameForLangCode(cfg.targetLangCode, tenseType);
+				var displayVerb = formatVerbForDisplay(verbSource, cfg.targetLangCode, tenseType, verbFromQuote);
+				if (displayVerb) {
+					var capitalizedVerb = displayVerb.charAt(0).toUpperCase() + displayVerb.slice(1);
+					label = tenseName + ' - "' + capitalizedVerb + '"';
+				} else {
+					label = tenseName;
+				}
+				var conjIntroText = buildConjugationIntroSentence(displayVerb, tenseName);
+				if (conjIntroText) {
+					firstPartHtml = innerHtml.replace(firstStrong.outerHTML, '<strong>' + conjIntroText + '</strong>');
+				}
+			}
+			var section = {
+				type: headingType,
+				label: label,
+				htmlParts: [firstPartHtml]
+			};
+			sections.push(section);
+			if (headingType === 'conjugation') {
+				var explainer = buildConjugationExplainerSentence(detectTenseType(firstStrong.textContent), cfg.interfaceLangCode);
+				if (explainer) {
+					section.htmlParts.push(explainer);
+				}
+			}
+			/* Coniugazione/Etymology sono isole autosufficienti: i paragrafi
+			 * successivi senza titolo tornano alla sezione "coppia" più
+			 * recente, non restano agganciati qui. */
+			if (headingType === 'pair') {
+				current = section;
+			}
+		});
+		return sections.map(function (sec) {
+			return {
+				type: sec.type,
+				label: sec.label,
+				html: sec.htmlParts.map(function (h) { return '<p>' + h + '</p>'; }).join('')
+			};
+		});
+	}
+
+	function setGrammarSectionOpen(block, open) {
+		if (!block || !block.toggle || !block.panel) {
+			return;
+		}
+		var isOpen = !!open;
+		block.toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+		block.panel.hidden = !isOpen;
+	}
+
+	/**
+	 * Chiude tutte le sezioni "sotto" l'indice dato (indice più alto = più in
+	 * basso nella lista), senza mai toccare quelle sopra. Usata sia quando si
+	 * apre sia quando si chiude una sezione: in entrambi i casi le sezioni
+	 * sopra restano come sono, evitando che la pagina "salti" mentre si legge
+	 * più in basso.
+	 */
+	function closeGrammarSectionsBelow(index) {
+		for (var j = index + 1; j < grammarSectionBlocks.length; j++) {
+			setGrammarSectionOpen(grammarSectionBlocks[j], false);
+		}
+	}
+
+	function toggleGrammarSectionAt(index) {
+		var block = grammarSectionBlocks[index];
+		if (!block) {
+			return;
+		}
+		var isOpen = block.toggle.getAttribute('aria-expanded') === 'true';
+		closeGrammarSectionsBelow(index);
+		setGrammarSectionOpen(block, !isOpen);
+	}
+
+	/**
+	 * Spiegazione generica (nella lingua nota) per categoria di segno
+	 * speciale, riusata su più caratteri/lingue target per non dover
+	 * scrivere un testo unico per ogni combinazione lingua×carattere. Il
+	 * carattere in sé va già mostrato nel titolo in grassetto della sezione,
+	 * qui il testo non lo ripete.
+	 */
+	var SPECIAL_CHAR_CATEGORY_TEMPLATES = {
+		stress_mark: {
+			en: 'The accent here usually shows where the stress falls, or tells two similar words apart. Tip: think of it as a flag saying "stress here — don\'t confuse me with the version without the mark!"',
+			it: 'L\'accento qui di solito indica dove cade la forza della parola, o distingue due parole simili. Trucco: pensalo come una bandierina che dice "qui cade l\'accento, non confondermi con l\'altra parola!"',
+			pl: 'Ten akcent zwykle pokazuje, gdzie pada nacisk w słowie, albo odróżnia dwa podobne słowa. Wskazówka: traktuj go jak flagę mówiącą "tu jest akcent — nie myl mnie z wersją bez znaku!"',
+			es: 'Este acento normalmente indica dónde cae la fuerza de la palabra, o distingue dos palabras parecidas. Truco: piénsalo como una bandera que dice "aquí va el acento, no me confundas con la otra palabra!"'
+		},
+		soft_consonant: {
+			en: 'This mark makes the letter "soft": you say it with your tongue closer to the roof of your mouth, a bit like an English "sh"/"ch"/"ny". Tip: whenever you see that mark, soften the letter instead of saying it plain.',
+			it: 'Questo segno rende la lettera "morbida": si pronuncia con la lingua più vicina al palato, un po\' come "sc"/"gn" in italiano. Trucco: ogni volta che vedi quel segno, ammorbidisci la lettera invece di dirla semplice.',
+			pl: 'Ten znak zmiękcza spółgłoskę: wymawiasz ją z językiem bliżej podniebienia. Wskazówka: ten znak zawsze oznacza "zmiękcz tę literę".',
+			es: 'Esta marca hace que la letra sea "suave": se pronuncia con la lengua más cerca del paladar, un poco como la "ñ" española. Truco: cuando veas esa marca, suaviza la letra en vez de decirla simple.'
+		},
+		nasal_vowel: {
+			en: 'This is a nasal vowel: the sound partly goes through your nose, a bit like the French "on"/"un". Tip: pinch your nose lightly while saying it — that\'s roughly the sound you\'re aiming for.',
+			it: 'Questa è una vocale nasale: il suono passa in parte dal naso, un po\' come il francese "on"/"un". Trucco: prova a dirla tappandoti leggermente il naso — è più o meno quel suono lì.',
+			pl: 'To samogłoska nosowa: dźwięk częściowo przechodzi przez nos. Wskazówka: spróbuj wymówić ją, lekko zatykając nos — mniej więcej o to chodzi.',
+			es: 'Es una vocal nasal: el sonido pasa en parte por la nariz, un poco como el francés "on"/"un". Truco: prueba a decirla tapándote un poco la nariz — así suena más o menos.'
+		},
+		different_letter: {
+			en: 'This isn\'t an accented "l" — it\'s a completely different sound, like an English "w" in "water". Tip: whenever you see it, say "w", not "l".',
+			it: 'Non è una "l" con un accento — è un suono completamente diverso, simile alla "u" inglese in "water". Trucco: ogni volta che la vedi, pronuncia una specie di "u", non una "l".',
+			pl: 'To nie jest "l" z ozdobnikiem — to zupełnie inny dźwięk, podobny do angielskiego "w" w "water". Wskazówka: czytaj to jako "w", a nie "l".',
+			es: 'No es una "l" con acento — es un sonido completamente distinto, parecido a la "w" inglesa en "water". Truco: cuando la veas, di algo parecido a "u", no una "l".'
+		},
+		same_sound_historic: {
+			en: 'This letter sounds exactly like a plain "u" — it\'s just spelled differently for historical reasons. Tip: read it as "u" and you\'ll always be right.',
+			it: 'Questa lettera si pronuncia esattamente come una "u" normale — si scrive diverso solo per motivi storici. Trucco: leggila come "u" e non sbagli mai.',
+			pl: 'Ta litera brzmi dokładnie jak zwykłe "u" — pisze się inaczej tylko z powodów historycznych. Wskazówka: czytaj to jako "u", a zawsze będzie dobrze.',
+			es: 'Esta letra suena exactamente como una "u" normal — se escribe distinto solo por razones históricas. Truco: léela como "u" y nunca te equivocarás.'
+		},
+		stress_mark_es: {
+			en: 'This accent just marks which syllable gets the stress — it usually doesn\'t change the vowel\'s sound. Tip: read that syllable extra strong.',
+			it: 'Questo accento indica solo su quale sillaba cade la forza della parola — di solito non cambia il suono della vocale. Trucco: leggi quella sillaba con più forza delle altre.',
+			pl: 'Ten akcent pokazuje tylko, na którą sylabę pada nacisk — zwykle nie zmienia dźwięku samogłoski. Wskazówka: czytaj tę sylabę mocniej niż inne.',
+			es: 'Este acento solo marca en qué sílaba cae la fuerza — normalmente no cambia el sonido de la vocal. Truco: lee esa sílaba más fuerte que las demás.'
+		},
+		special_letter_ny: {
+			en: 'This is its own letter, not an "n" with a decoration — it sounds like the "ny" in "canyon". Tip: whenever you see the little wave on top, say "ny", not "n".',
+			it: 'È una lettera a sé, non una "n" con un ornamento — suona come "gn" in "gnomo". Trucco: ogni volta che vedi l\'ondina sopra, di\' "gn", non "n".',
+			pl: 'To osobna litera, nie "n" z ozdobą — brzmi jak polskie "ń". Wskazówka: gdy widzisz falkę nad literą, wymawiaj ją miękko, nie jak zwykłe "n".',
+			es: 'Es una letra propia, no una "n" decorada — suena como "ny" en inglés "canyon". Truco: cuando veas la ondita encima, di "ñ" suave, no "n".'
+		},
+		inverted_punct: {
+			en: 'This warns you at the START of a question or exclamation, before the "real" one at the end — Spanish likes to give you a heads-up early. Tip: seeing it first tells you "get ready, a question/exclamation is coming".',
+			it: 'Avvisa all\'INIZIO di una domanda o esclamazione, prima ancora di quello "vero" alla fine — lo spagnolo ti avvisa in anticipo. Trucco: vederlo all\'inizio ti dice "attento, sta arrivando una domanda/esclamazione".',
+			pl: 'Ostrzega na POCZĄTKU pytania lub wykrzyknienia, zanim pojawi się ten "prawdziwy" na końcu — hiszpański uprzedza cię wcześniej. Wskazówka: widząc go na początku, wiesz, że nadchodzi pytanie/wykrzyknienie.',
+			es: 'Avisa desde el PRINCIPIO de una pregunta o exclamación, antes del "de verdad" al final — el español te avisa temprano. Truco: al verlo al principio, ya sabes que viene una pregunta/exclamación.'
+		},
+		elision_apostrophe: {
+			en: 'This apostrophe shows a vowel got "cut" when it bumped into another vowel right after, to make the words flow together smoothly. Tip: if a short word suddenly ends with it, a letter is "missing" on purpose.',
+			it: 'Questo apostrofo indica che una vocale è stata "tagliata" quando ha incontrato un\'altra vocale subito dopo, per far scorrere meglio le parole. Trucco: se una parola corta finisce all\'improvviso con un apostrofo, una lettera manca apposta.',
+			pl: 'Ten apostrof pokazuje, że samogłoska została "ucięta", gdy zetknęła się z inną samogłoską zaraz po niej. Wskazówka: jeśli krótkie słowo nagle kończy się apostrofem, brakuje litery celowo.',
+			es: 'Este apóstrofo muestra que una vocal fue "cortada" al chocar con otra vocal justo después. Truco: si una palabra corta termina de repente con él, falta una letra a propósito.'
+		},
+		contraction_apostrophe: {
+			en: 'This apostrophe either squeezes two words into one (I am → I\'m) or shows something belongs to someone (Connie\'s bag). Tip: if a letter seems "missing" right before it, it\'s probably two words joined together.',
+			it: 'Questo apostrofo unisce due parole in una (I am → I\'m) oppure mostra che qualcosa appartiene a qualcuno (Connie\'s bag). Trucco: se vedi una lettera "mancante" prima dell\'apostrofo, di solito sono due parole unite.',
+			pl: 'Ten apostrof albo łączy dwa słowa w jedno (I am → I\'m), albo pokazuje, że coś należy do kogoś (Connie\'s bag). Wskazówka: jeśli brakuje litery przed apostrofem, to zwykle dwa słowa złączone razem.',
+			es: 'Este apóstrofo o bien une dos palabras en una (I am → I\'m), o muestra que algo pertenece a alguien (Connie\'s bag). Truco: si falta una letra justo antes, normalmente son dos palabras unidas.'
+		}
+	};
+
+	/**
+	 * Caratteri speciali da cercare nel testo target, raggruppati per
+	 * categoria di spiegazione, per ciascuna lingua target supportata.
+	 */
+	var SPECIAL_CHARS_BY_TARGET_LANG = {
+		it: [
+			{ chars: ['à', 'À', 'è', 'È', 'é', 'É', 'ì', 'Ì', 'í', 'Í', 'ò', 'Ò', 'ó', 'Ó', 'ù', 'Ù', 'ú', 'Ú'], category: 'stress_mark' },
+			{ chars: ['\'', '’'], category: 'elision_apostrophe' }
+		],
+		en: [
+			{ chars: ['\'', '’'], category: 'contraction_apostrophe' }
+		],
+		pl: [
+			{ chars: ['ą', 'Ą'], category: 'nasal_vowel' },
+			{ chars: ['ę', 'Ę'], category: 'nasal_vowel' },
+			{ chars: ['ć', 'Ć', 'ń', 'Ń', 'ś', 'Ś', 'ź', 'Ź', 'ż', 'Ż'], category: 'soft_consonant' },
+			{ chars: ['ł', 'Ł'], category: 'different_letter' },
+			{ chars: ['ó', 'Ó'], category: 'same_sound_historic' }
+		],
+		es: [
+			{ chars: ['á', 'Á', 'é', 'É', 'í', 'Í', 'ó', 'Ó', 'ú', 'Ú'], category: 'stress_mark_es' },
+			{ chars: ['ñ', 'Ñ'], category: 'special_letter_ny' },
+			{ chars: ['¿', '¡'], category: 'inverted_punct' }
+		]
+	};
+
+	/**
+	 * Costruisce la sezione "Punteggiatura e caratteri speciali" leggendo il
+	 * testo target della frase: include solo le categorie di caratteri
+	 * effettivamente presenti. Torna null se non c'è nulla da segnalare (la
+	 * sezione va semplicemente omessa, non mostrata vuota).
+	 */
+	function buildSpecialCharsSection(targetText, targetLangCode, knownLangCode) {
+		var text = String(targetText || '');
+		var groups = SPECIAL_CHARS_BY_TARGET_LANG[String(targetLangCode || '').toLowerCase()];
+		if (!text || !groups || !groups.length) {
+			return null;
+		}
+		var lang = String(knownLangCode || '').toLowerCase();
+		var seenCategories = {};
+		var parts = [];
+		groups.forEach(function (group) {
+			if (seenCategories[group.category]) {
+				return;
+			}
+			var foundChar = null;
+			for (var i = 0; i < group.chars.length; i++) {
+				if (text.indexOf(group.chars[i]) !== -1) {
+					foundChar = group.chars[i];
+					break;
+				}
+			}
+			if (!foundChar) {
+				return;
+			}
+			var templates = SPECIAL_CHAR_CATEGORY_TEMPLATES[group.category] || {};
+			var explanation = templates[lang] || templates.en || '';
+			if (!explanation) {
+				return;
+			}
+			seenCategories[group.category] = true;
+			parts.push('<p><strong>"<em>' + foundChar + '</em>"</strong> — ' + explanation + '</p>');
+		});
+		if (!parts.length) {
+			return null;
+		}
+		return {
+			type: 'special-chars',
+			label: (i18n && i18n.notesSpecialCharsSectionToggle) || 'Punctuation & Special Characters',
+			html: parts.join('')
+		};
+	}
+
+	function formatApproxQuotes(text) {
+		return String(text || '')
+			.replace(/\(\s*/g, '"')
+			.replace(/\s*\)/g, '"')
+			.replace(/"\s*"/g, '" "')
+			.replace(/\s+/g, ' ')
+			.trim();
+	}
+
+	function solutionFlagHtml(code) {
+		var flag = chipLangFlag(code);
+		if (!flag) {
+			return '';
+		}
+		return '<span class="llm-phrase-game__solution-flag" aria-hidden="true">' + escapeTopicHtml(flag) + '</span>';
+	}
+
+	function buildSolutionSectionHtml(phrase) {
+		phrase = phrase || {};
+		var sourceText = plainSpeechText(phrase.interface || '');
+		var targetText = plainSpeechText(phrase.target || '');
+		var ipaText = plainSpeechText(phrase.ipa || '');
+		var approxText = formatApproxQuotes(plainSpeechText(phrase.approx || ''));
+		if (!sourceText && !targetText && !ipaText && !approxText) {
+			return '';
+		}
+		var sourceCode = cfg.interfaceLangCode || '';
+		var targetCode = cfg.targetLangCode || '';
+		var parts = [];
+		if (sourceText) {
+			parts.push(
+				'<div class="llm-phrase-game__solution-card llm-phrase-game__solution-card--source">' +
+				'<div class="llm-phrase-game__solution-line llm-phrase-game__solution-line--source">' +
+				solutionFlagHtml(sourceCode) +
+				'<span class="llm-phrase-game__solution-text">' + escapeTopicHtml(sourceText) + '</span>' +
+				'</div>' +
+				'</div>'
+			);
+		}
+		if (targetText) {
+			parts.push(
+				'<div class="llm-phrase-game__solution-card llm-phrase-game__solution-card--trans">' +
+				'<div class="llm-phrase-game__solution-line llm-phrase-game__solution-line--target">' +
+				solutionFlagHtml(targetCode) +
+				'<span class="llm-phrase-game__solution-text">' + escapeTopicHtml(targetText) + '</span>' +
+				'</div>' +
+				'</div>'
+			);
+		}
+		if (ipaText || approxText) {
+			var approxLabel = (i18n && i18n.labelApprox) || '';
+			parts.push('<div class="llm-phrase-game__solution-card llm-phrase-game__solution-card--ipa">');
+			if (ipaText) {
+				parts.push(
+					'<div class="llm-phrase-game__solution-ipa">' +
+					'<span class="llm-phrase-game__solution-mic" aria-hidden="true">🎤</span>' +
+					'<span class="llm-phrase-game__solution-ipa-text">' + escapeTopicHtml(ipaText) + '</span>' +
+					'</div>'
+				);
+			}
+			if (approxText) {
+				parts.push(
+					'<div class="llm-phrase-game__solution-approx">' +
+					(approxLabel ? '<p class="llm-phrase-game__solution-approx-title"><em class="llm-phrase-game__solution-approx-label">' + escapeTopicHtml(approxLabel) + '</em></p>' : '') +
+					'<p class="llm-phrase-game__solution-approx-text">' + escapeTopicHtml(approxText) + '</p>' +
+					'</div>'
+				);
+			}
+			parts.push('</div>');
+		}
+		return parts.join('');
+	}
+
+	/**
+	 * Renderizza phrase_grammar (+ eventuale phrase_alt) come lista di
+	 * sotto-accordion indipendenti dentro grammarEl, apertura esclusiva.
+	 */
+	function renderGrammarSections(grammar, alt, targetText) {
+		grammarSectionBlocks = [];
+		if (!grammarEl) {
+			return;
+		}
+		grammarEl.innerHTML = '';
+		var sections = grammar ? splitGrammarIntoSections(grammar) : [];
+		var specialCharsSection = buildSpecialCharsSection(targetText, cfg.targetLangCode, cfg.interfaceLangCode);
+		if (specialCharsSection) {
+			sections.push(specialCharsSection);
+		}
+		if (alt) {
+			sections.push({
+				type: 'alt',
+				label: (i18n && i18n.notesAltSectionToggle) || 'Traduzione alternativa',
+				html: alt
+			});
+		}
+		var pronunciationText = (phrases[phraseIx] && phrases[phraseIx].pronunciation) || '';
+		if (pronunciationText.trim()) {
+			sections.push({
+				type: 'pronunciation',
+				label: (i18n && i18n.notesPronunciationSectionToggle) || 'Pronunciation tips',
+				html: splitGrammarBlocks(pronunciationText).map(function (b) { return '<p>' + b + '</p>'; }).join('')
+			});
+		}
+		var solutionHtml = buildSolutionSectionHtml(phrases[phraseIx] || {});
+		if (solutionHtml) {
+			sections.push({
+				type: 'solution',
+				label: (i18n && i18n.notesSolutionSectionToggle) || 'View the solution',
+				html: solutionHtml
+			});
+		}
+		if (!sections.length) {
+			return;
+		}
+		var list = document.createElement('div');
+		list.className = 'llm-phrase-game__grammar-sections';
+		sections.forEach(function (sec, i) {
+			var wrap = document.createElement('div');
+			wrap.className = 'llm-phrase-game__grammar-section' + (sec.type ? ' llm-phrase-game__grammar-section--' + sec.type : '');
+
+			var toggle = document.createElement('button');
+			toggle.type = 'button';
+			toggle.className = 'llm-phrase-game__grammar-section-toggle';
+			toggle.setAttribute('aria-expanded', 'false');
+			var panelId = ((notesPanel && notesPanel.id) || 'llm-grammar') + '-section-' + i;
+			toggle.setAttribute('aria-controls', panelId);
+
+			var textSpan = document.createElement('span');
+			textSpan.className = 'llm-phrase-game__grammar-section-text';
+			var sectionEmoji = sec.type === 'pronunciation' ? '🗣️' : (sec.type === 'solution' ? '❤️' : '📖');
+			var numberedLabel = sectionEmoji + ' ' + (i + 1) + '. ' + (sec.label || '');
+			try {
+				textSpan.innerHTML = numberedLabel;
+			} catch (e) {
+				textSpan.textContent = numberedLabel;
+			}
+
+			var chevron = document.createElement('span');
+			chevron.className = 'llm-phrase-game__tool-accordion-chevron';
+			chevron.setAttribute('aria-hidden', 'true');
+
+			toggle.appendChild(textSpan);
+			toggle.appendChild(chevron);
+
+			var panel = document.createElement('div');
+			panel.className = 'llm-phrase-game__grammar-section-panel';
+			panel.id = panelId;
+			panel.hidden = true;
+			try {
+				panel.innerHTML = sec.html || '';
+			} catch (e) {
+				panel.textContent = sec.html || '';
+			}
+
+			wrap.appendChild(toggle);
+			wrap.appendChild(panel);
+			list.appendChild(wrap);
+
+			var block = { wrap: wrap, toggle: toggle, panel: panel };
+			grammarSectionBlocks.push(block);
+			var sectionIndex = i;
+			toggle.addEventListener('click', function () {
+				toggleGrammarSectionAt(sectionIndex);
+			});
+		});
+		grammarEl.appendChild(list);
 	}
 
 	function appendNotesGrammarBlock(blockHtml, visible) {
@@ -3275,17 +4174,14 @@
 		revealShowFieldTransBtn();
 	}
 
-	function startNotesParagraphReveal(grammar, alt) {
-		notesRevealBlocks = grammar ? splitGrammarBlocks(grammar) : [];
+	function startNotesParagraphReveal(grammar, alt, targetText) {
+		notesRevealBlocks = [];
 		notesRevealShown = 0;
-		notesRevealAlt = alt || '';
+		notesRevealAlt = '';
 		notesRevealBusy = false;
 		hideShowFieldTransBtn();
 		hideNotesReadMoreBtn();
-		if (grammarEl && notesRevealBlocks.length) {
-			appendNotesGrammarBlock(notesRevealBlocks[0], true);
-			notesRevealShown = 1;
-		}
+		renderGrammarSections(grammar, alt, targetText);
 	}
 
 	function revealNextNotesParagraph() {
@@ -3305,17 +4201,8 @@
 	}
 
 	function revealShowFieldTransBtn() {
-		if (!showFieldTransBtn || isPlayInverted) {
-			return Promise.resolve();
-		}
-		showFieldTransBtn.hidden = false;
-		if (isPhraseGameMobile()) {
-			showFieldTransBtn.style.opacity = '1';
-			showFieldTransBtn.style.transition = '';
-			return Promise.resolve();
-		}
-		showFieldTransBtn.style.opacity = '0';
-		return fadeElementOpacity(showFieldTransBtn, 1, 400);
+		hideShowFieldTransBtn();
+		return Promise.resolve();
 	}
 
 	function setNotesOpen(open) {
@@ -3430,6 +4317,7 @@
 		qsa(root, '.llm-phrase-game__phase1-tools .llm-phrase-game__mic-row').forEach(function (row) {
 			row.hidden = !micToolsVisible;
 		});
+		syncMobileFieldActions();
 	}
 
 	function isCaretFieldActive(ta) {
@@ -5120,7 +6008,8 @@
 		}
 
 		if (opts.notesOnly) {
-			startNotesParagraphReveal(grammar, alt);
+			var notesPhraseTarget = (phrases[phraseIx] && phrases[phraseIx].target) || '';
+			startNotesParagraphReveal(grammar, alt, notesPhraseTarget);
 			return fadeReveal(analysisEl || grammarEl).then(function () {
 				syncNotesRevealButtons();
 			});
@@ -5310,6 +6199,7 @@
 	var openStoryChip = null;
 
 	function closeOpenStoryChip() {
+		stopNotesStoryAudio();
 		if (openStoryChip && openStoryChip.parentNode) {
 			openStoryChip.parentNode.removeChild(openStoryChip);
 		}
@@ -5431,6 +6321,7 @@
 		}
 		var chip = document.createElement('div');
 		chip.className = 'llm-phrase-game__story-chip';
+		mountStoryNotesPlayer(chip, chipPhrase);
 		if (isStoryTargetOnly()) {
 			var notesKnown = htmlToChipText((chipPhrase && chipPhrase.notes) || notesHtml || '').replace(/\s+/g, ' ').trim();
 			var notesSentence = stripTagsHtml(knownText || '').replace(/\s+/g, ' ').trim();
@@ -5865,7 +6756,8 @@
 		if (e.target && e.target.closest && (
 			e.target.closest('.llm-phrase-game__story-photo') ||
 			e.target.closest('.llm-phrase-game__story-chip') ||
-			e.target.closest('.llm-phrase-game__story-notes-pop')
+			e.target.closest('.llm-phrase-game__story-notes-pop') ||
+			e.target.closest('.llm-phrase-game__notes-player')
 		)) {
 			return;
 		}
@@ -6841,16 +7733,283 @@
 		}, 3000);
 	}
 
+	function azureScoreTone(n) {
+		if (n == null || !isFinite(n)) {
+			return 'na';
+		}
+		if (n >= 80) {
+			return 'good';
+		}
+		if (n >= 60) {
+			return 'mid';
+		}
+		return 'bad';
+	}
+
+	function azureScoreOutOfTen(n) {
+		if (n == null || !isFinite(n)) {
+			return null;
+		}
+		var tenths = Number(n) / 10;
+		var half = Math.ceil((tenths * 2) - 1e-9) / 2;
+		if (half < 1) {
+			half = 1;
+		}
+		if (half > 10) {
+			half = 10;
+		}
+		return half;
+	}
+
+	function formatAzureScore(n) {
+		var v = azureScoreOutOfTen(n);
+		if (v == null) {
+			return '—';
+		}
+		if (v % 1 === 0) {
+			return String(Math.round(v));
+		}
+		return String(Math.floor(v)) + ',5';
+	}
+
+	function closeAzurePronHelp() {
+		var overlay = document.querySelector('.llm-phrase-game__azure-pron-help-overlay');
+		if (!overlay) {
+			return;
+		}
+		overlay.hidden = true;
+		overlay.setAttribute('aria-hidden', 'true');
+	}
+
+	function openAzurePronHelp() {
+		var overlay = ensureAzurePronHelpPopup();
+		if (!overlay) {
+			return;
+		}
+		overlay.hidden = false;
+		overlay.setAttribute('aria-hidden', 'false');
+	}
+
+	function ensureAzurePronHelpPopup() {
+		var overlay = document.querySelector('.llm-phrase-game__azure-pron-help-overlay');
+		if (overlay) {
+			return overlay;
+		}
+		overlay = document.createElement('div');
+		overlay.className = 'llm-phrase-game__azure-pron-help-overlay';
+		overlay.hidden = true;
+		overlay.setAttribute('aria-hidden', 'true');
+		function block(title, text) {
+			return '<div class="llm-phrase-game__azure-pron-help-item">'
+				+ '<strong>' + escapeTopicHtml(title || '') + '</strong>'
+				+ '<p>' + escapeTopicHtml(text || '') + '</p>'
+				+ '</div>';
+		}
+		overlay.innerHTML = '<div class="llm-phrase-game__azure-pron-help-box" role="dialog" aria-modal="true" aria-labelledby="llm-azure-pron-help-title">'
+			+ '<button type="button" class="llm-phrase-game__azure-pron-help-close" aria-label="'
+			+ escapeTopicHtml(i18n.azurePronClose || '') + '">×</button>'
+			+ '<h3 id="llm-azure-pron-help-title" class="llm-phrase-game__azure-pron-help-title">'
+			+ escapeTopicHtml(i18n.azurePronHelpTitle || '') + '</h3>'
+			+ block(i18n.azurePronOverall, i18n.azurePronHelpOverall)
+			+ block(i18n.azurePronAccuracy, i18n.azurePronHelpAccuracy)
+			+ block(i18n.azurePronFluency, i18n.azurePronHelpFluency)
+			+ block(i18n.azurePronProsody, i18n.azurePronHelpProsody)
+			+ block(i18n.azurePronWords || '', i18n.azurePronHelpWords)
+			+ '</div>';
+		overlay.addEventListener('click', function (ev) {
+			var box = ev.target && ev.target.closest
+				? ev.target.closest('.llm-phrase-game__azure-pron-help-box')
+				: null;
+			var closeBtn = ev.target && ev.target.closest
+				? ev.target.closest('.llm-phrase-game__azure-pron-help-close')
+				: null;
+			if (!box || closeBtn) {
+				closeAzurePronHelp();
+			}
+		});
+		document.body.appendChild(overlay);
+		return overlay;
+	}
+
+	function bindAzurePronPanelClicks(pronEl) {
+		if (!pronEl || pronEl._llmAzurePronBound) {
+			return;
+		}
+		pronEl._llmAzurePronBound = true;
+		pronEl.addEventListener('click', function (ev) {
+			var t = ev.target && ev.target.closest ? ev.target : null;
+			if (!t || !t.closest) {
+				return;
+			}
+			if (t.closest('.llm-phrase-game__azure-pron-close')) {
+				fadeOutAzurePronPanel(pronEl, true);
+				return;
+			}
+			if (t.closest('.llm-phrase-game__azure-pron-help-btn')) {
+				ev.preventDefault();
+				openAzurePronHelp();
+			}
+		});
+	}
+
+	function hideAzurePronPanel(btn) {
+		fadeOutAzurePronPanel(btn && btn._llmAzurePronEl, true);
+	}
+
+	function hideAllAzurePronPanels() {
+		qsa(root, '.llm-phrase-game__azure-pron').forEach(function (el) {
+			fadeOutAzurePronPanel(el, true);
+		});
+		closeAzurePronHelp();
+	}
+
+	function revealAzurePronPanel(el) {
+		if (!el) {
+			return;
+		}
+		el.hidden = false;
+		el.classList.remove('is-visible');
+		window.requestAnimationFrame(function () {
+			window.requestAnimationFrame(function () {
+				el.classList.add('is-visible');
+			});
+		});
+	}
+
+	function fadeOutAzurePronPanel(el, clearHtml) {
+		closeAzurePronHelp();
+		if (!el) {
+			return;
+		}
+		if (el.hidden) {
+			el.classList.remove('is-visible');
+			if (clearHtml) {
+				el.innerHTML = '';
+			}
+			return;
+		}
+		el.classList.remove('is-visible');
+		var done = false;
+		function finish() {
+			if (done) {
+				return;
+			}
+			done = true;
+			el.hidden = true;
+			if (clearHtml) {
+				el.innerHTML = '';
+			}
+		}
+		window.setTimeout(finish, 320);
+		el.addEventListener('transitionend', function onEnd(ev) {
+			if (ev.propertyName && ev.propertyName !== 'opacity') {
+				return;
+			}
+			el.removeEventListener('transitionend', onEnd);
+			finish();
+		});
+	}
+
+	function azurePronMetricHtml(value, label) {
+		return '<div class="llm-phrase-game__azure-pron-metric">'
+			+ '<span class="llm-phrase-game__azure-pron-metric-n">' + escapeTopicHtml(formatAzureScore(value)) + '</span>'
+			+ '<span class="llm-phrase-game__azure-pron-metric-l">' + escapeTopicHtml(label) + '</span>'
+			+ '</div>';
+	}
+
+	function azurePronWordClass(w) {
+		var err = String((w && w.errorType) || '').toLowerCase();
+		if (err === 'omission') {
+			return 'llm-phrase-game__azure-pron-word--omit';
+		}
+		if (err === 'insertion') {
+			return 'llm-phrase-game__azure-pron-word--ins';
+		}
+		if (err === 'mispronunciation') {
+			return 'llm-phrase-game__azure-pron-word--mis';
+		}
+		return 'llm-phrase-game__azure-pron-word--' + azureScoreTone(w && w.accuracy);
+	}
+
+	function hasAzurePronScores(a) {
+		if (!a) {
+			return false;
+		}
+		if (a.pronunciation != null || a.accuracy != null || a.fluency != null || a.completeness != null) {
+			return true;
+		}
+		return !!(a.words && a.words.length);
+	}
+
+	function showAzurePronPanel(btn, assessment) {
+		var el = btn && btn._llmAzurePronEl;
+		if (!el) {
+			return;
+		}
+		var closeLabel = i18n.azurePronClose || '';
+		var helpLabel = i18n.azurePronHelpAria || '';
+		var html = '<div class="llm-phrase-game__azure-pron-card">';
+		html += '<button type="button" class="llm-phrase-game__azure-pron-help-btn" aria-label="'
+			+ escapeTopicHtml(helpLabel) + '">?</button>';
+		html += '<button type="button" class="llm-phrase-game__azure-pron-close" aria-label="'
+			+ escapeTopicHtml(closeLabel) + '">×</button>';
+		html += '<div class="llm-phrase-game__azure-pron-title">'
+			+ escapeTopicHtml(i18n.azurePronTitle || '') + '</div>';
+		if (!hasAzurePronScores(assessment)) {
+			html += '<p class="llm-phrase-game__azure-pron-empty">'
+				+ escapeTopicHtml(i18n.azurePronEmpty || '') + '</p>';
+			html += '</div>';
+			el.innerHTML = html;
+			revealAzurePronPanel(el);
+			return;
+		}
+		html += '<div class="llm-phrase-game__azure-pron-overall">';
+		html += '<span class="llm-phrase-game__azure-pron-overall-n">'
+			+ escapeTopicHtml(formatAzureScore(assessment.pronunciation))
+			+ '<span class="llm-phrase-game__azure-pron-overall-max"> / 10</span></span>';
+		html += '<span class="llm-phrase-game__azure-pron-overall-l">'
+			+ escapeTopicHtml(i18n.azurePronOverall || '') + '</span>';
+		html += '</div>';
+		html += '<div class="llm-phrase-game__azure-pron-metrics">';
+		html += azurePronMetricHtml(assessment.accuracy, i18n.azurePronAccuracy || '');
+		html += azurePronMetricHtml(assessment.fluency, i18n.azurePronFluency || '');
+		if (assessment.prosody != null) {
+			html += azurePronMetricHtml(assessment.prosody, i18n.azurePronProsody || '');
+		}
+		html += '</div>';
+		if (assessment.words && assessment.words.length) {
+			html += '<div class="llm-phrase-game__azure-pron-words">';
+			assessment.words.forEach(function (w) {
+				var word = String((w && w.word) || '');
+				if (!word) {
+					return;
+				}
+				var title = formatAzureScore(w.accuracy);
+				html += '<span class="llm-phrase-game__azure-pron-word ' + azurePronWordClass(w)
+					+ '" title="' + escapeTopicHtml(title) + '">'
+					+ escapeTopicHtml(word) + '</span>';
+			});
+			html += '</div>';
+		}
+		html += '</div>';
+		el.innerHTML = html;
+		revealAzurePronPanel(el);
+	}
+
 	function finishMicSession(opts) {
 		opts = opts || {};
 		var btn = activeMicBtn;
 		var ta = activeMicTa;
 		var micPhase = ta === input2 ? 2 : 1;
 		var usedDeepgram = !!(btn && btn.getAttribute('data-llm-stt') === 'deepgram' && window.llmSttDeepgram);
+		var usedAzurePremium = !!(btn && btn.getAttribute('data-llm-stt') === 'azure-premium' && window.llmSttAzure);
 		function complete() {
 			var sessionText = getMicSessionSpokenText();
 			var recognitionStarted = micRecognitionStarted;
 			var startVal = speechSessionStartValue;
+			var assessment = usedAzurePremium && window.llmSttAzure && typeof window.llmSttAzure.getLastAssessment === 'function'
+				? window.llmSttAzure.getLastAssessment()
+				: null;
 			stopSpeech();
 			ensureTrailingMicSpace(ta);
 			syncOrdinaExactButton(ta);
@@ -6861,7 +8020,11 @@
 				afterMicVoiceSettled(ta);
 			}
 			if (opts.feedback !== false && btn) {
-				showMicSessionFeedback(btn, sessionText, recognitionStarted, micPhase);
+				if (usedAzurePremium) {
+					showAzurePronPanel(btn, assessment);
+				} else {
+					showMicSessionFeedback(btn, sessionText, recognitionStarted, micPhase);
+				}
 				scheduleListenReplayAfterMic(micPhase);
 			}
 		}
@@ -6879,6 +8042,23 @@
 			window.llmSttDeepgram.flush(function () {
 				clearTimeout(flushWait);
 				onceComplete();
+			});
+			return;
+		}
+		if (opts.feedback !== false && usedAzurePremium && typeof window.llmSttAzure.stop === 'function') {
+			showSttProcessingOverlay(ta);
+			var flushedAz = false;
+			function onceCompleteAz() {
+				if (flushedAz) {
+					return;
+				}
+				flushedAz = true;
+				complete();
+			}
+			var flushWaitAz = setTimeout(onceCompleteAz, 8000);
+			window.llmSttAzure.stop(function () {
+				clearTimeout(flushWaitAz);
+				onceCompleteAz();
 			});
 			return;
 		}
@@ -7037,6 +8217,7 @@
 			}
 			ensureListenTargetWrap(btnEl);
 			cancelTts();
+			stopNotesStoryAudio();
 			if (!phraseAudioEl) {
 				phraseAudioEl = new Audio();
 			}
@@ -7244,7 +8425,8 @@
 		var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
 		var engine = (micBtn && micBtn.getAttribute('data-llm-stt')) || 'browser';
 		var useDeepgram = engine === 'deepgram';
-		var useAzure = engine === 'azure';
+		var useAzurePremium = engine === 'azure-premium';
+		var useAzure = engine === 'azure' || useAzurePremium;
 		if (micSessionActive) { return; }
 		if (useDeepgram && !window.llmSttDeepgram) {
 			showMicError(micBtn, i18n.micUnavailable || '');
@@ -7261,6 +8443,7 @@
 		cancelTts();
 		clearListenReplayTimer();
 		hideMicSessionFeedback(micBtn);
+		hideAzurePronPanel(micBtn);
 
 		micSessionActive = true;
 		markHintSeen('mic');
@@ -7353,7 +8536,12 @@
 				showMicError(micBtn, i18n.micUnavailable || '');
 				return;
 			}
-			window.llmSttAzure.start(aiSttOpts());
+			var azOpts = aiSttOpts();
+			if (useAzurePremium) {
+				azOpts.assessPronunciation = true;
+				azOpts.referenceText = plainSpeechText(exactTargetForField(textarea));
+			}
+			window.llmSttAzure.start(azOpts);
 		}
 
 		function startDeepgramRecognitionEngine() {
@@ -7521,20 +8709,36 @@
 			countdownWrap.innerHTML = '<div class="llm-phrase-game__mic-countdown__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"></div>';
 			micHost.insertBefore(countdownWrap, micBefore);
 
+			var pronEl = document.createElement('div');
+			pronEl.className = 'llm-phrase-game__azure-pron';
+			pronEl.hidden = true;
+			bindAzurePronPanelClicks(pronEl);
+			micHost.insertBefore(pronEl, micBefore);
+
 			chrome = {
 				statusEl: statusEl,
 				errorLine: errorLine,
 				feedbackLine: feedbackLine,
 				countdownWrap: countdownWrap,
-				countdownBar: countdownWrap.querySelector('.llm-phrase-game__mic-countdown__bar')
+				countdownBar: countdownWrap.querySelector('.llm-phrase-game__mic-countdown__bar'),
+				pronEl: pronEl
 			};
 			micHost._llmMicChrome = chrome;
+		}
+		if (!chrome.pronEl) {
+			var latePron = document.createElement('div');
+			latePron.className = 'llm-phrase-game__azure-pron';
+			latePron.hidden = true;
+			bindAzurePronPanelClicks(latePron);
+			micHost.insertBefore(latePron, micBefore);
+			chrome.pronEl = latePron;
 		}
 		micBtn._llmMicStatusEl = chrome.statusEl;
 		micBtn._llmMicStatusErrorLine = chrome.errorLine;
 		micBtn._llmMicFeedbackLine = chrome.feedbackLine;
 		micBtn._llmMicCountdownWrap = chrome.countdownWrap;
 		micBtn._llmMicCountdownBar = chrome.countdownBar;
+		micBtn._llmAzurePronEl = chrome.pronEl;
 	}
 
 	function bindMic(micBtn, textareaOrFn) {
@@ -7549,7 +8753,7 @@
 			micBtn.hidden = true;
 			return;
 		}
-		if (engine === 'azure' && !(cfg.stt && cfg.stt.azureReady && window.llmSttAzure)) {
+		if ((engine === 'azure' || engine === 'azure-premium') && !(cfg.stt && cfg.stt.azureReady && window.llmSttAzure)) {
 			micBtn.hidden = true;
 			return;
 		}
@@ -7598,7 +8802,7 @@
 
 		(function bindMicSwitcher() {
 			var STORAGE_KEY = 'llm_stt_engine';
-			var ORDER = ['azure', 'deepgram', 'browser'];
+			var ORDER = ['azure-premium', 'azure', 'deepgram', 'browser'];
 			var stages = qsa(root, '[data-llm-mic-stage]');
 			if (!stages.length) {
 				return;
@@ -7711,6 +8915,7 @@
 			}
 
 			function setAllEngines(engine, animate) {
+				hideAllAzurePronPanels();
 				stages.forEach(function (stage) {
 					setStageEngine(stage, engine, animate);
 				});
@@ -8193,6 +9398,7 @@
 			hideRewindExactButton(textarea._llmRewindBtn);
 			hideOrdinaExactButton(textarea._llmOrdinaBtn);
 			fitPhraseInputHeight(textarea);
+			syncMobileFieldActions();
 			return;
 		}
 		setActionFadeVisible(wrap, !!(textarea.value || '').trim());
@@ -8202,6 +9408,101 @@
 			syncRewindExactButton(textarea, textarea._llmRewindBtn);
 		}
 		fitPhraseInputHeight(textarea);
+		syncMobileFieldActions();
+	}
+
+	function dockTextarea(dock) {
+		if (!dock) {
+			return null;
+		}
+		if (dock.classList.contains('llm-phrase-game__mobile-field-actions--2')) {
+			return activeCaretField === input2 ? input2 : null;
+		}
+		if (activeCaretField === input1 || activeCaretField === inputVoice) {
+			return activeCaretField;
+		}
+		return null;
+	}
+
+	function existingClearBtnFor(ta) {
+		if (ta === inputVoice) {
+			return clearVoice;
+		}
+		if (ta === input2) {
+			return clear2;
+		}
+		return clear1;
+	}
+
+	function existingDeleteBtnFor(ta) {
+		var clearBtn = existingClearBtnFor(ta);
+		var wrap = clearBtn ? clearBtn.closest('.llm-phrase-game__clear-wrap') : null;
+		return wrap ? qs(wrap, '.llm-phrase-game__delete-word') : null;
+	}
+
+	function setMobileActOn(btn, on) {
+		if (!btn) {
+			return;
+		}
+		btn.classList.toggle('is-on', !!on);
+		btn.setAttribute('aria-disabled', on ? 'false' : 'true');
+		btn.tabIndex = on ? 0 : -1;
+	}
+
+	function syncMobileFieldActions() {
+		qsa(root, '.llm-phrase-game__mobile-field-actions').forEach(function (dock) {
+			var ta = dockTextarea(dock);
+			var restart = qs(dock, '[data-llm-mobile-act="restart"]');
+			var del = qs(dock, '[data-llm-mobile-act="delete"]');
+			var ordina = qs(dock, '[data-llm-mobile-act="ordina"]');
+			var hasText = !!(ta && (ta.value || '').trim());
+			var sealed = !ta || isFieldExactOk(ta) || isFieldExactSealed(ta) || isPhraseInputLocked(ta);
+			var canEdit = hasText && !sealed;
+			setMobileActOn(restart, canEdit);
+			setMobileActOn(del, canEdit);
+			var canOrdina = false;
+			if (!sealed && ta === inputVoice && !micSessionActive) {
+				var info = OrdinaParoleEsatte(ta.value || '', currentPhraseTargetText());
+				canOrdina = !!(info && info.changed) || !!ordinaAnimPlaying;
+			}
+			setMobileActOn(ordina, canOrdina);
+		});
+	}
+
+	function bindMobileFieldActions() {
+		qsa(root, '.llm-phrase-game__mobile-field-actions').forEach(function (dock) {
+			dock.addEventListener('mousedown', function (e) {
+				if (e.target.closest && e.target.closest('[data-llm-mobile-act]')) {
+					e.preventDefault();
+				}
+			});
+			dock.addEventListener('click', function (e) {
+				var btn = e.target.closest ? e.target.closest('[data-llm-mobile-act]') : null;
+				if (!btn || !btn.classList.contains('is-on')) {
+					return;
+				}
+				var ta = dockTextarea(dock);
+				if (!ta) {
+					return;
+				}
+				var act = btn.getAttribute('data-llm-mobile-act');
+				var clearBtn = existingClearBtnFor(ta);
+				if (act === 'restart' && clearBtn) {
+					clearBtn.click();
+					return;
+				}
+				if (act === 'delete') {
+					var deleteBtn = existingDeleteBtnFor(ta);
+					if (deleteBtn) {
+						deleteBtn.click();
+					}
+					return;
+				}
+				if (act === 'ordina' && ta === inputVoice && ordinaVoice) {
+					ordinaVoice.click();
+				}
+			});
+		});
 	}
 
 		function bindClearInput(clearBtn, rewindBtn, textarea, onClear, ordinaBtn) {
@@ -8326,6 +9627,7 @@
 			setMessagePhase2('', '');
 			syncWriteTranslatePeekBlur();
 		}, ordinaVoice);
+		bindMobileFieldActions();
 
 		if (input2) {
 			input2.addEventListener('input', function () {
@@ -8870,6 +10172,7 @@
 
 	function loadPhrase(resumeStep2) {
 		micWordsThisPhrase = 0;
+		hideAllAzurePronPanels();
 		hideListenThinkPopup();
 		closeStoryGrammarPopup();
 		hidePhase1Feedback();
@@ -10261,6 +11564,7 @@
 			el.closest('.llm-phrase-game__keyboard-panel') ||
 			el.closest('.llm-phrase-game__random-words-list') ||
 			el.closest('.llm-phrase-game__extra-chars-panel') ||
+			el.closest('.llm-phrase-game__mobile-field-actions') ||
 			el.closest('.llm-phrase-game__mic-row') ||
 			el.closest('.llm-phrase-game__listen-cluster') ||
 			el.closest('.llm-phrase-game__listen-target-wrap') ||
@@ -10437,6 +11741,350 @@
 		}
 		schedule();
 	})();
+
+	function isListenNotesSelOn() {
+		return isLearningOptionOn((cfg && cfg.optionListenNotesSel) || 'listen_notes_sel');
+	}
+
+	function notesSelLangHints() {
+		return {
+			en: {
+				words: {
+					the: 1, a: 1, an: 1, to: 1, of: 1, and: 1, in: 1, on: 1, for: 1, was: 1, were: 1,
+					is: 1, are: 1, be: 1, been: 1, with: 1, that: 1, this: 1, it: 1, he: 1, she: 1,
+					they: 1, we: 1, you: 1, i: 1, his: 1, her: 1, their: 1, from: 1, at: 1, by: 1,
+					as: 1, not: 1, but: 1, or: 1, had: 1, have: 1, has: 1, my: 1, your: 1, our: 1,
+					do: 1, did: 1, does: 1, will: 1, would: 1, can: 1, could: 1, lived: 1, live: 1,
+					reef: 1, coral: 1, because: 1, seemed: 1, quiet: 1, safe: 1, future: 1, family: 1
+				},
+				mark: null,
+				suf: /(ing|ed|ly|tion|ness)$/i
+			},
+			it: {
+				words: {
+					il: 1, lo: 1, la: 1, i: 1, gli: 1, le: 1, un: 1, uno: 1, una: 1, di: 1, a: 1, da: 1,
+					in: 1, con: 1, su: 1, per: 1, che: 1, non: 1, e: 1, o: 1, ma: 1, se: 1, come: 1,
+					anche: 1, della: 1, delle: 1, nel: 1, nella: 1, è: 1, era: 1, erano: 1, questo: 1,
+					questa: 1, lui: 1, lei: 1, noi: 1, voi: 1, loro: 1, mio: 1, mia: 1, perché: 1,
+					perche: 1, sembrava: 1, luogo: 1, sicuro: 1, futura: 1, famiglia: 1, barriera: 1,
+					viveva: 1, piena: 1, colori: 1, piante: 1, piccoli: 1, animali: 1, marini: 1
+				},
+				mark: /[àèéìòù]/i,
+				suf: /(are|ere|ire|ato|uto|ito|ava|eva|ivo|mente)$/i
+			},
+			es: {
+				words: {
+					el: 1, la: 1, los: 1, las: 1, un: 1, una: 1, de: 1, en: 1, que: 1, no: 1, es: 1,
+					por: 1, con: 1, para: 1, del: 1, al: 1, se: 1, y: 1, o: 1, pero: 1, como: 1, más: 1,
+					este: 1, esta: 1, era: 1, eran: 1, porque: 1
+				},
+				mark: /[ñáéíóúü¿¡]/i,
+				suf: /(ción|mente|ando|iendo)$/i
+			},
+			pl: {
+				words: {
+					i: 1, w: 1, na: 1, z: 1, do: 1, się: 1, jest: 1, nie: 1, to: 1, że: 1, o: 1, od: 1,
+					po: 1, za: 1, jak: 1, ale: 1, czy: 1, ten: 1, ta: 1, by: 1
+				},
+				mark: /[ąćęłńóśźż]/i,
+				suf: /(ść|nie|ami)$/i
+			}
+		};
+	}
+
+	function notesSelScoreLang(text, lang) {
+		var hints = notesSelLangHints()[lang];
+		if (!hints) {
+			return 0;
+		}
+		var score = 0;
+		if (hints.mark && hints.mark.test(text)) {
+			score += 3;
+		}
+		var parts = String(text || '').toLowerCase().split(/[^a-zàèéìòùñąćęłńóśźż0-9']+/i);
+		var i;
+		for (i = 0; i < parts.length; i++) {
+			var w = parts[i];
+			if (!w) {
+				continue;
+			}
+			if (hints.words[w]) {
+				score += 2;
+			} else if (hints.suf && hints.suf.test(w) && w.length > 3) {
+				score += 1;
+			}
+		}
+		return score;
+	}
+
+	function notesSelIsMixed(text) {
+		var target = String((cfg && cfg.targetLangCode) || 'en').slice(0, 2);
+		var known = String((cfg && cfg.interfaceLangCode) || 'it').slice(0, 2);
+		if (!target || target === known) {
+			return false;
+		}
+		var ts = notesSelScoreLang(text, target);
+		var ks = notesSelScoreLang(text, known);
+		return ts >= 2 && ks >= 2;
+	}
+
+	function bindNotesSelectionListen() {
+		var host = notesWrap || qs(root, '.llm-phrase-game__notes');
+		if (!host) {
+			return;
+		}
+		var pop = null;
+		var selAudio = null;
+		var selCache = {};
+		var lastText = '';
+		var hideTimer = 0;
+
+		function stopSelAudio() {
+			if (selAudio) {
+				try {
+					selAudio.pause();
+				} catch (e) {
+					/* ignore */
+				}
+			}
+		}
+
+		function closeSelPop() {
+			stopSelAudio();
+			if (hideTimer) {
+				window.clearTimeout(hideTimer);
+				hideTimer = 0;
+			}
+			if (pop && pop.parentNode) {
+				pop.parentNode.removeChild(pop);
+			}
+			pop = null;
+		}
+
+		function playSelWhich(which, btn) {
+			var text = lastText;
+			if (!text) {
+				return;
+			}
+			if (typeof stopPhraseAudio === 'function') {
+				stopPhraseAudio();
+			}
+			if (typeof stopNotesStoryAudio === 'function') {
+				stopNotesStoryAudio();
+			}
+			if (typeof cancelTts === 'function') {
+				cancelTts();
+			}
+			var cacheKey = which + '\n' + text;
+			function playUrl(url) {
+				stopSelAudio();
+				if (!selAudio) {
+					selAudio = new Audio();
+				}
+				selAudio.src = url;
+				var p = selAudio.play();
+				if (p && typeof p.catch === 'function') {
+					p.catch(function () {
+						if (btn) {
+							btn.disabled = false;
+						}
+					});
+				}
+			}
+			if (selCache[cacheKey]) {
+				playUrl(selCache[cacheKey]);
+				return;
+			}
+			if (btn) {
+				btn.disabled = true;
+				btn.setAttribute('data-label', btn.textContent || '');
+				btn.textContent = i18n.notesSelLoading || '';
+			}
+			var body = new URLSearchParams();
+			body.set('action', 'llm_notes_sel_tts');
+			body.set('nonce', nonce);
+			body.set('story_id', String(storyId));
+			body.set('which', which);
+			body.set('text', text);
+			fetch(ajaxUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+				body: body.toString()
+			})
+				.then(function (res) {
+					return res.json();
+				})
+				.then(function (json) {
+					if (btn) {
+						btn.disabled = false;
+						btn.textContent = btn.getAttribute('data-label') || btn.textContent;
+					}
+					if (!json || !json.success || !json.data || !json.data.audio) {
+						throw new Error('tts');
+					}
+					var bin = atob(json.data.audio);
+					var arr = new Uint8Array(bin.length);
+					var i;
+					for (i = 0; i < bin.length; i++) {
+						arr[i] = bin.charCodeAt(i);
+					}
+					var blob = new Blob([arr], { type: json.data.mime || 'audio/mpeg' });
+					var url = URL.createObjectURL(blob);
+					selCache[cacheKey] = url;
+					playUrl(url);
+				})
+				.catch(function () {
+					if (btn) {
+						btn.disabled = false;
+						btn.textContent = i18n.notesSelError || btn.getAttribute('data-label') || '';
+					}
+				});
+		}
+
+		function placePop(rect) {
+			if (!pop || !rect) {
+				return;
+			}
+			var gap = 8;
+			var vw = window.innerWidth || document.documentElement.clientWidth || 0;
+			var vh = window.innerHeight || document.documentElement.clientHeight || 0;
+			pop.style.left = '0px';
+			pop.style.top = '0px';
+			var pw = pop.offsetWidth || 220;
+			var ph = pop.offsetHeight || 80;
+			var left = rect.left + (rect.width / 2) - (pw / 2);
+			var top = rect.bottom + gap;
+			if (top + ph > vh - 8) {
+				top = rect.top - ph - gap;
+			}
+			if (top < 8) {
+				top = 8;
+			}
+			if (left < 8) {
+				left = 8;
+			}
+			if (left + pw > vw - 8) {
+				left = Math.max(8, vw - pw - 8);
+			}
+			pop.style.left = Math.round(left) + 'px';
+			pop.style.top = Math.round(top) + 'px';
+		}
+
+		function showSelPop(text, rect) {
+			closeSelPop();
+			lastText = text;
+			pop = document.createElement('div');
+			pop.className = 'llm-phrase-game__notes-sel';
+			pop.setAttribute('role', 'dialog');
+			var quote = document.createElement('p');
+			quote.className = 'llm-phrase-game__notes-sel-text';
+			quote.textContent = text.length > 90 ? text.slice(0, 87) + '…' : text;
+			pop.appendChild(quote);
+			var actions = document.createElement('div');
+			actions.className = 'llm-phrase-game__notes-sel-actions';
+			var mixed = notesSelIsMixed(text);
+			function addPlay(which, label) {
+				var btn = document.createElement('button');
+				btn.type = 'button';
+				btn.className = 'llm-phrase-game__notes-sel-play';
+				btn.textContent = label;
+				btn.addEventListener('mousedown', function (ev) {
+					ev.preventDefault();
+					ev.stopPropagation();
+				});
+				btn.addEventListener('click', function (ev) {
+					ev.preventDefault();
+					ev.stopPropagation();
+					playSelWhich(which, btn);
+				});
+				actions.appendChild(btn);
+			}
+			if (mixed) {
+				var tpl = i18n.notesSelPlayIn || 'Ascolta in %s';
+				addPlay('target', tpl.replace('%s', cfg.targetLangLabel || ''));
+				addPlay('known', tpl.replace('%s', cfg.interfaceLangLabel || ''));
+			} else {
+				addPlay('target', i18n.notesSelPlay || i18n.notesAudioPlay || 'Ascolta');
+			}
+			pop.appendChild(actions);
+			document.body.appendChild(pop);
+			placePop(rect);
+		}
+
+		function selectionInNotes() {
+			var sel = window.getSelection ? window.getSelection() : null;
+			if (!sel || sel.isCollapsed || sel.rangeCount < 1) {
+				return null;
+			}
+			var range = sel.getRangeAt(0);
+			var node = range.commonAncestorContainer;
+			if (node && node.nodeType === 3) {
+				node = node.parentNode;
+			}
+			if (!node || !host.contains(node)) {
+				return null;
+			}
+			if (pop && pop.contains(node)) {
+				return null;
+			}
+			if (node.closest && node.closest('button, input, textarea, a, .llm-phrase-game__notes-sel')) {
+				return null;
+			}
+			var text = String(sel.toString() || '').replace(/\s+/g, ' ').trim();
+			if (text.length < 2 || text.length > 280) {
+				return null;
+			}
+			if (!/[A-Za-zÀ-ÿĀ-ž]/.test(text)) {
+				return null;
+			}
+			var rect = range.getBoundingClientRect();
+			if (!rect || (rect.width === 0 && rect.height === 0)) {
+				return null;
+			}
+			return { text: text, rect: rect };
+		}
+
+		function onMaybeSelect() {
+			if (!isListenNotesSelOn()) {
+				closeSelPop();
+				return;
+			}
+			var found = selectionInNotes();
+			if (!found) {
+				return;
+			}
+			showSelPop(found.text, found.rect);
+		}
+
+		document.addEventListener('mouseup', function () {
+			window.setTimeout(onMaybeSelect, 10);
+		});
+		document.addEventListener('touchend', function () {
+			window.setTimeout(onMaybeSelect, 30);
+		}, { passive: true });
+		document.addEventListener('keydown', function (ev) {
+			if (ev.key === 'Escape') {
+				closeSelPop();
+			}
+		});
+		document.addEventListener('mousedown', function (ev) {
+			if (!pop) {
+				return;
+			}
+			if (ev.target && pop.contains(ev.target)) {
+				return;
+			}
+			hideTimer = window.setTimeout(closeSelPop, 0);
+		});
+		window.addEventListener('scroll', function () {
+			if (pop) {
+				closeSelPop();
+			}
+		}, true);
+	}
+
+	bindNotesSelectionListen();
 
 	var startResume =
 		!isSinglePhase &&
