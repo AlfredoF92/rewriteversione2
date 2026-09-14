@@ -147,7 +147,9 @@ button.llm-phrase-game__notes-player-btn {
 }
 
 html body .llm-phrase-game button.llm-phrase-game__notes-player-play,
-.llm-phrase-game button.llm-phrase-game__notes-player-play {
+.llm-phrase-game button.llm-phrase-game__notes-player-play,
+html body .llm-phrase-game button.llm-phrase-game__notes-player-slow,
+.llm-phrase-game button.llm-phrase-game__notes-player-slow {
 	min-width: 3.8rem !important;
 	padding: 0 1.05rem !important;
 }
@@ -161,7 +163,9 @@ html body .llm-phrase-game button.llm-phrase-game__notes-player-btn:focus-visibl
 }
 
 html body .llm-phrase-game .llm-phrase-game__notes-player.is-playing button.llm-phrase-game__notes-player-play,
-.llm-phrase-game .llm-phrase-game__notes-player.is-playing button.llm-phrase-game__notes-player-play {
+.llm-phrase-game .llm-phrase-game__notes-player.is-playing button.llm-phrase-game__notes-player-play,
+html body .llm-phrase-game .llm-phrase-game__notes-player.is-playing-slow button.llm-phrase-game__notes-player-slow,
+.llm-phrase-game .llm-phrase-game__notes-player.is-playing-slow button.llm-phrase-game__notes-player-slow {
 	background: #2271b1 !important;
 	color: #fff !important;
 }
@@ -170,6 +174,98 @@ html body .llm-phrase-game .llm-phrase-game__notes-player.is-playing button.llm-
 	display: block;
 	width: 13px;
 	height: 13px;
+}
+
+.llm-phrase-game__notes-player-skip {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.12em;
+	line-height: 1;
+}
+
+.llm-phrase-game__notes-player-skip svg {
+	width: 11px;
+	height: 11px;
+	flex-shrink: 0;
+}
+
+html body .llm-phrase-game button.llm-phrase-game__notes-player-back,
+.llm-phrase-game button.llm-phrase-game__notes-player-back,
+html body .llm-phrase-game button.llm-phrase-game__notes-player-fwd,
+.llm-phrase-game button.llm-phrase-game__notes-player-fwd {
+	min-width: 3.6rem !important;
+	padding: 0 0.7rem !important;
+	gap: 0 !important;
+}
+
+.llm-phrase-game__notes-player-slow .llm-phrase-game__listen-slow-icon {
+	width: 13px;
+	height: 13px;
+}
+
+.llm-notes-listen {
+	display: inline;
+}
+
+html body .llm-phrase-game button.llm-notes-listen__play,
+.llm-phrase-game button.llm-notes-listen__play,
+button.llm-notes-listen__play {
+	-webkit-appearance: none !important;
+	appearance: none !important;
+	box-sizing: border-box !important;
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	width: 1.08em !important;
+	height: 1.08em !important;
+	min-width: 1.08em !important;
+	min-height: 1.08em !important;
+	margin: 0 0.28em 0 0.05em !important;
+	padding: 0 !important;
+	border: 1px solid rgba(34, 113, 177, 0.35) !important;
+	border-radius: 50% !important;
+	background: #fff !important;
+	color: #2271b1 !important;
+	font-style: normal !important;
+	font-weight: 400 !important;
+	line-height: 0 !important;
+	vertical-align: -0.05em;
+	cursor: pointer !important;
+	box-shadow: none !important;
+}
+
+html body .llm-phrase-game button.llm-notes-listen__play:hover,
+html body .llm-phrase-game button.llm-notes-listen__play:focus-visible,
+.llm-phrase-game button.llm-notes-listen__play:hover,
+.llm-phrase-game button.llm-notes-listen__play:focus-visible {
+	background: #2271b1 !important;
+	color: #fff !important;
+	border-color: #2271b1 !important;
+	box-shadow: none !important;
+}
+
+html body .llm-phrase-game button.llm-notes-listen__play.is-playing,
+.llm-phrase-game button.llm-notes-listen__play.is-playing {
+	background: #135e96 !important;
+	color: #fff !important;
+	border-color: #135e96 !important;
+	box-shadow: none !important;
+}
+
+.llm-notes-listen__play svg {
+	display: block;
+	width: 0.74em;
+	height: 0.74em;
+	margin: 0;
+	transform: translate(0.05em, -0.01em);
+}
+
+.llm-notes-listen__text {
+	text-decoration: underline dotted;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 0.18em;
+	cursor: inherit;
 }
 
 .llm-phrase-game__notes-sel {
@@ -2712,6 +2808,11 @@ html body .llm-phrase-game .llm-phrase-game__listen-switch .llm-phrase-game__mic
 	display: none;
 }
 
+.llm-phrase-game__grammar-section-body[hidden],
+.llm-notes-inline-edit__open-wrap[hidden] {
+	display: none !important;
+}
+
 .llm-phrase-game__grammar-section-panel p {
 	margin: 0 0 0.8em;
 	line-height: 1.55;
@@ -2719,6 +2820,126 @@ html body .llm-phrase-game .llm-phrase-game__listen-switch .llm-phrase-game__mic
 
 .llm-phrase-game__grammar-section-panel p:last-child {
 	margin-bottom: 0;
+}
+
+.llm-notes-inline-edit__open-wrap {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 0.45rem;
+	margin-top: 0.9rem;
+}
+
+.llm-notes-inline-edit__open-wrap .llm-notes-inline-edit__status {
+	margin-right: auto;
+}
+
+.llm-phrase-game__grammar-section-panel.is-editing {
+	overflow: visible;
+}
+
+.llm-notes-inline-edit {
+	margin: 0.15rem 0 0;
+}
+
+.llm-notes-inline-edit .wp-editor-wrap,
+.llm-notes-inline-edit .mce-tinymce,
+.llm-notes-inline-edit__ta,
+.llm-notes-inline-edit__html {
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+.llm-notes-inline-edit__simple-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem;
+	margin: 0 0 0.4rem;
+}
+
+.llm-notes-inline-edit__tool {
+	min-width: 2rem;
+	padding: 0.2rem 0.45rem;
+	border: 1px solid rgba(0, 0, 0, 0.22);
+	border-radius: 6px;
+	background: #fff;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.llm-notes-inline-edit__tool.is-on {
+	background: #1d2327;
+	color: #fff;
+}
+
+.llm-notes-inline-edit__visual,
+.llm-notes-inline-edit__html {
+	min-height: 180px;
+	padding: 0.55rem 0.7rem;
+	border: 1px solid rgba(0, 0, 0, 0.22);
+	border-radius: 8px;
+	background: #fff;
+	line-height: 1.55;
+}
+
+.llm-notes-inline-edit__visual:focus,
+.llm-notes-inline-edit__html:focus {
+	outline: 2px solid #2271b1;
+	outline-offset: 1px;
+}
+
+.llm-notes-inline-edit__emojis {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem;
+	margin: 0.5rem 0 0.35rem;
+}
+
+.llm-notes-inline-edit__emoji {
+	width: 2rem;
+	height: 2rem;
+	padding: 0;
+	border: 1px solid rgba(0, 0, 0, 0.14);
+	border-radius: 6px;
+	background: #fff;
+	font-size: 1.05rem;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.llm-notes-inline-edit__emoji:hover,
+.llm-notes-inline-edit__emoji:focus-visible {
+	border-color: #2271b1;
+}
+
+.llm-notes-inline-edit__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 0.4rem;
+	margin-top: 0.35rem;
+}
+
+.llm-notes-inline-edit__status,
+.llm-notes-inline-edit__actions p.llm-notes-inline-edit__status {
+	margin: 0 auto 0 0;
+	font-size: 0.88rem;
+	font-weight: 600;
+}
+
+.llm-notes-inline-edit__status.is-ok {
+	color: #0a7a2f;
+}
+
+.llm-notes-inline-edit__status.is-error {
+	color: #b32d2e;
+}
+
+.llm-notes-inline-edit__save {
+	font-weight: 700;
 }
 
 .llm-phrase-game__solution-card {

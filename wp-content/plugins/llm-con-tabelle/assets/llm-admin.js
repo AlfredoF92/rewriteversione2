@@ -1241,6 +1241,26 @@
 	} );
 
 	var llmAdminPhraseAudio = null;
+	var llmNotesListenTimer = null;
+	var llmNotesListenSeq = 0;
+
+	function stopAdminPhraseAudio() {
+		llmNotesListenSeq += 1;
+		if ( llmNotesListenTimer ) {
+			window.clearTimeout( llmNotesListenTimer );
+			llmNotesListenTimer = null;
+		}
+		if ( llmAdminPhraseAudio ) {
+			try {
+				llmAdminPhraseAudio.pause();
+			} catch ( err ) {
+				/* ignore */
+			}
+			llmAdminPhraseAudio = null;
+		}
+		$( '.llm-phrase-play.is-playing, .llm-notes-listen-play.is-playing' ).removeClass( 'is-playing' );
+	}
+
 	$( document ).on( 'click', '.llm-phrase-play', function ( e ) {
 		e.preventDefault();
 		e.stopPropagation();
@@ -1253,13 +1273,10 @@
 		if ( ! url ) {
 			return;
 		}
-		if ( llmAdminPhraseAudio ) {
-			llmAdminPhraseAudio.pause();
-			$( '.llm-phrase-play.is-playing' ).removeClass( 'is-playing' );
-			if ( llmAdminPhraseAudio.getAttribute( 'src' ) === url && ! llmAdminPhraseAudio.ended ) {
-				llmAdminPhraseAudio = null;
-				return;
-			}
+		var sameUrl = llmAdminPhraseAudio && llmAdminPhraseAudio.getAttribute( 'src' ) === url && ! llmAdminPhraseAudio.ended;
+		stopAdminPhraseAudio();
+		if ( sameUrl ) {
+			return;
 		}
 		llmAdminPhraseAudio = new Audio( url );
 		llmAdminPhraseAudio.addEventListener( 'ended', function () {
@@ -1272,6 +1289,58 @@
 				$btn.removeClass( 'is-playing' );
 			} );
 		}
+	} );
+
+	$( document ).on( 'click', '.llm-notes-listen-play', function ( e ) {
+		e.preventDefault();
+		e.stopPropagation();
+		var $btn = $( this );
+		if ( $btn.prop( 'disabled' ) ) {
+			return;
+		}
+		var url = $btn.attr( 'data-audio-url' ) || '';
+		if ( ! url ) {
+			return;
+		}
+		if ( $btn.hasClass( 'is-playing' ) ) {
+			stopAdminPhraseAudio();
+			return;
+		}
+		stopAdminPhraseAudio();
+		var seq = llmNotesListenSeq;
+		function playAt( rate, onEnded ) {
+			if ( seq !== llmNotesListenSeq ) {
+				return;
+			}
+			llmAdminPhraseAudio = new Audio( url );
+			llmAdminPhraseAudio.playbackRate = rate;
+			llmAdminPhraseAudio.addEventListener( 'ended', function () {
+				if ( seq !== llmNotesListenSeq ) {
+					return;
+				}
+				onEnded();
+			} );
+			var playPromise = llmAdminPhraseAudio.play();
+			if ( playPromise && typeof playPromise.catch === 'function' ) {
+				playPromise.catch( function () {
+					if ( seq === llmNotesListenSeq ) {
+						stopAdminPhraseAudio();
+					}
+				} );
+			}
+		}
+		$btn.addClass( 'is-playing' );
+		playAt( 1, function () {
+			llmNotesListenTimer = window.setTimeout( function () {
+				llmNotesListenTimer = null;
+				playAt( 0.7, function () {
+					if ( seq === llmNotesListenSeq ) {
+						$btn.removeClass( 'is-playing' );
+						llmAdminPhraseAudio = null;
+					}
+				} );
+			}, 1000 );
+		} );
 	} );
 
 	} ); // fine DOMReady full export

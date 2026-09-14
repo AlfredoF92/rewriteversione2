@@ -1624,6 +1624,9 @@
 		var notesModalSave = qs(root, '.llm-fe-notes-modal__save');
 		var notesEditorReady = false;
 		var notesEditField = 'grammar';
+		var INLINE_NOTES_EDITOR_ID = 'llm-fe-notes-inline-editor';
+		var NOTES_INLINE_EMOJIS = ['💡', '🔍', '⚠️', '❌', '✅', '💬', '📖', '✨', '📝', '👉', '⭐', '❤️', '🗣️', '📌', '😊', '🤔'];
+		var inlineNotesEdit = null;
 		var labelAltEl = qs(root, '.llm-phrase-game__label-alt');
 		var doneEl = qs(root, '.llm-phrase-game__done');
 		var cardEl = qs(root, '.llm-phrase-game__card');
@@ -1660,6 +1663,10 @@
 		var phraseAudioEl = null;
 		var notesStoryAudio = null;
 		var notesStoryPlayerEl = null;
+		var notesListenAudio = null;
+		var notesListenTimer = null;
+		var notesListenSeq = 0;
+		var notesListenBtn = null;
 		var listenVoiceGender = 'male';
 		var composePhase1 = qs(root, '.llm-phrase-game__compose--phase1');
 		var composePhase2 = qs(root, '.llm-phrase-game__compose--phase2');
@@ -2273,6 +2280,10 @@
 		return !!cfg.canEditNotes && notesEditBtns.length > 0 && !!notesModal && !!notesEditorTa;
 	}
 
+	function canEditNotesInline() {
+		return !!cfg.canEditNotes;
+	}
+
 	function notesFieldTitle(field) {
 		if (field === 'notes') {
 			return i18n.notesEditNotes || 'Modifica Note Frase (admin)';
@@ -2414,6 +2425,7 @@
 	}
 
 	function openNotesModal(field) {
+		cancelInlineNotesEdit();
 		if (!canEditNotes()) {
 			return;
 		}
@@ -2474,6 +2486,535 @@
 				setNotesModalStatus(i18n.notesEditError || i18n.ajaxError || '', true);
 				notesModalSave.disabled = false;
 			});
+	}
+
+	function isNotesSectionEditable(type) {
+		return type !== 'special-chars' && type !== 'solution';
+	}
+
+	function removeWpEditorById(editorId) {
+		if (window.tinymce) {
+			var ed = tinymce.get(editorId);
+			if (ed) {
+				try {
+					ed.remove();
+				} catch (e1) { /* ignore */ }
+			}
+		}
+		var api = getWpEditorApi();
+		if (api && typeof api.remove === 'function') {
+			try {
+				api.remove(editorId);
+			} catch (e2) { /* ignore */ }
+		}
+		if (window.QTags && QTags.instances && QTags.instances[editorId]) {
+			try {
+				delete QTags.instances[editorId];
+			} catch (e3) { /* ignore */ }
+		}
+	}
+
+	function paragraphInnersFromEditorHtml(html) {
+		var div = document.createElement('div');
+		try {
+			div.innerHTML = String(html || '');
+		} catch (e) {
+			return [String(html || '')];
+		}
+		var ps = div.querySelectorAll('p');
+		if (!ps.length) {
+			var t = String(div.innerHTML || '').trim();
+			return t ? [t] : [];
+		}
+		var out = [];
+		var i;
+		for (i = 0; i < ps.length; i++) {
+			out.push(ps[i].innerHTML);
+		}
+		return out;
+	}
+
+	function rebuildGrammarHtml(editedSectionIndex, newEditorHtml) {
+		var newInners = paragraphInnersFromEditorHtml(newEditorHtml);
+		if (!newInners.length) {
+			newInners = [''];
+		}
+		var parts = [];
+		var replaced = false;
+		var i;
+		var n;
+		for (i = 0; i < grammarSourceBlocks.length; i++) {
+			var b = grammarSourceBlocks[i];
+			if (b.sectionIndex !== editedSectionIndex) {
+				parts.push('<p>' + b.innerHtml + '</p>');
+				continue;
+			}
+			if (replaced) {
+				continue;
+			}
+			for (n = 0; n < newInners.length; n++) {
+				parts.push('<p>' + newInners[n] + '</p>');
+			}
+			replaced = true;
+		}
+		if (!replaced) {
+			for (n = 0; n < newInners.length; n++) {
+				parts.push('<p>' + newInners[n] + '</p>');
+			}
+		}
+		return parts.join('');
+	}
+
+	function setInlineNotesStatus(text, isError) {
+		if (!inlineNotesEdit || !inlineNotesEdit.statusEl) {
+			return;
+		}
+		var el = inlineNotesEdit.statusEl;
+		if (!text) {
+			el.hidden = true;
+			el.textContent = '';
+			el.classList.remove('is-error', 'is-ok');
+			return;
+		}
+		el.hidden = false;
+		el.textContent = text;
+		el.classList.toggle('is-error', !!isError);
+		el.classList.toggle('is-ok', !isError);
+	}
+
+	function getInlineNotesEditorContent() {
+		if (inlineNotesEdit && inlineNotesEdit.mode === 'tinymce' && window.tinymce) {
+			var ed = tinymce.get(INLINE_NOTES_EDITOR_ID);
+			if (ed) {
+				return ed.getContent();
+			}
+		}
+		if (inlineNotesEdit && inlineNotesEdit.mode === 'simple' && inlineNotesEdit.htmlTa && !inlineNotesEdit.htmlTa.hidden) {
+			return inlineNotesEdit.htmlTa.value;
+		}
+		if (inlineNotesEdit && inlineNotesEdit.visual) {
+			return inlineNotesEdit.visual.innerHTML;
+		}
+		var ta = document.getElementById(INLINE_NOTES_EDITOR_ID);
+		return ta ? ta.value : '';
+	}
+
+	function insertInlineNotesEmoji(ch) {
+		if (inlineNotesEdit && inlineNotesEdit.mode === 'tinymce' && window.tinymce) {
+			var ed = tinymce.get(INLINE_NOTES_EDITOR_ID);
+			if (ed) {
+				ed.focus();
+				ed.insertContent(ch);
+				return;
+			}
+		}
+		if (inlineNotesEdit && inlineNotesEdit.htmlTa && !inlineNotesEdit.htmlTa.hidden) {
+			var htmlTa = inlineNotesEdit.htmlTa;
+			var start = htmlTa.selectionStart || 0;
+			var end = htmlTa.selectionEnd || 0;
+			var val = htmlTa.value || '';
+			htmlTa.value = val.slice(0, start) + ch + val.slice(end);
+			htmlTa.selectionStart = htmlTa.selectionEnd = start + ch.length;
+			htmlTa.focus();
+			return;
+		}
+		if (inlineNotesEdit && inlineNotesEdit.visual) {
+			inlineNotesEdit.visual.focus();
+			try {
+				document.execCommand('insertText', false, ch);
+			} catch (eIns) {
+				inlineNotesEdit.visual.appendChild(document.createTextNode(ch));
+			}
+		}
+	}
+
+	function teardownInlineNotesEditor() {
+		removeWpEditorById(INLINE_NOTES_EDITOR_ID);
+		if (inlineNotesEdit && inlineNotesEdit.host && inlineNotesEdit.host.parentNode) {
+			inlineNotesEdit.host.parentNode.removeChild(inlineNotesEdit.host);
+		}
+	}
+
+	function cancelInlineNotesEdit() {
+		if (!inlineNotesEdit) {
+			return;
+		}
+		var panel = inlineNotesEdit.panel;
+		var viewBox = inlineNotesEdit.viewBox;
+		var btnWrap = inlineNotesEdit.btnWrap;
+		teardownInlineNotesEditor();
+		if (panel) {
+			panel.classList.remove('is-editing');
+		}
+		if (viewBox) {
+			viewBox.hidden = false;
+		}
+		if (btnWrap) {
+			btnWrap.hidden = false;
+		}
+		inlineNotesEdit = null;
+	}
+
+	function collectOpenGrammarSectionIndexes() {
+		var openIdx = [];
+		var i;
+		for (i = 0; i < grammarSectionBlocks.length; i++) {
+			var block = grammarSectionBlocks[i];
+			if (block && block.toggle && block.toggle.getAttribute('aria-expanded') === 'true') {
+				openIdx.push(i);
+			}
+		}
+		return openIdx;
+	}
+
+	function restoreOpenGrammarSections(openIdx) {
+		var i;
+		for (i = 0; i < openIdx.length; i++) {
+			setGrammarSectionOpen(grammarSectionBlocks[openIdx[i]], true);
+		}
+	}
+
+	function flashNotesSectionSaved(blockIndex) {
+		var block = grammarSectionBlocks[blockIndex];
+		if (!block || !block.panel) {
+			return;
+		}
+		var status = document.createElement('span');
+		status.className = 'llm-notes-inline-edit__status is-ok';
+		status.textContent = i18n.notesEditSaved || 'Salvato nel database';
+		var wrap = block.panel.querySelector('.llm-notes-inline-edit__open-wrap');
+		if (wrap) {
+			wrap.insertBefore(status, wrap.firstChild);
+		} else {
+			block.panel.appendChild(status);
+		}
+		setTimeout(function () {
+			if (status.parentNode) {
+				status.parentNode.removeChild(status);
+			}
+		}, 2200);
+	}
+
+	function postPhraseNotesField(field, html) {
+		var body = new URLSearchParams();
+		body.set('action', 'llm_fe_save_phrase_notes');
+		body.set('nonce', String(cfg.editNotesNonce || ''));
+		body.set('story_id', String(storyId));
+		body.set('phrase_index', String(phraseIx));
+		body.set('field', field);
+		body.set('grammar', html);
+		return fetch(ajaxUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+			body: body.toString()
+		}).then(function (res) { return res.json(); });
+	}
+
+	function mountSimpleInlineEditor(mount, html) {
+		var toolbar = document.createElement('div');
+		toolbar.className = 'llm-notes-inline-edit__simple-toolbar';
+		var cmds = [
+			{ cmd: 'bold', label: 'B' },
+			{ cmd: 'italic', label: 'I' },
+			{ cmd: 'underline', label: 'U' },
+			{ cmd: 'insertUnorderedList', label: '•' },
+			{ cmd: 'insertOrderedList', label: '1.' }
+		];
+		cmds.forEach(function (item) {
+			var b = document.createElement('button');
+			b.type = 'button';
+			b.className = 'llm-notes-inline-edit__tool';
+			b.textContent = item.label;
+			b.addEventListener('click', function (e) {
+				e.preventDefault();
+				if (inlineNotesEdit.htmlTa && !inlineNotesEdit.htmlTa.hidden) {
+					return;
+				}
+				inlineNotesEdit.visual.focus();
+				document.execCommand(item.cmd, false, null);
+			});
+			toolbar.appendChild(b);
+		});
+		var codeBtn = document.createElement('button');
+		codeBtn.type = 'button';
+		codeBtn.className = 'llm-notes-inline-edit__tool';
+		codeBtn.textContent = 'HTML';
+		toolbar.appendChild(codeBtn);
+
+		var visual = document.createElement('div');
+		visual.className = 'llm-notes-inline-edit__visual';
+		visual.contentEditable = 'true';
+		visual.setAttribute('spellcheck', 'true');
+		try {
+			visual.innerHTML = html || '';
+		} catch (eVis) {
+			visual.textContent = html || '';
+		}
+
+		var htmlTa = document.createElement('textarea');
+		htmlTa.className = 'llm-notes-inline-edit__html';
+		htmlTa.rows = 10;
+		htmlTa.value = html || '';
+		htmlTa.hidden = true;
+
+		codeBtn.addEventListener('click', function (e) {
+			e.preventDefault();
+			if (htmlTa.hidden) {
+				htmlTa.value = visual.innerHTML;
+				visual.hidden = true;
+				htmlTa.hidden = false;
+				htmlTa.focus();
+				codeBtn.classList.add('is-on');
+			} else {
+				visual.innerHTML = htmlTa.value;
+				htmlTa.hidden = true;
+				visual.hidden = false;
+				visual.focus();
+				codeBtn.classList.remove('is-on');
+			}
+		});
+
+		mount.appendChild(toolbar);
+		mount.appendChild(visual);
+		mount.appendChild(htmlTa);
+		inlineNotesEdit.mode = 'simple';
+		inlineNotesEdit.visual = visual;
+		inlineNotesEdit.htmlTa = htmlTa;
+	}
+
+	function mountTinyInlineEditor(mount, html, onReady) {
+		removeWpEditorById(INLINE_NOTES_EDITOR_ID);
+		var api = getWpEditorApi();
+		if (!api) {
+			onReady(false);
+			return;
+		}
+		var ta = document.createElement('textarea');
+		ta.id = INLINE_NOTES_EDITOR_ID;
+		ta.className = 'llm-fe-notes-editor llm-notes-inline-edit__ta';
+		ta.rows = 12;
+		ta.value = html || '';
+		mount.appendChild(ta);
+		api.initialize(INLINE_NOTES_EDITOR_ID, {
+			tinymce: {
+				wpautop: true,
+				plugins: 'lists,paste,tabfocus,textcolor,colorpicker,wordpress,wpautoresize,wplink,wptextpattern',
+				toolbar1: 'formatselect,bold,italic,underline,strikethrough,|,bullist,numlist,|,forecolor,backcolor,|,removeformat,|,undo,redo',
+				toolbar2: '',
+				menubar: false,
+				branding: false,
+				height: 240,
+				relative_urls: false,
+				convert_urls: false,
+				body_class: 'llm-fe-notes-tinymce'
+			},
+			quicktags: true,
+			mediaButtons: false
+		});
+		var tries = 0;
+		function wait() {
+			tries += 1;
+			if (window.tinymce && tinymce.get(INLINE_NOTES_EDITOR_ID)) {
+				var ed = tinymce.get(INLINE_NOTES_EDITOR_ID);
+				try {
+					ed.setContent(html || '');
+				} catch (eSet) { /* ignore */ }
+				inlineNotesEdit.mode = 'tinymce';
+				onReady(true);
+				return;
+			}
+			if (tries > 40) {
+				onReady(false);
+				return;
+			}
+			setTimeout(wait, 50);
+		}
+		wait();
+	}
+
+	function appendInlineNotesChrome(host) {
+		var emojis = document.createElement('div');
+		emojis.className = 'llm-notes-inline-edit__emojis';
+		emojis.setAttribute('role', 'group');
+		emojis.setAttribute('aria-label', 'Emoji');
+		NOTES_INLINE_EMOJIS.forEach(function (ch) {
+			var b = document.createElement('button');
+			b.type = 'button';
+			b.className = 'llm-notes-inline-edit__emoji';
+			b.textContent = ch;
+			b.setAttribute('aria-label', ch);
+			b.addEventListener('click', function (e) {
+				e.preventDefault();
+				insertInlineNotesEmoji(ch);
+			});
+			emojis.appendChild(b);
+		});
+
+		var actions = document.createElement('div');
+		actions.className = 'llm-notes-inline-edit__actions';
+		var statusEl = document.createElement('p');
+		statusEl.className = 'llm-notes-inline-edit__status';
+		statusEl.hidden = true;
+		var cancelBtn = document.createElement('button');
+		cancelBtn.type = 'button';
+		cancelBtn.className = 'llm-game-theme__btn llm-story-layout-switch__btn llm-phrase-game__admin-edit';
+		cancelBtn.textContent = i18n.notesEditCancel || 'Annulla';
+		var saveBtn = document.createElement('button');
+		saveBtn.type = 'button';
+		saveBtn.className = 'llm-game-theme__btn llm-story-layout-switch__btn llm-phrase-game__admin-edit llm-notes-inline-edit__save';
+		saveBtn.textContent = i18n.notesEditSave || 'Salva';
+		cancelBtn.addEventListener('click', function (e) {
+			e.preventDefault();
+			cancelInlineNotesEdit();
+		});
+		saveBtn.addEventListener('click', function (e) {
+			e.preventDefault();
+			saveInlineNotesEdit();
+		});
+		actions.appendChild(statusEl);
+		actions.appendChild(cancelBtn);
+		actions.appendChild(saveBtn);
+		host.appendChild(emojis);
+		host.appendChild(actions);
+		inlineNotesEdit.statusEl = statusEl;
+		inlineNotesEdit.saveBtn = saveBtn;
+	}
+
+	function startInlineNotesEdit(blockIndex) {
+		if (!canEditNotesInline()) {
+			return;
+		}
+		var block = grammarSectionBlocks[blockIndex];
+		if (!block || !block.panel || !block.editField) {
+			return;
+		}
+		if (inlineNotesEdit) {
+			if (inlineNotesEdit.blockIndex === blockIndex) {
+				return;
+			}
+			cancelInlineNotesEdit();
+		}
+		if (notesModal && !notesModal.hidden) {
+			closeNotesModal();
+		}
+		var panel = block.panel;
+		var viewBox = block.viewBox;
+		var btnWrap = block.editBtnWrap;
+		var host = document.createElement('div');
+		host.className = 'llm-notes-inline-edit';
+		var editorMount = document.createElement('div');
+		editorMount.className = 'llm-notes-inline-edit__editor';
+		host.appendChild(editorMount);
+		panel.classList.add('is-editing');
+		if (viewBox) {
+			viewBox.hidden = true;
+		}
+		if (btnWrap) {
+			btnWrap.hidden = true;
+		}
+		panel.appendChild(host);
+		inlineNotesEdit = {
+			blockIndex: blockIndex,
+			panel: panel,
+			viewBox: viewBox,
+			btnWrap: btnWrap,
+			host: host,
+			editField: block.editField,
+			grammarSectionIndex: block.grammarSectionIndex,
+			mode: '',
+			statusEl: null,
+			saveBtn: null,
+			visual: null,
+			htmlTa: null
+		};
+		var initialHtml = grammarToEditorHtml(block.sourceHtml || '');
+		appendInlineNotesChrome(host);
+		mountTinyInlineEditor(editorMount, initialHtml, function (ok) {
+			if (!inlineNotesEdit || inlineNotesEdit.host !== host) {
+				return;
+			}
+			if (ok) {
+				return;
+			}
+			removeWpEditorById(INLINE_NOTES_EDITOR_ID);
+			editorMount.innerHTML = '';
+			mountSimpleInlineEditor(editorMount, initialHtml);
+		});
+	}
+
+	function saveInlineNotesEdit() {
+		if (!inlineNotesEdit || !canEditNotesInline()) {
+			return;
+		}
+		var state = inlineNotesEdit;
+		if (state.saveBtn) {
+			state.saveBtn.disabled = true;
+		}
+		setInlineNotesStatus('', false);
+		var editedHtml = getInlineNotesEditorContent();
+		var field = state.editField;
+		var valueToSave = editedHtml;
+		if (field === 'grammar') {
+			valueToSave = rebuildGrammarHtml(state.grammarSectionIndex, editedHtml);
+		}
+		postPhraseNotesField(field, valueToSave)
+			.then(function (json) {
+				if (!json || !json.success) {
+					var err = (json && json.data && json.data.message) || (i18n.notesEditError || '');
+					setInlineNotesStatus(err, true);
+					if (state.saveBtn) {
+						state.saveBtn.disabled = false;
+					}
+					return;
+				}
+				var p = phrases[phraseIx] || {};
+				if (field === 'grammar') {
+					p.grammar = valueToSave;
+				} else if (field === 'alt') {
+					p.alt = valueToSave;
+				} else if (field === 'pronunciation') {
+					p.pronunciation = valueToSave;
+				}
+				phrases[phraseIx] = p;
+				var openIdx = collectOpenGrammarSectionIndexes();
+				var keepIndex = state.blockIndex;
+				if (openIdx.indexOf(keepIndex) === -1) {
+					openIdx.push(keepIndex);
+				}
+				teardownInlineNotesEditor();
+				inlineNotesEdit = null;
+				renderGrammarSections(p.grammar, p.alt, currentPhraseTargetText());
+				restoreOpenGrammarSections(openIdx);
+				flashNotesSectionSaved(keepIndex);
+			})
+			.catch(function () {
+				setInlineNotesStatus(i18n.notesEditError || i18n.ajaxError || '', true);
+				if (state.saveBtn) {
+					state.saveBtn.disabled = false;
+				}
+			});
+	}
+
+	function appendNotesInlineEditButton(panel, block, blockIndex) {
+		if (!canEditNotesInline() || !isNotesSectionEditable(block.sectionType)) {
+			return;
+		}
+		var wrap = document.createElement('div');
+		wrap.className = 'llm-notes-inline-edit__open-wrap';
+		var btn = document.createElement('button');
+		btn.type = 'button';
+		btn.className = 'llm-game-theme__btn llm-story-layout-switch__btn llm-phrase-game__admin-edit llm-notes-inline-edit__open';
+		btn.textContent = i18n.notesEditTitle || 'Modifica appunti';
+		btn.addEventListener('click', function (e) {
+			e.preventDefault();
+			e.stopPropagation();
+			startInlineNotesEdit(blockIndex);
+		});
+		wrap.appendChild(btn);
+		panel.appendChild(wrap);
+		block.editBtnWrap = wrap;
+		block.editBtn = btn;
 	}
 
 	var fillSolutionBtn = qs(root, '.llm-phrase-game__admin-fill-solution');
@@ -2561,7 +3102,15 @@
 			});
 		}
 		document.addEventListener('keydown', function (e) {
-			if (e.key === 'Escape' && notesModal && !notesModal.hidden) {
+			if (e.key !== 'Escape') {
+				return;
+			}
+			if (inlineNotesEdit) {
+				e.preventDefault();
+				cancelInlineNotesEdit();
+				return;
+			}
+			if (notesModal && !notesModal.hidden) {
 				closeNotesModal();
 			}
 		});
@@ -2960,6 +3509,20 @@
 			});
 		}
 
+		function notesPlayerIconSkipBack() {
+			return '<span class="llm-phrase-game__notes-player-skip" aria-hidden="true">'
+				+ '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M11 6v12L2.5 12 11 6zm9 0v12l-8.5-6L20 6z"/></svg>'
+				+ '<span>5</span>'
+				+ '</span>';
+		}
+
+		function notesPlayerIconSkipFwd() {
+			return '<span class="llm-phrase-game__notes-player-skip" aria-hidden="true">'
+				+ '<span>5</span>'
+				+ '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M13 6v12l8.5-6L13 6zM4 6v12l8.5-6L4 6z"/></svg>'
+				+ '</span>';
+		}
+
 		function notesPlayerIconPlay() {
 			return '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" focusable="false" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
 		}
@@ -2968,24 +3531,133 @@
 			return '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" focusable="false" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';
 		}
 
+		function notesPlayerIconSlow() {
+			return '<span class="llm-phrase-game__listen-slow-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" focusable="false"><circle cx="12" cy="6" r="2.15"/><circle cx="5.15" cy="10.15" r="1.7"/><circle cx="18.85" cy="10.15" r="1.7"/><circle cx="6.1" cy="16.85" r="1.7"/><circle cx="17.9" cy="16.85" r="1.7"/><circle cx="12" cy="19.35" r="1.15"/><ellipse cx="12" cy="13.05" rx="6.4" ry="4.85"/></svg></span>';
+		}
+
+		function notesStoryIsSlow() {
+			return !!(notesStoryAudio && (notesStoryAudio.playbackRate || 1) < 0.95);
+		}
+
 		function syncNotesStoryPlayers() {
 			qsa(root, '.llm-phrase-game__notes-player').forEach(function (el) {
 				var playing = notesStoryPlayerEl === el && notesStoryAudio && !notesStoryAudio.paused;
-				el.classList.toggle('is-playing', playing);
+				var slow = playing && notesStoryIsSlow();
+				el.classList.toggle('is-playing', playing && !slow);
+				el.classList.toggle('is-playing-slow', slow);
 				var playBtn = qs(el, '.llm-phrase-game__notes-player-play');
-				if (!playBtn) {
+				if (playBtn) {
+					var playOn = playing && !slow;
+					var playLabel = playOn
+						? (i18n.notesAudioPause || 'Pausa')
+						: (i18n.notesAudioPlay || 'Ascolta');
+					playBtn.setAttribute('aria-label', playLabel);
+					playBtn.setAttribute('title', playLabel);
+					playBtn.innerHTML = playOn ? notesPlayerIconPause() : notesPlayerIconPlay();
+				}
+				var slowBtn = qs(el, '.llm-phrase-game__notes-player-slow');
+				if (slowBtn) {
+					var slowLabel = slow
+						? (i18n.notesAudioPause || 'Pausa')
+						: (i18n.notesAudioSlow || i18n.listenSlowAria || 'Ascolta più lentamente');
+					slowBtn.setAttribute('aria-label', slowLabel);
+					slowBtn.setAttribute('title', slowLabel);
+					slowBtn.innerHTML = slow ? notesPlayerIconPause() : notesPlayerIconSlow();
+				}
+			});
+		}
+
+		function stopNotesListenAudio() {
+			notesListenSeq += 1;
+			if (notesListenTimer) {
+				window.clearTimeout(notesListenTimer);
+				notesListenTimer = null;
+			}
+			if (notesListenAudio) {
+				try {
+					notesListenAudio.pause();
+				} catch (e) {
+					/* ignore */
+				}
+				notesListenAudio = null;
+			}
+			if (notesListenBtn) {
+				notesListenBtn.classList.remove('is-playing');
+				try {
+					notesListenBtn.innerHTML = notesPlayerIconPlay();
+				} catch (e2) {
+					/* ignore */
+				}
+				notesListenBtn = null;
+			}
+		}
+
+		function playNotesListenFromBtn(btn) {
+			if (!btn) {
+				return;
+			}
+			var url = btn.getAttribute('data-audio-url') || '';
+			if (!url) {
+				return;
+			}
+			if (btn.classList.contains('is-playing')) {
+				stopNotesListenAudio();
+				return;
+			}
+			if (typeof stopPhraseAudio === 'function') {
+				stopPhraseAudio();
+			}
+			stopNotesStoryAudio();
+			if (typeof cancelTts === 'function') {
+				cancelTts();
+			}
+			stopNotesListenAudio();
+			var seq = notesListenSeq;
+			notesListenBtn = btn;
+			btn.classList.add('is-playing');
+			try {
+				btn.innerHTML = notesPlayerIconPause();
+			} catch (e3) {
+				/* ignore */
+			}
+			function playAt(rate, onEnded) {
+				if (seq !== notesListenSeq) {
 					return;
 				}
-				var label = playing
-					? (i18n.notesAudioPause || 'Pausa')
-					: (i18n.notesAudioPlay || 'Ascolta');
-				playBtn.setAttribute('aria-label', label);
-				playBtn.setAttribute('title', label);
-				playBtn.innerHTML = playing ? notesPlayerIconPause() : notesPlayerIconPlay();
+				notesListenAudio = new Audio(url);
+				notesListenAudio.playbackRate = rate;
+				if ('preservesPitch' in notesListenAudio) {
+					notesListenAudio.preservesPitch = true;
+				}
+				notesListenAudio.addEventListener('ended', function () {
+					if (seq !== notesListenSeq) {
+						return;
+					}
+					onEnded();
+				});
+				var p = notesListenAudio.play();
+				if (p && typeof p.catch === 'function') {
+					p.catch(function () {
+						if (seq === notesListenSeq) {
+							stopNotesListenAudio();
+						}
+					});
+				}
+			}
+			playAt(1, function () {
+				notesListenTimer = window.setTimeout(function () {
+					notesListenTimer = null;
+					playAt(0.7, function () {
+						if (seq === notesListenSeq) {
+							stopNotesListenAudio();
+						}
+					});
+				}, 1000);
 			});
 		}
 
 		function stopNotesStoryAudio() {
+			stopNotesListenAudio();
 			if (notesStoryAudio) {
 				try {
 					notesStoryAudio.pause();
@@ -3015,13 +3687,25 @@
 			}
 		}
 
-		function playNotesStoryAudio(el, url) {
+		function applyNotesStoryRate(rate) {
+			if (!notesStoryAudio) {
+				return;
+			}
+			notesStoryAudio.playbackRate = rate;
+			if ('preservesPitch' in notesStoryAudio) {
+				notesStoryAudio.preservesPitch = true;
+			}
+		}
+
+		function playNotesStoryAudio(el, url, rate) {
 			if (!el || !url) {
 				return;
 			}
+			rate = typeof rate === 'number' ? rate : AUDIO_FILE_RATE;
 			if (typeof stopPhraseAudio === 'function') {
 				stopPhraseAudio();
 			}
+			stopNotesListenAudio();
 			if (typeof cancelTts === 'function') {
 				cancelTts();
 			}
@@ -3034,13 +3718,20 @@
 				notesStoryAudio.addEventListener('pause', syncNotesStoryPlayers);
 				notesStoryAudio.addEventListener('play', syncNotesStoryPlayers);
 			}
-			if (notesStoryPlayerEl === el && notesStoryAudio.src && !notesStoryAudio.paused) {
-				notesStoryAudio.pause();
+			var sameEl = notesStoryPlayerEl === el && !!notesStoryAudio.src;
+			if (sameEl && !notesStoryAudio.paused) {
+				if (Math.abs((notesStoryAudio.playbackRate || 1) - rate) < 0.05) {
+					notesStoryAudio.pause();
+					return;
+				}
+				applyNotesStoryRate(rate);
+				syncNotesStoryPlayers();
 				return;
 			}
-			if (notesStoryPlayerEl !== el || !notesStoryAudio.src) {
+			if (!sameEl) {
 				notesStoryAudio.src = url;
 			}
+			applyNotesStoryRate(rate);
 			notesStoryPlayerEl = el;
 			var playPromise = notesStoryAudio.play();
 			if (playPromise && typeof playPromise.catch === 'function') {
@@ -3081,21 +3772,27 @@
 			var backBtn = makeBtn(
 				'llm-phrase-game__notes-player-back',
 				i18n.notesAudioBack || '',
-				'<span aria-hidden="true">−5</span>'
+				notesPlayerIconSkipBack()
 			);
 			var playBtn = makeBtn(
 				'llm-phrase-game__notes-player-play',
 				i18n.notesAudioPlay || '',
 				notesPlayerIconPlay()
 			);
+			var slowBtn = makeBtn(
+				'llm-phrase-game__notes-player-slow',
+				i18n.notesAudioSlow || i18n.listenSlowAria || 'Ascolta più lentamente',
+				notesPlayerIconSlow()
+			);
 			var fwdBtn = makeBtn(
 				'llm-phrase-game__notes-player-fwd',
 				i18n.notesAudioFwd || '',
-				'<span aria-hidden="true">+5</span>'
+				notesPlayerIconSkipFwd()
 			);
 
 			bar.appendChild(backBtn);
 			bar.appendChild(playBtn);
+			bar.appendChild(slowBtn);
 			bar.appendChild(fwdBtn);
 
 			bar.addEventListener('click', function (ev) {
@@ -3104,7 +3801,12 @@
 			playBtn.addEventListener('click', function (ev) {
 				ev.preventDefault();
 				ev.stopPropagation();
-				playNotesStoryAudio(bar, url);
+				playNotesStoryAudio(bar, url, AUDIO_FILE_RATE);
+			});
+			slowBtn.addEventListener('click', function (ev) {
+				ev.preventDefault();
+				ev.stopPropagation();
+				playNotesStoryAudio(bar, url, AUDIO_FILE_SLOW_RATE);
 			});
 			backBtn.addEventListener('click', function (ev) {
 				ev.preventDefault();
@@ -3361,6 +4063,7 @@
 	var notesRevealAlt = '';
 	var notesRevealBusy = false;
 	var grammarSectionBlocks = [];
+	var grammarSourceBlocks = [];
 
 	function setStoryNotesOpen(open) {
 		if (!storyNotesToggle || !storyNotesPanel) {
@@ -3394,6 +4097,7 @@
 	}
 
 	function resetNotesReveal() {
+		cancelInlineNotesEdit();
 		notesRevealBlocks = [];
 		notesRevealShown = 0;
 		notesRevealAlt = '';
@@ -3679,6 +4383,7 @@
 	}
 
 	function splitGrammarIntoSections(html) {
+		grammarSourceBlocks = [];
 		var s = String(html || '').trim();
 		if (!s) {
 			return [];
@@ -3687,11 +4392,13 @@
 		try {
 			div.innerHTML = s;
 		} catch (e) {
-			return [{ type: 'misc', label: '', html: '<p>' + s + '</p>' }];
+			grammarSourceBlocks = [{ sectionIndex: 0, innerHtml: s }];
+			return [{ type: 'misc', label: '', html: '<p>' + s + '</p>', sourceHtml: '<p>' + s + '</p>', grammarSectionIndex: 0 }];
 		}
 		var rawPNodes = div.querySelectorAll('p');
 		if (!rawPNodes.length) {
-			return [{ type: 'misc', label: '', html: s }];
+			grammarSourceBlocks = [{ sectionIndex: 0, innerHtml: s }];
+			return [{ type: 'misc', label: '', html: s, sourceHtml: s, grammarSectionIndex: 0 }];
 		}
 		var pNodes = expandParagraphNodes(rawPNodes);
 		var sections = [];
@@ -3708,15 +4415,18 @@
 			if (!isHeadingPara) {
 				if (current) {
 					current.htmlParts.push(innerHtml);
+					grammarSourceBlocks.push({ sectionIndex: sections.indexOf(current), innerHtml: innerHtml });
 				} else {
 					current = { type: 'misc', label: '', htmlParts: [innerHtml] };
 					sections.push(current);
+					grammarSourceBlocks.push({ sectionIndex: sections.length - 1, innerHtml: innerHtml });
 				}
 				return;
 			}
 			/* Il "Remember:"/"Ricorda:" non si mostra più: salta il paragrafo
 			 * intero, senza aprire una sezione e senza toccare "current". */
 			if (headingType === 'remember') {
+				grammarSourceBlocks.push({ sectionIndex: null, innerHtml: innerHtml });
 				return;
 			}
 			var label = firstStrong.innerHTML.replace(/\s+$/, '').replace(/:\s*$/, '');
@@ -3762,6 +4472,7 @@
 				htmlParts: [firstPartHtml]
 			};
 			sections.push(section);
+			grammarSourceBlocks.push({ sectionIndex: sections.length - 1, innerHtml: innerHtml });
 			if (headingType === 'conjugation') {
 				var explainer = buildConjugationExplainerSentence(detectTenseType(firstStrong.textContent), cfg.interfaceLangCode);
 				if (explainer) {
@@ -3775,11 +4486,19 @@
 				current = section;
 			}
 		});
-		return sections.map(function (sec) {
+		return sections.map(function (sec, idx) {
+			var sourceParts = [];
+			grammarSourceBlocks.forEach(function (b) {
+				if (b.sectionIndex === idx) {
+					sourceParts.push('<p>' + b.innerHtml + '</p>');
+				}
+			});
 			return {
 				type: sec.type,
 				label: sec.label,
-				html: sec.htmlParts.map(function (h) { return '<p>' + h + '</p>'; }).join('')
+				html: sec.htmlParts.map(function (h) { return '<p>' + h + '</p>'; }).join(''),
+				sourceHtml: sourceParts.join(''),
+				grammarSectionIndex: idx
 			};
 		});
 	}
@@ -3802,11 +4521,17 @@
 	 */
 	function closeGrammarSectionsBelow(index) {
 		for (var j = index + 1; j < grammarSectionBlocks.length; j++) {
+			if (inlineNotesEdit && inlineNotesEdit.blockIndex === j) {
+				continue;
+			}
 			setGrammarSectionOpen(grammarSectionBlocks[j], false);
 		}
 	}
 
 	function toggleGrammarSectionAt(index) {
+		if (inlineNotesEdit && inlineNotesEdit.blockIndex === index) {
+			return;
+		}
 		var block = grammarSectionBlocks[index];
 		if (!block) {
 			return;
@@ -4036,7 +4761,121 @@
 	 * Renderizza phrase_grammar (+ eventuale phrase_alt) come lista di
 	 * sotto-accordion indipendenti dentro grammarEl, apertura esclusiva.
 	 */
+	function notesListenSkipNode(node) {
+		var el = node && node.nodeType === 1 ? node : (node && node.parentNode);
+		if (!el || !el.closest) {
+			return true;
+		}
+		return !!el.closest(
+			'.llm-notes-listen, button, a, textarea, input, script, style, ' +
+			'.llm-phrase-game__grammar-section-toggle, ' +
+			'.llm-notes-inline-edit, ' +
+			'.llm-notes-inline-edit__open-wrap, ' +
+			'.llm-phrase-game__grammar-section--solution, ' +
+			'.llm-phrase-game__grammar-section--pronunciation, ' +
+			'.llm-phrase-game__grammar-section--alt, ' +
+			'.llm-phrase-game__notes-player, ' +
+			'.llm-phrase-game__story-line-target'
+		);
+	}
+
+	function wrapOneNotesListen(container, needle, url) {
+		needle = String(needle || '');
+		if (!needle || !container || !url) {
+			return false;
+		}
+		var walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+			acceptNode: function (node) {
+				if (!node || !node.nodeValue) {
+					return NodeFilter.FILTER_REJECT;
+				}
+				if (notesListenSkipNode(node)) {
+					return NodeFilter.FILTER_REJECT;
+				}
+				return NodeFilter.FILTER_ACCEPT;
+			}
+		});
+		var parts = [];
+		var concat = '';
+		while (walker.nextNode()) {
+			var n = walker.currentNode;
+			var t = String(n.nodeValue || '').replace(/\u00a0/g, ' ');
+			parts.push({ node: n, start: concat.length, end: concat.length + t.length });
+			concat += t;
+		}
+		var idx = concat.indexOf(needle);
+		if (idx < 0) {
+			return false;
+		}
+		var end = idx + needle.length;
+		var startPart = null;
+		var endPart = null;
+		var i;
+		for (i = 0; i < parts.length; i++) {
+			if (!startPart && idx >= parts[i].start && idx < parts[i].end) {
+				startPart = parts[i];
+			}
+			if (end > parts[i].start && end <= parts[i].end) {
+				endPart = parts[i];
+			}
+		}
+		if (!startPart || !endPart) {
+			return false;
+		}
+		var range = document.createRange();
+		try {
+			range.setStart(startPart.node, idx - startPart.start);
+			range.setEnd(endPart.node, end - endPart.start);
+		} catch (e) {
+			return false;
+		}
+		var span = document.createElement('span');
+		span.className = 'llm-notes-listen';
+		var btn = document.createElement('button');
+		btn.type = 'button';
+		btn.className = 'llm-notes-listen__play';
+		btn.setAttribute('data-audio-url', url);
+		var label = (i18n.notesSelPlay || i18n.notesAudioPlay || 'Ascolta') + ': ' + needle;
+		btn.setAttribute('aria-label', label);
+		btn.setAttribute('title', label);
+		btn.innerHTML = notesPlayerIconPlay();
+		var textSpan = document.createElement('span');
+		textSpan.className = 'llm-notes-listen__text';
+		try {
+			textSpan.appendChild(range.extractContents());
+			span.appendChild(btn);
+			span.appendChild(textSpan);
+			range.insertNode(span);
+		} catch (e2) {
+			return false;
+		}
+		return true;
+	}
+
+	function decorateNotesListenIn(container, phrase) {
+		if (!container || !isListenNotesSelOn()) {
+			return;
+		}
+		var items = phrase && Array.isArray(phrase.notesListen) ? phrase.notesListen.slice() : [];
+		items = items.filter(function (it) {
+			return it && it.text && it.url;
+		}).sort(function (a, b) {
+			return String(b.text).length - String(a.text).length;
+		});
+		var n;
+		for (n = 0; n < items.length; n++) {
+			var guard = 0;
+			while (guard < 40 && wrapOneNotesListen(container, items[n].text, items[n].url)) {
+				guard += 1;
+			}
+		}
+	}
+
 	function renderGrammarSections(grammar, alt, targetText) {
+		if (inlineNotesEdit) {
+			teardownInlineNotesEditor();
+			inlineNotesEdit = null;
+		}
 		grammarSectionBlocks = [];
 		if (!grammarEl) {
 			return;
@@ -4051,7 +4890,9 @@
 			sections.push({
 				type: 'alt',
 				label: (i18n && i18n.notesAltSectionToggle) || 'Traduzione alternativa',
-				html: alt
+				html: alt,
+				sourceHtml: alt,
+				editField: 'alt'
 			});
 		}
 		var pronunciationText = (phrases[phraseIx] && phrases[phraseIx].pronunciation) || '';
@@ -4059,7 +4900,9 @@
 			sections.push({
 				type: 'pronunciation',
 				label: (i18n && i18n.notesPronunciationSectionToggle) || 'Pronunciation tips',
-				html: splitGrammarBlocks(pronunciationText).map(function (b) { return '<p>' + b + '</p>'; }).join('')
+				html: splitGrammarBlocks(pronunciationText).map(function (b) { return '<p>' + b + '</p>'; }).join(''),
+				sourceHtml: pronunciationText,
+				editField: 'pronunciation'
 			});
 		}
 		var solutionHtml = buildSolutionSectionHtml(phrases[phraseIx] || {});
@@ -4107,24 +4950,39 @@
 			panel.className = 'llm-phrase-game__grammar-section-panel';
 			panel.id = panelId;
 			panel.hidden = true;
+			var viewBox = document.createElement('div');
+			viewBox.className = 'llm-phrase-game__grammar-section-body';
 			try {
-				panel.innerHTML = sec.html || '';
+				viewBox.innerHTML = sec.html || '';
 			} catch (e) {
-				panel.textContent = sec.html || '';
+				viewBox.textContent = sec.html || '';
 			}
+			panel.appendChild(viewBox);
 
 			wrap.appendChild(toggle);
 			wrap.appendChild(panel);
 			list.appendChild(wrap);
 
-			var block = { wrap: wrap, toggle: toggle, panel: panel };
+			var editField = sec.editField || (typeof sec.grammarSectionIndex === 'number' ? 'grammar' : '');
+			var block = {
+				wrap: wrap,
+				toggle: toggle,
+				panel: panel,
+				viewBox: viewBox,
+				sectionType: sec.type || '',
+				editField: editField,
+				grammarSectionIndex: typeof sec.grammarSectionIndex === 'number' ? sec.grammarSectionIndex : null,
+				sourceHtml: sec.sourceHtml || ''
+			};
 			grammarSectionBlocks.push(block);
+			appendNotesInlineEditButton(panel, block, i);
 			var sectionIndex = i;
 			toggle.addEventListener('click', function () {
 				toggleGrammarSectionAt(sectionIndex);
 			});
 		});
 		grammarEl.appendChild(list);
+		decorateNotesListenIn(grammarEl, phrases[phraseIx]);
 	}
 
 	function appendNotesGrammarBlock(blockHtml, visible) {
@@ -6243,6 +7101,7 @@
 			storyRememberText.innerHTML = '';
 		}
 		storyNotesPopBody.innerHTML = phrase && phrase.grammar ? String(phrase.grammar) : '';
+		decorateNotesListenIn(storyNotesPopBody, phrase);
 		storyNotesPopEl.hidden = false;
 	}
 
@@ -8090,6 +8949,7 @@
 	}
 
 		function stopPhraseAudio() {
+			stopNotesListenAudio();
 			if (!phraseAudioEl) {
 				return;
 			}
@@ -8218,6 +9078,7 @@
 			ensureListenTargetWrap(btnEl);
 			cancelTts();
 			stopNotesStoryAudio();
+			stopNotesListenAudio();
 			if (!phraseAudioEl) {
 				phraseAudioEl = new Audio();
 			}
@@ -10183,6 +11044,7 @@
 		resetKeyboard();
 		setInvertedHintOpen(false);
 		cancelTts();
+		stopNotesListenAudio();
 		cancelAnalysisStream();
 			cancelStoryStream();
 			cancelPhraseIntro();
@@ -11746,345 +12608,20 @@
 		return isLearningOptionOn((cfg && cfg.optionListenNotesSel) || 'listen_notes_sel');
 	}
 
-	function notesSelLangHints() {
-		return {
-			en: {
-				words: {
-					the: 1, a: 1, an: 1, to: 1, of: 1, and: 1, in: 1, on: 1, for: 1, was: 1, were: 1,
-					is: 1, are: 1, be: 1, been: 1, with: 1, that: 1, this: 1, it: 1, he: 1, she: 1,
-					they: 1, we: 1, you: 1, i: 1, his: 1, her: 1, their: 1, from: 1, at: 1, by: 1,
-					as: 1, not: 1, but: 1, or: 1, had: 1, have: 1, has: 1, my: 1, your: 1, our: 1,
-					do: 1, did: 1, does: 1, will: 1, would: 1, can: 1, could: 1, lived: 1, live: 1,
-					reef: 1, coral: 1, because: 1, seemed: 1, quiet: 1, safe: 1, future: 1, family: 1
-				},
-				mark: null,
-				suf: /(ing|ed|ly|tion|ness)$/i
-			},
-			it: {
-				words: {
-					il: 1, lo: 1, la: 1, i: 1, gli: 1, le: 1, un: 1, uno: 1, una: 1, di: 1, a: 1, da: 1,
-					in: 1, con: 1, su: 1, per: 1, che: 1, non: 1, e: 1, o: 1, ma: 1, se: 1, come: 1,
-					anche: 1, della: 1, delle: 1, nel: 1, nella: 1, è: 1, era: 1, erano: 1, questo: 1,
-					questa: 1, lui: 1, lei: 1, noi: 1, voi: 1, loro: 1, mio: 1, mia: 1, perché: 1,
-					perche: 1, sembrava: 1, luogo: 1, sicuro: 1, futura: 1, famiglia: 1, barriera: 1,
-					viveva: 1, piena: 1, colori: 1, piante: 1, piccoli: 1, animali: 1, marini: 1
-				},
-				mark: /[àèéìòù]/i,
-				suf: /(are|ere|ire|ato|uto|ito|ava|eva|ivo|mente)$/i
-			},
-			es: {
-				words: {
-					el: 1, la: 1, los: 1, las: 1, un: 1, una: 1, de: 1, en: 1, que: 1, no: 1, es: 1,
-					por: 1, con: 1, para: 1, del: 1, al: 1, se: 1, y: 1, o: 1, pero: 1, como: 1, más: 1,
-					este: 1, esta: 1, era: 1, eran: 1, porque: 1
-				},
-				mark: /[ñáéíóúü¿¡]/i,
-				suf: /(ción|mente|ando|iendo)$/i
-			},
-			pl: {
-				words: {
-					i: 1, w: 1, na: 1, z: 1, do: 1, się: 1, jest: 1, nie: 1, to: 1, że: 1, o: 1, od: 1,
-					po: 1, za: 1, jak: 1, ale: 1, czy: 1, ten: 1, ta: 1, by: 1
-				},
-				mark: /[ąćęłńóśźż]/i,
-				suf: /(ść|nie|ami)$/i
-			}
-		};
-	}
-
-	function notesSelScoreLang(text, lang) {
-		var hints = notesSelLangHints()[lang];
-		if (!hints) {
-			return 0;
-		}
-		var score = 0;
-		if (hints.mark && hints.mark.test(text)) {
-			score += 3;
-		}
-		var parts = String(text || '').toLowerCase().split(/[^a-zàèéìòùñąćęłńóśźż0-9']+/i);
-		var i;
-		for (i = 0; i < parts.length; i++) {
-			var w = parts[i];
-			if (!w) {
-				continue;
-			}
-			if (hints.words[w]) {
-				score += 2;
-			} else if (hints.suf && hints.suf.test(w) && w.length > 3) {
-				score += 1;
-			}
-		}
-		return score;
-	}
-
-	function notesSelIsMixed(text) {
-		var target = String((cfg && cfg.targetLangCode) || 'en').slice(0, 2);
-		var known = String((cfg && cfg.interfaceLangCode) || 'it').slice(0, 2);
-		if (!target || target === known) {
-			return false;
-		}
-		var ts = notesSelScoreLang(text, target);
-		var ks = notesSelScoreLang(text, known);
-		return ts >= 2 && ks >= 2;
-	}
-
-	function bindNotesSelectionListen() {
-		var host = notesWrap || qs(root, '.llm-phrase-game__notes');
-		if (!host) {
-			return;
-		}
-		var pop = null;
-		var selAudio = null;
-		var selCache = {};
-		var lastText = '';
-		var hideTimer = 0;
-
-		function stopSelAudio() {
-			if (selAudio) {
-				try {
-					selAudio.pause();
-				} catch (e) {
-					/* ignore */
-				}
-			}
-		}
-
-		function closeSelPop() {
-			stopSelAudio();
-			if (hideTimer) {
-				window.clearTimeout(hideTimer);
-				hideTimer = 0;
-			}
-			if (pop && pop.parentNode) {
-				pop.parentNode.removeChild(pop);
-			}
-			pop = null;
-		}
-
-		function playSelWhich(which, btn) {
-			var text = lastText;
-			if (!text) {
+	function bindNotesListenPlays() {
+		root.addEventListener('click', function (ev) {
+			var t = ev.target;
+			var btn = t && t.closest ? t.closest('.llm-notes-listen__play') : null;
+			if (!btn || !root.contains(btn)) {
 				return;
 			}
-			if (typeof stopPhraseAudio === 'function') {
-				stopPhraseAudio();
-			}
-			if (typeof stopNotesStoryAudio === 'function') {
-				stopNotesStoryAudio();
-			}
-			if (typeof cancelTts === 'function') {
-				cancelTts();
-			}
-			var cacheKey = which + '\n' + text;
-			function playUrl(url) {
-				stopSelAudio();
-				if (!selAudio) {
-					selAudio = new Audio();
-				}
-				selAudio.src = url;
-				var p = selAudio.play();
-				if (p && typeof p.catch === 'function') {
-					p.catch(function () {
-						if (btn) {
-							btn.disabled = false;
-						}
-					});
-				}
-			}
-			if (selCache[cacheKey]) {
-				playUrl(selCache[cacheKey]);
-				return;
-			}
-			if (btn) {
-				btn.disabled = true;
-				btn.setAttribute('data-label', btn.textContent || '');
-				btn.textContent = i18n.notesSelLoading || '';
-			}
-			var body = new URLSearchParams();
-			body.set('action', 'llm_notes_sel_tts');
-			body.set('nonce', nonce);
-			body.set('story_id', String(storyId));
-			body.set('which', which);
-			body.set('text', text);
-			fetch(ajaxUrl, {
-				method: 'POST',
-				credentials: 'same-origin',
-				headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-				body: body.toString()
-			})
-				.then(function (res) {
-					return res.json();
-				})
-				.then(function (json) {
-					if (btn) {
-						btn.disabled = false;
-						btn.textContent = btn.getAttribute('data-label') || btn.textContent;
-					}
-					if (!json || !json.success || !json.data || !json.data.audio) {
-						throw new Error('tts');
-					}
-					var bin = atob(json.data.audio);
-					var arr = new Uint8Array(bin.length);
-					var i;
-					for (i = 0; i < bin.length; i++) {
-						arr[i] = bin.charCodeAt(i);
-					}
-					var blob = new Blob([arr], { type: json.data.mime || 'audio/mpeg' });
-					var url = URL.createObjectURL(blob);
-					selCache[cacheKey] = url;
-					playUrl(url);
-				})
-				.catch(function () {
-					if (btn) {
-						btn.disabled = false;
-						btn.textContent = i18n.notesSelError || btn.getAttribute('data-label') || '';
-					}
-				});
-		}
-
-		function placePop(rect) {
-			if (!pop || !rect) {
-				return;
-			}
-			var gap = 8;
-			var vw = window.innerWidth || document.documentElement.clientWidth || 0;
-			var vh = window.innerHeight || document.documentElement.clientHeight || 0;
-			pop.style.left = '0px';
-			pop.style.top = '0px';
-			var pw = pop.offsetWidth || 220;
-			var ph = pop.offsetHeight || 80;
-			var left = rect.left + (rect.width / 2) - (pw / 2);
-			var top = rect.bottom + gap;
-			if (top + ph > vh - 8) {
-				top = rect.top - ph - gap;
-			}
-			if (top < 8) {
-				top = 8;
-			}
-			if (left < 8) {
-				left = 8;
-			}
-			if (left + pw > vw - 8) {
-				left = Math.max(8, vw - pw - 8);
-			}
-			pop.style.left = Math.round(left) + 'px';
-			pop.style.top = Math.round(top) + 'px';
-		}
-
-		function showSelPop(text, rect) {
-			closeSelPop();
-			lastText = text;
-			pop = document.createElement('div');
-			pop.className = 'llm-phrase-game__notes-sel';
-			pop.setAttribute('role', 'dialog');
-			var quote = document.createElement('p');
-			quote.className = 'llm-phrase-game__notes-sel-text';
-			quote.textContent = text.length > 90 ? text.slice(0, 87) + '…' : text;
-			pop.appendChild(quote);
-			var actions = document.createElement('div');
-			actions.className = 'llm-phrase-game__notes-sel-actions';
-			var mixed = notesSelIsMixed(text);
-			function addPlay(which, label) {
-				var btn = document.createElement('button');
-				btn.type = 'button';
-				btn.className = 'llm-phrase-game__notes-sel-play';
-				btn.textContent = label;
-				btn.addEventListener('mousedown', function (ev) {
-					ev.preventDefault();
-					ev.stopPropagation();
-				});
-				btn.addEventListener('click', function (ev) {
-					ev.preventDefault();
-					ev.stopPropagation();
-					playSelWhich(which, btn);
-				});
-				actions.appendChild(btn);
-			}
-			if (mixed) {
-				var tpl = i18n.notesSelPlayIn || 'Ascolta in %s';
-				addPlay('target', tpl.replace('%s', cfg.targetLangLabel || ''));
-				addPlay('known', tpl.replace('%s', cfg.interfaceLangLabel || ''));
-			} else {
-				addPlay('target', i18n.notesSelPlay || i18n.notesAudioPlay || 'Ascolta');
-			}
-			pop.appendChild(actions);
-			document.body.appendChild(pop);
-			placePop(rect);
-		}
-
-		function selectionInNotes() {
-			var sel = window.getSelection ? window.getSelection() : null;
-			if (!sel || sel.isCollapsed || sel.rangeCount < 1) {
-				return null;
-			}
-			var range = sel.getRangeAt(0);
-			var node = range.commonAncestorContainer;
-			if (node && node.nodeType === 3) {
-				node = node.parentNode;
-			}
-			if (!node || !host.contains(node)) {
-				return null;
-			}
-			if (pop && pop.contains(node)) {
-				return null;
-			}
-			if (node.closest && node.closest('button, input, textarea, a, .llm-phrase-game__notes-sel')) {
-				return null;
-			}
-			var text = String(sel.toString() || '').replace(/\s+/g, ' ').trim();
-			if (text.length < 2 || text.length > 280) {
-				return null;
-			}
-			if (!/[A-Za-zÀ-ÿĀ-ž]/.test(text)) {
-				return null;
-			}
-			var rect = range.getBoundingClientRect();
-			if (!rect || (rect.width === 0 && rect.height === 0)) {
-				return null;
-			}
-			return { text: text, rect: rect };
-		}
-
-		function onMaybeSelect() {
-			if (!isListenNotesSelOn()) {
-				closeSelPop();
-				return;
-			}
-			var found = selectionInNotes();
-			if (!found) {
-				return;
-			}
-			showSelPop(found.text, found.rect);
-		}
-
-		document.addEventListener('mouseup', function () {
-			window.setTimeout(onMaybeSelect, 10);
+			ev.preventDefault();
+			ev.stopPropagation();
+			playNotesListenFromBtn(btn);
 		});
-		document.addEventListener('touchend', function () {
-			window.setTimeout(onMaybeSelect, 30);
-		}, { passive: true });
-		document.addEventListener('keydown', function (ev) {
-			if (ev.key === 'Escape') {
-				closeSelPop();
-			}
-		});
-		document.addEventListener('mousedown', function (ev) {
-			if (!pop) {
-				return;
-			}
-			if (ev.target && pop.contains(ev.target)) {
-				return;
-			}
-			hideTimer = window.setTimeout(closeSelPop, 0);
-		});
-		window.addEventListener('scroll', function () {
-			if (pop) {
-				closeSelPop();
-			}
-		}, true);
 	}
 
-	bindNotesSelectionListen();
+	bindNotesListenPlays();
 
 	var startResume =
 		!isSinglePhase &&

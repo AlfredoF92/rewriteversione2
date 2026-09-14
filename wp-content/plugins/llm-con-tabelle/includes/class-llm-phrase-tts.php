@@ -518,6 +518,21 @@ class LLM_Phrase_TTS {
 	}
 
 	/**
+	 * Azure femminile salvato come allegato (parole/frasi negli appunti).
+	 *
+	 * @param int    $story_id  ID storia.
+	 * @param int    $phrase_id ID frase.
+	 * @param string $text      Testo.
+	 * @param string $locale    Locale.
+	 * @param string $file_tag  Suffisso file.
+	 * @return int|WP_Error
+	 */
+	public static function azure_female_attachment( $story_id, $phrase_id, $text, $locale, $file_tag = 'notes-word' ) {
+		$voices = self::voices_for_locale( $locale );
+		return self::synthesize_to_attachment( (int) $story_id, (int) $phrase_id, 'female', $text, $locale, $voices['female'], 'azure', $file_tag );
+	}
+
+	/**
 	 * @param int    $story_id  ID storia.
 	 * @param int    $phrase_id ID frase.
 	 * @param string $text      Testo piano.

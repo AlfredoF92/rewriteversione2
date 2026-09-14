@@ -1591,6 +1591,9 @@ class LLM_Story_Phrase_Game {
 		}
 
 		$phrases = LLM_Story_Repository::get_phrases( $story_id );
+		$listen_map = class_exists( 'LLM_Notes_Listen' )
+			? LLM_Notes_Listen::get_map_for_story( $story_id )
+			: array();
 		$boot      = array();
 		foreach ( $phrases as $i => $row ) {
 			$front = class_exists( 'LLM_Phrase_TTS' )
@@ -1614,6 +1617,9 @@ class LLM_Story_Phrase_Game {
 				'audioMale'     => $front['male'],
 				'audioFemale'   => $front['female'],
 				'audioNotes'    => isset( $row['audio_notes_female_url'] ) ? (string) $row['audio_notes_female_url'] : '',
+				'notesListen'   => ( isset( $row['id'] ) && isset( $listen_map[ (int) $row['id'] ] ) )
+					? $listen_map[ (int) $row['id'] ]
+					: array(),
 			);
 		}
 
@@ -1972,6 +1978,7 @@ class LLM_Story_Phrase_Game {
 			'goToPhrase'         => LLM_Phrase_Game_I18n::get( 'go_to_phrase' ),
 			'notesAudioPlay'     => LLM_Phrase_Game_I18n::get( 'notes_audio_play' ),
 			'notesAudioPause'    => LLM_Phrase_Game_I18n::get( 'notes_audio_pause' ),
+			'notesAudioSlow'     => LLM_Phrase_Game_I18n::get( 'listen_slow_aria' ),
 			'notesAudioBack'     => LLM_Phrase_Game_I18n::get( 'notes_audio_back' ),
 			'notesAudioFwd'      => LLM_Phrase_Game_I18n::get( 'notes_audio_fwd' ),
 			'notesAudioLabel'    => LLM_Phrase_Game_I18n::get( 'notes_audio_label' ),

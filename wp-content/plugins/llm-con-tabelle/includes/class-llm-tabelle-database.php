@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class LLM_Tabelle_Database {
 
-	const DB_VERSION = '2.9.7';
+	const DB_VERSION = '2.9.8';
 
 	const OPT_VERSION = 'llm_tabelle_db_version';
 
@@ -36,6 +36,7 @@ class LLM_Tabelle_Database {
 			'llm_story_media',
 			'llm_cast_roles',
 			'llm_story_cast',
+			'llm_story_phrase_listen',
 			'llm_story_phrases',
 		);
 	}
@@ -208,6 +209,18 @@ class LLM_Tabelle_Database {
 			KEY user_id (user_id)
 		) $charset_collate;";
 
+		$sql_listen = "CREATE TABLE {$p}llm_story_phrase_listen (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			story_id bigint(20) unsigned NOT NULL,
+			phrase_id bigint(20) unsigned NOT NULL,
+			sort_order int(11) NOT NULL DEFAULT 0,
+			listen_text varchar(255) NOT NULL,
+			audio_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			PRIMARY KEY  (id),
+			KEY phrase_sort (phrase_id, sort_order),
+			KEY story_id (story_id)
+		) $charset_collate;";
+
 		$sql_bravo = "CREATE TABLE {$p}llm_user_bravo_given (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			user_id bigint(20) unsigned NOT NULL,
@@ -234,6 +247,7 @@ class LLM_Tabelle_Database {
 		dbDelta( $sql_ledger );
 		dbDelta( $sql_kudos );
 		dbDelta( $sql_bravo );
+		dbDelta( $sql_listen );
 
 		self::ensure_phrase_notes_column();
 		self::ensure_phrase_notes_target_column();

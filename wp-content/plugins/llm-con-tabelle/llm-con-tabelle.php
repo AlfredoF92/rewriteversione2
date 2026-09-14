@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       LLM CON TABELLE
  * Description:       Storie, utenti e community in tabelle MySQL (no JSON strutturato). Parallelo a LLS, senza migrazione.
- * Version:           2.2.684
+ * Version:           2.2.696
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            LLM CON TABELLE
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LLM_TABELLE_VERSION', '2.2.684' );
+define( 'LLM_TABELLE_VERSION', '2.2.696' );
 define( 'LLM_TABELLE_FILE', __FILE__ );
 define( 'LLM_TABELLE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LLM_TABELLE_URL', plugin_dir_url( __FILE__ ) );
@@ -77,6 +77,7 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-guest-browser-data-shortcode.
 require_once LLM_TABELLE_DIR . 'includes/class-llm-learning-modes.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-stt.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-phrase-tts.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-notes-listen.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-phrase-game.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-story-progress-bar-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-header-ui-icons.php';

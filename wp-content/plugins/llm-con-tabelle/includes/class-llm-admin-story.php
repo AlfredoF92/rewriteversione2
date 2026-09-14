@@ -574,6 +574,29 @@ class LLM_Admin_Story {
 					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][ipa]" class="widefat" rows="2"><?php echo esc_textarea( isset( $p['ipa'] ) ? $p['ipa'] : '' ); ?></textarea>
 					<label><?php esc_html_e( 'Pronuncia approssimata nella tua lingua', 'llm-con-tabelle' ); ?></label>
 					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][approx]" class="widefat" rows="2"><?php echo esc_textarea( isset( $p['approx'] ) ? $p['approx'] : '' ); ?></textarea>
+					<?php
+					$listen_items = ( $phrase_id && class_exists( 'LLM_Notes_Listen' ) )
+						? LLM_Notes_Listen::get_for_phrase( $phrase_id )
+						: array();
+					if ( $listen_items ) :
+						?>
+					<div class="llm-notes-listen-admin">
+						<p class="llm-notes-listen-admin__title"><?php esc_html_e( 'Frasi selezionate che hanno un audio', 'llm-con-tabelle' ); ?></p>
+						<ul class="llm-notes-listen-admin__list">
+							<?php foreach ( $listen_items as $item ) : ?>
+								<li class="llm-notes-listen-admin__item">
+									<button type="button" class="button llm-notes-listen-play"<?php echo $item['url'] ? ' data-audio-url="' . esc_url( $item['url'] ) . '"' : ' disabled="disabled"'; ?> aria-label="<?php echo esc_attr( sprintf( __( 'Ascolta: %s', 'llm-con-tabelle' ), $item['text'] ) ); ?>">Play</button>
+									<span class="llm-notes-listen-admin__text"><?php echo esc_html( $item['text'] ); ?></span>
+									<?php if ( ! $item['url'] ) : ?>
+										<span class="llm-notes-listen-admin__miss"><?php esc_html_e( 'manca', 'llm-con-tabelle' ); ?></span>
+									<?php endif; ?>
+								</li>
+							<?php endforeach; ?>
+						</ul>
+					</div>
+						<?php
+					endif;
+					?>
 					<button type="button" class="button-link llm-remove-phrase"><?php esc_html_e( 'Rimuovi frase', 'llm-con-tabelle' ); ?></button>
 				</div>
 			</details>
