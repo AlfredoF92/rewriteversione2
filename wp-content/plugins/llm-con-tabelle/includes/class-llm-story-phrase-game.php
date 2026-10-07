@@ -52,7 +52,60 @@ class LLM_Story_Phrase_Game {
 		add_action( 'wp_ajax_nopriv_llm_notes_sel_tts', array( __CLASS__, 'ajax_notes_sel_tts' ) );
 		add_action( 'wp_ajax_llm_fe_save_phrase_notes', array( __CLASS__, 'ajax_save_phrase_notes' ) );
 		add_action( 'wp_ajax_llm_fe_admin_complete_story', array( __CLASS__, 'ajax_admin_complete_story' ) );
+		add_action( 'wp_ajax_llm_fe_admin_set_story_status', array( __CLASS__, 'ajax_admin_set_story_status' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_sync_visitor_langs' ), 6 );
+		add_action( 'pre_get_posts', array( __CLASS__, 'admin_can_query_any_story_status' ) );
+	}
+
+	/**
+	 * Admin: la query singola di una storia include anche bozza/programmata/privata/ecc.
+	 *
+	 * @param WP_Query $query Query.
+	 */
+	public static function admin_can_query_any_story_status( $query ) {
+		if ( is_admin() || ! ( $query instanceof WP_Query ) || ! $query->is_main_query() ) {
+			return;
+		}
+		if ( ! self::current_user_can_edit_notes( 0 ) ) {
+			return;
+		}
+		$p        = absint( $query->get( 'p' ) );
+		$name     = (string) $query->get( 'name' );
+		$pt       = $query->get( 'post_type' );
+		$is_story = ( LLM_STORY_CPT === $pt )
+			|| ( is_array( $pt ) && in_array( LLM_STORY_CPT, $pt, true ) );
+
+		if ( $p ) {
+			$post = get_post( $p );
+			if ( $post && LLM_STORY_CPT === $post->post_type ) {
+				$query->set( 'post_type', LLM_STORY_CPT );
+				$query->set( 'post_status', array( 'publish', 'draft', 'pending', 'private', 'future' ) );
+			}
+			return;
+		}
+
+		if ( ( $name || $query->is_singular( LLM_STORY_CPT ) ) && ( $is_story || $query->is_singular( LLM_STORY_CPT ) ) ) {
+			$query->set( 'post_status', array( 'publish', 'draft', 'pending', 'private', 'future' ) );
+		}
+	}
+
+	/**
+	 * Front-end: pubblicata per tutti; admin vede qualsiasi stato (tranne cestino).
+	 *
+	 * @param WP_Post|null $post Post storia.
+	 * @return bool
+	 */
+	public static function user_can_view_story_front( $post ) {
+		if ( ! $post || LLM_STORY_CPT !== $post->post_type ) {
+			return false;
+		}
+		if ( 'publish' === $post->post_status ) {
+			return true;
+		}
+		if ( 'trash' === $post->post_status ) {
+			return false;
+		}
+		return self::current_user_can_edit_notes( (int) $post->ID );
 	}
 
 	/**
@@ -513,7 +566,7 @@ class LLM_Story_Phrase_Game {
 		}
 
 		$post = get_post( $story_id );
-		if ( ! $post || LLM_STORY_CPT !== $post->post_type || 'publish' !== $post->post_status ) {
+		if ( ! self::user_can_view_story_front( $post ) ) {
 			return '<p class="llm-phrase-game__error">' . esc_html( LLM_Phrase_Game_I18n::get( 'story_unavailable' ) ) . '</p>';
 		}
 
@@ -571,6 +624,14 @@ class LLM_Story_Phrase_Game {
 				<div class="llm-phrase-game__progress"></div>
 				<div class="llm-phrase-game__phase llm-phrase-game__phase--1">
 					<div class="llm-phrase-game__sticky-translate">
+						<button type="button" class="llm-phrase-game__card-pin" aria-pressed="false" aria-label="<?php echo esc_attr( LLM_Phrase_Game_I18n::get( 'card_pin_aria' ) ); ?>" title="<?php echo esc_attr( LLM_Phrase_Game_I18n::get( 'card_pin_aria' ) ); ?>" data-label-off="<?php echo esc_attr( LLM_Phrase_Game_I18n::get( 'card_pin_aria' ) ); ?>" data-label-on="<?php echo esc_attr( LLM_Phrase_Game_I18n::get( 'card_pin_aria_on' ) ); ?>">
+							<span class="llm-phrase-game__card-pin-icon llm-phrase-game__card-pin-icon--open" aria-hidden="true">
+								<svg viewBox="0 0 24 24" width="15" height="15" focusable="false"><path fill="currentColor" d="M17 10V8c0-2.76-2.24-5-5-5S7 5.24 7 8h2c0-1.66 1.34-3 3-3s3 1.34 3 3v2H6c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-8c0-1.1-.9-2-2-2h-1zm-5 7c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+							</span>
+							<span class="llm-phrase-game__card-pin-icon llm-phrase-game__card-pin-icon--locked" aria-hidden="true" hidden>
+								<svg viewBox="0 0 24 24" width="15" height="15" focusable="false"><path fill="currentColor" d="M18 10h-1V8c0-2.76-2.24-5-5-5S7 5.24 7 8v2H6c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-8c0-1.1-.9-2-2-2zM9 8c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V8zm3 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+							</span>
+						</button>
 						<div class="llm-phrase-game__interface-row">
 							<span class="llm-phrase-game__lang-flag llm-phrase-game__lang-flag--source" aria-hidden="true"></span>
 							<div class="llm-phrase-game__interface"></div>
@@ -822,6 +883,11 @@ class LLM_Story_Phrase_Game {
 					<button type="button" class="llm-game-theme__btn llm-story-layout-switch__btn llm-phrase-game__admin-edit llm-phrase-game__admin-fill-solution"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'admin_fill_solution' ) ); ?></button>
 					<button type="button" class="llm-game-theme__btn llm-story-layout-switch__btn llm-phrase-game__admin-edit llm-phrase-game__admin-complete-story"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'admin_complete_story' ) ); ?></button>
 				</div>
+				<?php
+				if ( class_exists( 'LLM_Story_Checklist' ) ) {
+					echo LLM_Story_Checklist::render_html( LLM_Story_Checklist::get( (int) $story_id, false ), 'front' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				}
+				?>
 				<?php endif; ?>
 		<?php echo self::render_game_theme_switcher( $game_theme ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 		<?php echo self::render_story_layout_switcher( $story_layout ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
@@ -835,6 +901,7 @@ class LLM_Story_Phrase_Game {
 			<div class="llm-phrase-game__listen-think-backdrop"></div>
 			<div class="llm-phrase-game__listen-think-card" role="dialog" aria-modal="true" aria-live="polite">
 				<p class="llm-phrase-game__listen-think-text"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'listen_think_first' ) ); ?></p>
+				<button type="button" class="llm-phrase-game__listen-think-skip llm-phrase-game__story-action-btn button"><?php echo esc_html( LLM_Phrase_Game_I18n::get( 'listen_think_dont_know' ) ); ?></button>
 			</div>
 		</div>
 		<div class="llm-phrase-game__story-notes-pop" hidden>
@@ -869,6 +936,133 @@ class LLM_Story_Phrase_Game {
 			return false;
 		}
 		return in_array( 'administrator', (array) $user->roles, true );
+	}
+
+	/**
+	 * Barra admin: stato pubblicazione + avanzamento checklist (solo amministratore).
+	 *
+	 * @param int $story_id ID storia.
+	 * @return string
+	 */
+	private static function render_admin_publish_bar( $story_id ) {
+		$story_id = absint( $story_id );
+		if ( ! $story_id || ! self::current_user_can_edit_notes( $story_id ) ) {
+			return '';
+		}
+		$post = get_post( $story_id );
+		if ( ! $post || LLM_STORY_CPT !== $post->post_type ) {
+			return '';
+		}
+
+		$status_raw = (string) $post->post_status;
+		$status_ui  = self::admin_publish_status_ui( $status_raw );
+		$label      = self::admin_publish_status_label( $status_ui, $post->post_date );
+		$date_local = self::admin_publish_datetime_local_value( $post->post_date );
+
+		$ok    = 0;
+		$total = 0;
+		$pct   = 0;
+		if ( class_exists( 'LLM_Story_Checklist' ) ) {
+			$check = LLM_Story_Checklist::get( $story_id, false );
+			$ok    = isset( $check['ok'] ) ? (int) $check['ok'] : 0;
+			$total = isset( $check['total'] ) ? (int) $check['total'] : 0;
+			if ( $total > 0 ) {
+				$pct = (int) round( ( 100 * $ok ) / $total );
+			}
+		}
+
+		ob_start();
+		?>
+		<div class="llm-story-admin-pub" data-story-id="<?php echo esc_attr( (string) $story_id ); ?>" data-status="<?php echo esc_attr( $status_ui ); ?>">
+			<div class="llm-story-admin-pub__row">
+				<p class="llm-story-admin-pub__label is-<?php echo esc_attr( $status_ui ); ?>" data-llm-pub-label><?php echo esc_html( $label ); ?></p>
+				<button type="button" class="llm-game-theme__btn llm-story-layout-switch__btn llm-story-admin-pub__edit" data-llm-pub-edit><?php echo esc_html__( 'Modifica', 'llm-con-tabelle' ); ?></button>
+			</div>
+			<form class="llm-story-admin-pub__form" data-llm-pub-form hidden>
+				<label class="llm-story-admin-pub__field">
+					<span><?php echo esc_html__( 'Stato', 'llm-con-tabelle' ); ?></span>
+					<select name="status" data-llm-pub-status>
+						<option value="draft" <?php selected( $status_ui, 'draft' ); ?>><?php echo esc_html__( 'Bozza', 'llm-con-tabelle' ); ?></option>
+						<option value="future" <?php selected( $status_ui, 'future' ); ?>><?php echo esc_html__( 'Programmata', 'llm-con-tabelle' ); ?></option>
+						<option value="publish" <?php selected( $status_ui, 'publish' ); ?>><?php echo esc_html__( 'Pubblicata', 'llm-con-tabelle' ); ?></option>
+					</select>
+				</label>
+				<label class="llm-story-admin-pub__field llm-story-admin-pub__field--date" data-llm-pub-date-wrap <?php echo ( 'draft' === $status_ui ) ? 'hidden' : ''; ?>>
+					<span><?php echo esc_html__( 'Data di pubblicazione', 'llm-con-tabelle' ); ?></span>
+					<input type="datetime-local" name="post_date" value="<?php echo esc_attr( $date_local ); ?>" data-llm-pub-date>
+				</label>
+				<p class="llm-story-admin-pub__msg" data-llm-pub-msg hidden></p>
+				<div class="llm-story-admin-pub__actions">
+					<button type="button" class="llm-game-theme__btn llm-story-layout-switch__btn llm-story-admin-pub__cancel" data-llm-pub-cancel><?php echo esc_html__( 'Annulla', 'llm-con-tabelle' ); ?></button>
+					<button type="submit" class="llm-game-theme__btn llm-story-layout-switch__btn llm-story-admin-pub__save"><?php echo esc_html__( 'Salva', 'llm-con-tabelle' ); ?></button>
+				</div>
+			</form>
+			<?php if ( $total > 0 ) : ?>
+			<a class="llm-story-admin-pub__check" href="#llm-story-checklist-panel">
+				<div class="llm-story-admin-pub__check-head">
+					<span class="llm-story-admin-pub__check-title"><?php echo esc_html__( 'Checklist pubblicazione', 'llm-con-tabelle' ); ?></span>
+					<span class="llm-story-admin-pub__check-score"><?php echo esc_html( sprintf( /* translators: 1: done, 2: total */ __( '%1$d su %2$d', 'llm-con-tabelle' ), $ok, $total ) ); ?></span>
+				</div>
+				<div class="llm-story-admin-pub__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?php echo esc_attr( (string) $pct ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %d: percent */ __( '%d%% completata', 'llm-con-tabelle' ), $pct ) ); ?>">
+					<span class="llm-story-admin-pub__bar-fill" style="width: <?php echo esc_attr( (string) $pct ); ?>%;"></span>
+				</div>
+			</a>
+			<?php endif; ?>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * @param string $status Raw WP status.
+	 * @return string draft|future|publish
+	 */
+	private static function admin_publish_status_ui( $status ) {
+		$status = sanitize_key( (string) $status );
+		if ( 'publish' === $status ) {
+			return 'publish';
+		}
+		if ( 'future' === $status ) {
+			return 'future';
+		}
+		return 'draft';
+	}
+
+	/**
+	 * @param string $status_ui draft|future|publish.
+	 * @param string $post_date MySQL local datetime.
+	 * @return string
+	 */
+	private static function admin_publish_status_label( $status_ui, $post_date ) {
+		$status_ui = self::admin_publish_status_ui( $status_ui );
+		if ( 'publish' === $status_ui ) {
+			return __( 'Questa storia è pubblicata online', 'llm-con-tabelle' );
+		}
+		if ( 'future' === $status_ui ) {
+			$ts = $post_date ? strtotime( $post_date ) : false;
+			if ( $ts ) {
+				$formatted = date_i18n( 'd/m/Y H:i', $ts );
+				return sprintf(
+					/* translators: %s: scheduled datetime */
+					__( 'Questa storia è programmata per il %s', 'llm-con-tabelle' ),
+					$formatted
+				);
+			}
+			return __( 'Questa storia è programmata', 'llm-con-tabelle' );
+		}
+		return __( 'Questa storia è in bozza', 'llm-con-tabelle' );
+	}
+
+	/**
+	 * @param string $post_date MySQL datetime.
+	 * @return string Y-m-d\TH:i
+	 */
+	private static function admin_publish_datetime_local_value( $post_date ) {
+		$ts = $post_date ? strtotime( (string) $post_date ) : false;
+		if ( ! $ts ) {
+			$ts = current_time( 'timestamp' );
+		}
+		return wp_date( 'Y-m-d\TH:i', $ts );
 	}
 
 	/**
@@ -988,29 +1182,50 @@ class LLM_Story_Phrase_Game {
 		$thumb_url     = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'large' ) : '';
 		$target_name   = self::hero_target_lang_name( $ui, $target );
 		$known_name    = self::hero_target_lang_name( $ui, $known );
-		$headline_lang = ( 'en' === $target || 'en' === $known ) ? 'en' : $target;
-		$headline_flag = class_exists( 'LLM_Languages' ) ? LLM_Languages::flag_emoji( $headline_lang ) : '';
+		$known_flag    = class_exists( 'LLM_Languages' ) ? LLM_Languages::flag_emoji( $known ) : '';
 		$target_flag   = class_exists( 'LLM_Languages' ) ? LLM_Languages::flag_emoji( $target ) : '';
+		$know_line     = self::hero_pair_line( $ui, 'know', $known );
+		$learn_line    = self::hero_pair_line( $ui, 'learn', $target );
 		$about_label   = self::hero_ui_string( $ui, 'about' );
 		$plot_label    = self::hero_ui_string( $ui, 'plot' );
 		$level_label   = self::hero_ui_string( $ui, 'level' );
 		$lang_label    = self::hero_ui_string( $ui, 'language' );
+		$sources_label = self::hero_ui_string( $ui, 'sources' );
 		$phrases_label = $is_song ? self::hero_ui_string( $ui, 'duration' ) : self::hero_ui_string( $ui, 'phrases' );
 		$phrases_notes = $is_song
 			? sprintf( '%d %s', $phrase_count, $unit )
 			: self::hero_ui_string( $ui, 'phrases_notes' );
 		$known_for     = self::hero_known_for_line( $ui, $known_name );
+		$sources       = class_exists( 'LLM_Story_Meta' ) ? LLM_Story_Meta::get_sources( (int) $story_id ) : array();
 
 		ob_start();
 		?>
 		<div class="llm-story-pagehead">
+		<?php echo self::render_admin_publish_bar( $story_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 		<header class="llm-story-hero">
 			<div class="llm-story-hero__panel">
 				<div class="llm-story-hero__copy">
 					<?php if ( $main_title ) : ?>
 						<div class="llm-story-hero__title-block">
-							<?php if ( $headline_flag ) : ?>
-								<span class="llm-story-hero__learn-flag" aria-hidden="true"><?php echo esc_html( $headline_flag ); ?></span>
+							<?php if ( $know_line || $learn_line ) : ?>
+								<p class="llm-story-hero__pair">
+									<?php if ( $know_line ) : ?>
+										<span class="llm-story-hero__pair-line">
+											<span class="llm-story-hero__pair-text"><?php echo esc_html( $know_line ); ?></span>
+											<?php if ( $known_flag ) : ?>
+												<span class="llm-story-hero__pair-flag" aria-hidden="true"><?php echo esc_html( $known_flag ); ?></span>
+											<?php endif; ?>
+										</span>
+									<?php endif; ?>
+									<?php if ( $learn_line ) : ?>
+										<span class="llm-story-hero__pair-line">
+											<span class="llm-story-hero__pair-text"><?php echo esc_html( $learn_line ); ?></span>
+											<?php if ( $target_flag ) : ?>
+												<span class="llm-story-hero__pair-flag" aria-hidden="true"><?php echo esc_html( $target_flag ); ?></span>
+											<?php endif; ?>
+										</span>
+									<?php endif; ?>
+								</p>
 							<?php endif; ?>
 							<h1 class="llm-story-hero__title"><?php echo esc_html( $main_title ); ?></h1>
 						</div>
@@ -1090,6 +1305,7 @@ class LLM_Story_Phrase_Game {
 					<?php endif; ?>
 				</div>
 			</div>
+			<?php echo self::render_story_study_list( $story_id, $phrase_count, $target, $ui ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- metodo restituisce HTML escapato. ?>
 			<?php if ( $cat_names ) : ?>
 			<div class="llm-story-about__tags">
 				<?php foreach ( $cat_names as $cat_name ) : ?>
@@ -1097,10 +1313,155 @@ class LLM_Story_Phrase_Game {
 				<?php endforeach; ?>
 			</div>
 			<?php endif; ?>
+			<?php if ( ! empty( $sources ) ) : ?>
+			<div class="llm-story-about__sources">
+				<p class="llm-story-about__sources-label"><?php echo esc_html( $sources_label ); ?></p>
+				<div class="llm-story-about__sources-list">
+					<?php foreach ( $sources as $source ) : ?>
+						<a
+							class="llm-story-about__source"
+							href="<?php echo esc_url( $source['url'] ); ?>"
+							target="_blank"
+							rel="noopener noreferrer"
+						><?php echo esc_html( $source['label'] ); ?></a>
+					<?php endforeach; ?>
+				</div>
+			</div>
+			<?php endif; ?>
 		</section>
 		</div>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Elenco sotto le schede Livello / Frasi / Lingua.
+	 *
+	 * @param int    $story_id     ID storia.
+	 * @param int    $phrase_count Numero frasi.
+	 * @param string $target       Codice lingua obiettivo.
+	 * @param string $ui           Lingua dell'interfaccia.
+	 * @return string
+	 */
+	private static function render_story_study_list( $story_id, $phrase_count, $target, $ui ) {
+		if ( $phrase_count < 1 || ! class_exists( 'LLM_Story_Repository' ) ) {
+			return '';
+		}
+
+		$stats = LLM_Story_Repository::study_overview( $story_id, $target );
+		if ( (int) $stats['slots'] < 1 && (int) $stats['notes_audio'] < 1 ) {
+			return '';
+		}
+
+		$audio_unit = self::hero_ui_string( $ui, 'study_audio_unit' );
+		$slot_n     = (int) $stats['slots'];
+		$slot_unit  = self::hero_ui_string( $ui, 1 === $slot_n ? 'study_paragraph' : 'study_paragraphs' );
+		$time_value = self::format_study_duration( $ui, $slot_n );
+
+		ob_start();
+		?>
+		<dl class="llm-story-about__study">
+			<?php if ( $slot_n > 0 ) : ?>
+			<div class="llm-story-about__study-row">
+				<dt><?php echo self::study_field_label( $ui, 'study_slots', 'notes' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- etichetta escapata, SVG statico. ?></dt>
+				<dd><?php echo esc_html( $slot_n . ' ' . $slot_unit ); ?></dd>
+			</div>
+			<?php endif; ?>
+			<div class="llm-story-about__study-group">
+				<dt class="llm-story-about__study-heading"><?php echo self::study_field_label( $ui, 'study_audio', 'audio' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- etichetta escapata, SVG statico. ?></dt>
+				<div class="llm-story-about__study-row llm-story-about__study-row--sub">
+					<dt><?php echo self::study_field_label( $ui, 'study_audio_total' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- etichetta escapata. ?></dt>
+					<dd><?php echo esc_html( (int) $stats['phrase_audio'] . ' ' . $audio_unit ); ?></dd>
+				</div>
+				<div class="llm-story-about__study-row llm-story-about__study-row--sub">
+					<dt><?php echo self::study_field_label( $ui, 'study_audio_notes' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- etichetta escapata. ?></dt>
+					<dd><?php echo esc_html( (int) $stats['notes_audio'] . ' ' . $audio_unit ); ?></dd>
+				</div>
+			</div>
+			<?php if ( (int) $stats['slots'] > 0 ) : ?>
+			<div class="llm-story-about__study-row">
+				<dt><?php echo self::study_field_label( $ui, 'study_time', 'time' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- etichetta escapata, SVG statico. ?></dt>
+				<dd><?php echo esc_html( $time_value ); ?></dd>
+			</div>
+			<?php endif; ?>
+		</dl>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Etichetta di un campo dell'elenco studio, con icona.
+	 *
+	 * @param string $ui         Lingua UI.
+	 * @param string $string_key Chiave di hero_ui_string.
+	 * @param string $icon       Nome icona. Vuoto per le righe senza icona.
+	 * @return string
+	 */
+	private static function study_field_label( $ui, $string_key, $icon = '' ) {
+		$icon_html = '';
+		if ( '' !== $icon ) {
+			$icon_html = '<span class="llm-story-about__study-icon" aria-hidden="true">' . self::study_icon_svg( $icon ) . '</span>';
+		}
+		return '<span class="llm-story-about__study-label">' . $icon_html . '<span>' . esc_html( self::hero_ui_string( $ui, $string_key ) ) . '</span></span>';
+	}
+
+	/**
+	 * Icone piene, stesso linguaggio delle card Livello / Frasi.
+	 *
+	 * @param string $icon Nome icona.
+	 * @return string
+	 */
+	private static function study_icon_svg( $icon ) {
+		$paths = array(
+			'notes' => '<path fill-rule="evenodd" d="M6 2h8.2L20 7.8V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM7.8 11.2h8.4v1.7H7.8v-1.7zm0 3.5h5.6v1.7H7.8v-1.7z"/>',
+			'audio' => '<path d="M12 3a8 8 0 0 0-8 8v6.2A2.8 2.8 0 0 0 6.8 20H9v-7H6v-2a6 6 0 0 1 12 0v2h-3v7h2.2a2.8 2.8 0 0 0 2.8-2.8V11a8 8 0 0 0-8-8z"/>',
+			'time'  => '<path fill-rule="evenodd" d="M12 2a10 10 0 1 0 .01 20.01A10 10 0 0 0 12 2zm1 4.8V12l3.4 2-1 1.7-4.4-2.6V6.8H13z"/>',
+		);
+		$path  = isset( $paths[ $icon ] ) ? $paths[ $icon ] : '';
+		return '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" focusable="false">' . $path . '</svg>';
+	}
+
+	/**
+	 * 45 secondi a paragrafo, arrotondati al quarto d'ora.
+	 *
+	 * @param string $ui    Lingua UI.
+	 * @param int    $slots Numero di paragrafi degli appunti.
+	 * @return string
+	 */
+	private static function format_study_duration( $ui, $slots ) {
+		$minutes = (int) round( (int) $slots * 45 / 60 );
+		$rounded = (int) ( round( $minutes / 15 ) * 15 );
+		if ( $rounded < 1 ) {
+			$rounded = 15;
+		}
+		$hours = intdiv( $rounded, 60 );
+		$mins  = $rounded % 60;
+		$ui    = sanitize_key( (string) $ui );
+
+		$hour_word = static function ( $n, $one, $many ) {
+			return $n . ' ' . ( 1 === $n ? $one : $many );
+		};
+
+		if ( 'en' === $ui ) {
+			$prefix = 'About';
+			$hours_body = $hours > 0 ? $hour_word( $hours, 'hour', 'hours' ) : '';
+		} elseif ( 'pl' === $ui ) {
+			$prefix = 'Około';
+			$hours_body = $hours > 0 ? $hour_word( $hours, 'godzina', 'godziny' ) : '';
+		} elseif ( 'es' === $ui ) {
+			$prefix = 'Unos';
+			$hours_body = $hours > 0 ? $hour_word( $hours, 'hora', 'horas' ) : '';
+		} else {
+			$prefix = 'Circa';
+			$hours_body = $hours > 0 ? $hour_word( $hours, 'ora', 'ore' ) : '';
+		}
+		if ( $mins > 0 ) {
+			$body = '' === $hours_body ? $mins . ' min' : $hours_body . ' ' . $mins . ' min';
+		} else {
+			$body = $hours_body;
+		}
+
+		return trim( $prefix . ' ' . $body );
 	}
 
 	/**
@@ -1305,6 +1666,83 @@ class LLM_Story_Phrase_Game {
 	}
 
 	/**
+	 * Riga coppia linguistica sopra il titolo: "I know English" / "Sto imparando l'inglese".
+	 *
+	 * @param string $ui   Lingua UI.
+	 * @param string $kind know|learn.
+	 * @param string $code Codice lingua.
+	 * @return string
+	 */
+	private static function hero_pair_line( $ui, $kind, $code ) {
+		$code = sanitize_key( (string) $code );
+		$ui   = sanitize_key( (string) $ui );
+		$name = self::hero_target_lang_name( $ui, $code );
+		if ( '' === $name || '' === $code ) {
+			return '';
+		}
+		$kind = ( 'learn' === $kind ) ? 'learn' : 'know';
+		if ( 'it' === $ui ) {
+			$name = self::hero_it_lang_np( $name );
+		}
+		if ( 'learn' === $kind && 'pl' === $ui ) {
+			$name = self::hero_pl_lang_genitive( $code, $name );
+		}
+		$know = array(
+			'en' => 'I know %s',
+			'it' => 'Conosco %s',
+			'pl' => 'Znam %s',
+			'es' => 'Sé %s',
+		);
+		$learn = array(
+			'en' => "I'm learning %s",
+			'it' => 'Sto imparando %s',
+			'pl' => 'Uczę się %s',
+			'es' => 'Estoy aprendiendo %s',
+		);
+		$map = ( 'learn' === $kind ) ? $learn : $know;
+		$tpl = isset( $map[ $ui ] ) ? $map[ $ui ] : $map['en'];
+		return sprintf( $tpl, $name );
+	}
+
+	/**
+	 * Articolo italiano davanti al nome lingua.
+	 *
+	 * @param string $name Nome minuscolo.
+	 * @return string
+	 */
+	private static function hero_it_lang_np( $name ) {
+		$name = trim( (string) $name );
+		if ( '' === $name ) {
+			return '';
+		}
+		if ( preg_match( '/^[aeiouàèéìòù]/iu', $name ) ) {
+			return "l'" . $name;
+		}
+		if ( 0 === stripos( $name, 'spagnolo' ) ) {
+			return 'lo ' . $name;
+		}
+		return 'il ' . $name;
+	}
+
+	/**
+	 * Complemento polacco per "uczę się".
+	 *
+	 * @param string $code     Codice.
+	 * @param string $fallback Nominativo.
+	 * @return string
+	 */
+	private static function hero_pl_lang_genitive( $code, $fallback ) {
+		$map = array(
+			'en' => 'angielskiego',
+			'it' => 'włoskiego',
+			'pl' => 'polskiego',
+			'es' => 'hiszpańskiego',
+		);
+		$code = sanitize_key( (string) $code );
+		return isset( $map[ $code ] ) ? $map[ $code ] : $fallback;
+	}
+
+	/**
 	 * @param string $ui  Lingua UI.
 	 * @param string $key level.
 	 * @return string
@@ -1384,6 +1822,12 @@ class LLM_Story_Phrase_Game {
 				'pl' => 'kategoria',
 				'es' => 'categoría',
 			),
+			'sources'  => array(
+				'it' => 'Fonti per approfondire',
+				'en' => 'Sources to explore',
+				'pl' => 'Źródła do zgłębienia',
+				'es' => 'Fuentes para profundizar',
+			),
 			'grammar'  => array(
 				'it' => 'grammatica',
 				'en' => 'grammar',
@@ -1395,6 +1839,60 @@ class LLM_Story_Phrase_Game {
 				'en' => 'phrases with extra notes',
 				'pl' => 'zdania z notatkami',
 				'es' => 'frases con apuntes',
+			),
+			'study_slots' => array(
+				'it' => 'Appunti',
+				'en' => 'Notes',
+				'pl' => 'Notatki',
+				'es' => 'Apuntes',
+			),
+			'study_paragraph' => array(
+				'it' => 'paragrafo',
+				'en' => 'paragraph',
+				'pl' => 'akapit',
+				'es' => 'párrafo',
+			),
+			'study_paragraphs' => array(
+				'it' => 'paragrafi',
+				'en' => 'paragraphs',
+				'pl' => 'akapity',
+				'es' => 'párrafos',
+			),
+			'study_audio' => array(
+				'it' => 'Audio da ascoltare',
+				'en' => 'Audio to listen to',
+				'pl' => 'Audio do odsłuchu',
+				'es' => 'Audio para escuchar',
+			),
+			'study_audio_notes' => array(
+				'it' => 'Appunti da ascoltare',
+				'en' => 'Notes to listen to',
+				'pl' => 'Notatki do odsłuchu',
+				'es' => 'Apuntes para escuchar',
+			),
+			'study_audio_total' => array(
+				'it' => 'Frasi + storia',
+				'en' => 'Phrases + story',
+				'pl' => 'Zdania + historia',
+				'es' => 'Frases + historia',
+			),
+			'study_audio_unit' => array(
+				'it' => 'audio',
+				'en' => 'audio',
+				'pl' => 'audio',
+				'es' => 'audio',
+			),
+			'study_time' => array(
+				'it' => 'Tempo di studio',
+				'en' => 'Study time',
+				'pl' => 'Czas nauki',
+				'es' => 'Tiempo de estudio',
+			),
+			'study_time_unit' => array(
+				'it' => 'min',
+				'en' => 'min',
+				'pl' => 'min',
+				'es' => 'min',
 			),
 		);
 		if ( ! isset( $set[ $key ] ) ) {
@@ -1427,6 +1925,37 @@ class LLM_Story_Phrase_Game {
 		);
 		$tpl = isset( $map[ $ui ] ) ? $map[ $ui ] : $map['en'];
 		return sprintf( $tpl, $known_name );
+	}
+
+	/**
+	 * URL dell'infografica dei topic, se l'allegato è un'immagine.
+	 *
+	 * @param int $story_id ID storia.
+	 * @return string
+	 */
+	private static function grammar_infographic_url( $story_id ) {
+		$aid = (int) get_post_meta( $story_id, LLM_Story_Meta::GRAMMAR_INFOGRAPHIC, true );
+		if ( ! $aid || ! wp_attachment_is_image( $aid ) ) {
+			return '';
+		}
+		$url = wp_get_attachment_image_url( $aid, 'full' );
+		return is_string( $url ) ? $url : '';
+	}
+
+	/**
+	 * Nome file per il download dell'infografica.
+	 *
+	 * @param int $story_id ID storia.
+	 * @return string
+	 */
+	private static function grammar_infographic_filename( $story_id ) {
+		$aid = (int) get_post_meta( $story_id, LLM_Story_Meta::GRAMMAR_INFOGRAPHIC, true );
+		if ( ! $aid ) {
+			return '';
+		}
+		$path = get_attached_file( $aid );
+		$name = is_string( $path ) ? basename( $path ) : '';
+		return '' !== $name ? $name : 'infografica.jpg';
 	}
 
 	/**
@@ -1871,6 +2400,9 @@ class LLM_Story_Phrase_Game {
 			'grammarTopicsTitle' => LLM_Phrase_Game_I18n::get( 'grammar_topics_title' ),
 			'grammarTopicsHeading' => LLM_Phrase_Game_I18n::get( 'grammar_topics_heading' ),
 			'grammarTopicsBody'  => LLM_Phrase_Game_I18n::get( 'grammar_topics_body' ),
+			'grammarTopicsDownload' => LLM_Phrase_Game_I18n::get( 'grammar_topics_download' ),
+			'grammarTopicsZoom' => LLM_Phrase_Game_I18n::get( 'grammar_topics_zoom' ),
+			'grammarTopicsZoomOut' => LLM_Phrase_Game_I18n::get( 'grammar_topics_zoom_out' ),
 			'upcomingHint'     => LLM_Phrase_Game_I18n::format( 'upcoming_phrases_hint', $n_phrases ),
 			'micHint'          => LLM_Phrase_Game_I18n::get( 'mic_hint' ),
 			'micPending'       => LLM_Phrase_Game_I18n::get( 'mic_pending' ),
@@ -1901,6 +2433,7 @@ class LLM_Story_Phrase_Game {
 			'listenLabelFemale'=> LLM_Phrase_Game_I18n::get( 'listen_label_female' ),
 			'listenTargetLabel'=> LLM_Phrase_Game_I18n::get( 'listen_target_label' ),
 			'listenThinkFirst' => LLM_Phrase_Game_I18n::get( 'listen_think_first' ),
+			'listenThinkDontKnow' => LLM_Phrase_Game_I18n::get( 'listen_think_dont_know' ),
 			'micNoAudio'       => LLM_Phrase_Game_I18n::get( 'mic_no_audio' ),
 			'loadingNotes'     => LLM_Phrase_Game_I18n::get( 'loading_notes' ),
 			'altToggleShow'    => LLM_Phrase_Game_I18n::get( 'alt_toggle_show' ),
@@ -1920,7 +2453,6 @@ class LLM_Story_Phrase_Game {
 			'viewTranslation'  => LLM_Phrase_Game_I18n::get( 'view_translation' ),
 			'labelIpa'         => LLM_Phrase_Game_I18n::get( 'label_ipa' ),
 			'labelApprox'      => LLM_Phrase_Game_I18n::format( 'label_approx', LLM_Phrase_Game_I18n::target_lang_label_for_ui( $interface_code ) ),
-			'notesPairIntroTemplate' => LLM_Phrase_Game_I18n::get( 'notes_pair_intro_template' ),
 			'notesConjugationIntroTemplate' => LLM_Phrase_Game_I18n::get( 'notes_conjugation_intro_template' ),
 			'notesConjugationIntroTemplateNoverb' => LLM_Phrase_Game_I18n::get( 'notes_conjugation_intro_template_noverb' ),
 			'notesConjugationExplainerTemplate' => LLM_Phrase_Game_I18n::get( 'notes_conjugation_explainer_template' ),
@@ -1933,6 +2465,7 @@ class LLM_Story_Phrase_Game {
 			'writeTranslatePlaceholderWrite' => LLM_Phrase_Game_I18n::get( 'write_translate_placeholder_write' ),
 			'writeTranslatePlaceholderSpeak' => LLM_Phrase_Game_I18n::get( 'write_translate_placeholder_speak' ),
 			'listenThinkFirst'    => LLM_Phrase_Game_I18n::get( 'listen_think_first' ),
+			'listenThinkDontKnow' => LLM_Phrase_Game_I18n::get( 'listen_think_dont_know' ),
 			'exactOkWrite'        => LLM_Phrase_Game_I18n::get( 'exact_ok_write' ),
 			'exactOkSpeak'        => LLM_Phrase_Game_I18n::get( 'exact_ok_speak' ),
 			'exactOkThanks'       => LLM_Phrase_Game_I18n::thanks_for_target_lang( $target_code ),
@@ -2008,6 +2541,8 @@ class LLM_Story_Phrase_Game {
 				'cefrLevel'           => $cefr_code,
 				'grammarTopics'       => self::hero_grammar_topics( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_GRAMMAR_TOPICS, true ) ),
 				'grammarTopicsText'   => sanitize_textarea_field( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_GRAMMAR_TOPICS, true ) ),
+				'grammarInfographicUrl'  => self::grammar_infographic_url( $story_id ),
+				'grammarInfographicFile' => self::grammar_infographic_filename( $story_id ),
 			'storyFinale'         => sanitize_textarea_field( (string) get_post_meta( $story_id, LLM_Story_Meta::STORY_FINALE, true ) ),
 				'speechLang'          => self::speech_locale( $target_code ),
 			'strictAccents'       => is_user_logged_in() ? LLM_User_Meta::get_strict_accents( get_current_user_id() ) : true,
@@ -2034,6 +2569,7 @@ class LLM_Story_Phrase_Game {
 			'optionHideStoryNotes' => LLM_Learning_Modes::OPTION_HIDE_STORY_NOTES,
 			'optionStoryTargetOnly' => LLM_Learning_Modes::OPTION_STORY_TARGET_ONLY,
 			'optionListenNotesSel' => LLM_Learning_Modes::OPTION_LISTEN_NOTES_SEL,
+			'optionHideListenThink' => LLM_Learning_Modes::OPTION_HIDE_LISTEN_THINK,
 			'playTime'            => array(
 				'loggedIn'    => is_user_logged_in(),
 				'seconds'     => ( is_user_logged_in() && class_exists( 'LLM_User_Story_Play_Time' ) )
@@ -2179,7 +2715,7 @@ class LLM_Story_Phrase_Game {
 		$mic_used = isset( $_POST['mic_used'] ) && '1' === $_POST['mic_used'];
 
 		$post = get_post( $story_id );
-		if ( ! $post || LLM_STORY_CPT !== $post->post_type || 'publish' !== $post->post_status ) {
+		if ( ! self::user_can_view_story_front( $post ) ) {
 			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'invalid_story' ) ), 400 );
 		}
 
@@ -2545,7 +3081,7 @@ class LLM_Story_Phrase_Game {
 		}
 
 		$post = get_post( $story_id );
-		if ( ! $post || LLM_STORY_CPT !== $post->post_type || 'publish' !== $post->post_status ) {
+		if ( ! self::user_can_view_story_front( $post ) ) {
 			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'invalid_story' ) ), 400 );
 		}
 
@@ -2631,6 +3167,91 @@ class LLM_Story_Phrase_Game {
 		}
 
 		wp_send_json_success();
+	}
+
+	/**
+	 * AJAX admin: aggiorna stato pubblicazione + data dal frontend.
+	 */
+	public static function ajax_admin_set_story_status() {
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( array( 'message' => __( 'Non autorizzato.', 'llm-con-tabelle' ) ), 403 );
+		}
+		check_ajax_referer( 'llm_fe_edit_notes', 'nonce' );
+
+		$story_id = isset( $_POST['story_id'] ) ? absint( wp_unslash( $_POST['story_id'] ) ) : 0;
+		$status   = isset( $_POST['status'] ) ? sanitize_key( wp_unslash( $_POST['status'] ) ) : '';
+		$raw_date = isset( $_POST['post_date'] ) ? sanitize_text_field( wp_unslash( $_POST['post_date'] ) ) : '';
+
+		if ( ! $story_id || ! self::current_user_can_edit_notes( $story_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Non autorizzato.', 'llm-con-tabelle' ) ), 403 );
+		}
+		if ( ! in_array( $status, array( 'draft', 'future', 'publish' ), true ) ) {
+			wp_send_json_error( array( 'message' => __( 'Stato non valido.', 'llm-con-tabelle' ) ), 400 );
+		}
+
+		$post = get_post( $story_id );
+		if ( ! $post || LLM_STORY_CPT !== $post->post_type ) {
+			wp_send_json_error( array( 'message' => LLM_Phrase_Game_I18n::get( 'invalid_story' ) ), 400 );
+		}
+
+		$postarr = array(
+			'ID'          => $story_id,
+			'post_status' => $status,
+		);
+
+		$ts = false;
+		if ( '' !== $raw_date ) {
+			$normalized = str_replace( 'T', ' ', $raw_date );
+			if ( preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/', $normalized ) ) {
+				if ( preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/', $normalized ) ) {
+					$normalized .= ':00';
+				}
+				$ts = strtotime( $normalized );
+			}
+		}
+
+		if ( 'future' === $status ) {
+			if ( ! $ts || $ts <= current_time( 'timestamp' ) ) {
+				wp_send_json_error( array( 'message' => __( 'Per programmare scegli una data e ora future.', 'llm-con-tabelle' ) ), 400 );
+			}
+			$postarr['post_date']     = wp_date( 'Y-m-d H:i:s', $ts );
+			$postarr['post_date_gmt'] = get_gmt_from_date( $postarr['post_date'] );
+			$postarr['edit_date']     = true;
+		} elseif ( 'publish' === $status ) {
+			if ( $ts && $ts > current_time( 'timestamp' ) ) {
+				// Data futura + pubblica → diventa programmata.
+				$status                   = 'future';
+				$postarr['post_status']   = 'future';
+				$postarr['post_date']     = wp_date( 'Y-m-d H:i:s', $ts );
+				$postarr['post_date_gmt'] = get_gmt_from_date( $postarr['post_date'] );
+				$postarr['edit_date']     = true;
+			} elseif ( $ts ) {
+				$postarr['post_date']     = wp_date( 'Y-m-d H:i:s', $ts );
+				$postarr['post_date_gmt'] = get_gmt_from_date( $postarr['post_date'] );
+				$postarr['edit_date']     = true;
+			}
+		}
+
+		$result = wp_update_post( wp_slash( $postarr ), true );
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() ), 400 );
+		}
+
+		$updated = get_post( $story_id );
+		$status_ui = self::admin_publish_status_ui( $updated ? $updated->post_status : $status );
+		$label     = self::admin_publish_status_label( $status_ui, $updated ? $updated->post_date : '' );
+		$date_val  = self::admin_publish_datetime_local_value( $updated ? $updated->post_date : '' );
+
+		do_action( 'llm_story_content_changed', $story_id );
+
+		wp_send_json_success(
+			array(
+				'status'    => $status_ui,
+				'label'     => $label,
+				'post_date' => $date_val,
+				'message'   => __( 'Stato aggiornato.', 'llm-con-tabelle' ),
+			)
+		);
 	}
 
 	/**

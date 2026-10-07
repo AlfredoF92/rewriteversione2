@@ -1,0 +1,446 @@
+/*
+ * [scheda-utente] — profilo pubblico, layout due colonne come il gioco storie.
+ */
+.llm-scheda-utente {
+	--llm-scheda-bg: #141414;
+	--llm-scheda-bg-2: #1c1c1c;
+	--llm-scheda-white: #f5f5f5;
+	--llm-scheda-muted: #b3b3b3;
+	--llm-scheda-line: rgba(255, 255, 255, 0.12);
+	--llm-scheda-accent: #d4a0e8;
+	box-sizing: border-box;
+	width: 100%;
+	margin: 0;
+	padding: 0;
+	color: var(--llm-scheda-white);
+	font-family: Roboto, system-ui, sans-serif;
+	background: var(--llm-scheda-bg);
+	border-radius: 8px;
+	overflow: visible;
+}
+
+.llm-scheda-utente *,
+.llm-scheda-utente *::before,
+.llm-scheda-utente *::after {
+	box-sizing: border-box;
+}
+
+.llm-scheda-utente__body {
+	display: block;
+}
+
+.llm-scheda-utente__id-inner {
+	padding: 1.35rem 1.15rem 1.5rem;
+}
+
+.llm-scheda-utente__photo {
+	width: 52%;
+	max-width: 11rem;
+	aspect-ratio: 1 / 1;
+	margin: 0 0 1rem;
+	border-radius: 10px;
+	overflow: hidden;
+	background: #2a2a2a;
+}
+
+.llm-scheda-utente__photo.is-pending {
+	outline: 2px solid var(--llm-scheda-accent);
+	outline-offset: 2px;
+}
+
+.llm-scheda-utente__avatar-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.35rem;
+	margin: 0 0 1rem;
+}
+
+.llm-scheda-utente__avatar-actions .llm-scheda-utente__edit-btn {
+	margin-bottom: 0;
+}
+
+.llm-scheda-utente__avatar-pending {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.35rem;
+}
+
+.llm-scheda-utente__avatar-pending[hidden] {
+	display: none;
+}
+
+.llm-scheda-utente__photo--guest {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--llm-scheda-muted);
+	border: 1px solid var(--llm-scheda-line);
+}
+
+.llm-scheda-utente__photo--guest .llm-header-icon {
+	width: 46%;
+	height: 46%;
+}
+
+.llm-scheda-utente__role {
+	margin: 0 0 0.25rem;
+	font-size: 0.68rem;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--llm-scheda-muted);
+}
+
+.llm-scheda-utente__login {
+	margin: 0 0 0.2rem;
+	font-size: 0.82rem;
+	font-weight: 600;
+	color: var(--llm-scheda-accent);
+}
+
+.llm-scheda-utente__name {
+	margin: 0 0 0.55rem;
+	font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+	font-size: clamp(1.85rem, 3.8vw, 2.65rem);
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	line-height: 1.15;
+	color: var(--llm-scheda-white);
+	overflow-wrap: anywhere;
+}
+
+.llm-scheda-utente__bio {
+	margin: 0 0 0.7rem;
+	font-size: 0.92rem;
+	line-height: 1.5;
+	color: rgba(255, 255, 255, 0.88);
+}
+
+.llm-scheda-utente__link {
+	color: #79b8ff;
+	font-size: 0.86rem;
+	word-break: break-all;
+}
+
+.llm-scheda-utente__info {
+	margin: 1.1rem 0 1rem;
+	padding-top: 0.85rem;
+	border-top: 1px solid var(--llm-scheda-line);
+}
+
+.llm-scheda-utente__info-label {
+	margin: 0 0 0.45rem;
+	font-size: 0.68rem;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--llm-scheda-muted);
+}
+
+.llm-scheda-utente__stats {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.llm-scheda-utente__stats li {
+	display: flex;
+	justify-content: space-between;
+	gap: 0.75rem;
+	margin: 0 0 0.28rem;
+	font-size: 0.88rem;
+}
+
+.llm-scheda-utente__stats span {
+	color: var(--llm-scheda-muted);
+}
+
+.llm-scheda-utente__stats strong {
+	font-weight: 800;
+	color: var(--llm-scheda-white);
+}
+
+.llm-scheda-utente__edit-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0 0 0.85rem;
+	padding: 0.45rem 1rem;
+	border: 2px solid var(--llm-scheda-accent);
+	border-radius: 35px;
+	background: transparent;
+	color: var(--llm-scheda-white);
+	font-family: inherit;
+	font-size: 0.82rem;
+	font-weight: 800;
+	cursor: pointer;
+}
+
+.llm-scheda-utente__edit-btn:hover,
+.llm-scheda-utente__edit-btn:focus-visible {
+	background: color-mix(in srgb, var(--llm-scheda-accent) 22%, transparent);
+}
+
+.llm-scheda-utente__auth {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.45rem;
+	margin: 0 0 0.85rem;
+}
+
+a.llm-scheda-utente__edit-btn {
+	text-decoration: none !important;
+	color: var(--llm-scheda-white);
+}
+
+.llm-scheda-utente__auth .llm-scheda-utente__edit-btn {
+	margin: 0;
+}
+
+.llm-scheda-utente__logout {
+	border-color: rgba(255, 255, 255, 0.45);
+}
+
+.llm-scheda-utente__btn-ghost {
+	display: inline-flex;
+	align-items: center;
+	margin-left: 0.4rem;
+	padding: 0.45rem 0.9rem;
+	border: 1px solid var(--llm-scheda-line);
+	border-radius: 35px;
+	background: transparent;
+	color: var(--llm-scheda-muted);
+	font-family: inherit;
+	font-size: 0.82rem;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.llm-scheda-utente__acc {
+	margin: 0 0 0.55rem;
+	padding: 0.45rem 0.65rem;
+	border: 1px solid var(--llm-scheda-line);
+	border-radius: 8px;
+	background: var(--llm-scheda-bg-2);
+}
+
+.llm-scheda-utente__acc > summary {
+	cursor: pointer;
+	font-size: 0.78rem;
+	font-weight: 800;
+	letter-spacing: 0.04em;
+	list-style: none;
+}
+
+.llm-scheda-utente__acc > summary::-webkit-details-marker {
+	display: none;
+}
+
+.llm-scheda-utente__acc-body {
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+	margin-top: 0.55rem;
+}
+
+.llm-scheda-utente__role-btn {
+	display: block;
+	width: 100%;
+	padding: 0.4rem 0.65rem;
+	border: 1px solid var(--llm-scheda-line);
+	border-radius: 8px;
+	background: transparent;
+	color: var(--llm-scheda-white);
+	font-family: inherit;
+	font-size: 0.78rem;
+	font-weight: 700;
+	text-align: left;
+	cursor: pointer;
+}
+
+.llm-scheda-utente__role-btn.is-active,
+.llm-scheda-utente__role-btn:hover,
+.llm-scheda-utente__role-btn:focus-visible {
+	border-color: var(--llm-scheda-accent);
+	background: color-mix(in srgb, var(--llm-scheda-accent) 16%, transparent);
+}
+
+.llm-scheda-utente__main {
+	padding: 1.2rem 1.15rem 1.4rem;
+}
+
+.llm-scheda-utente__pairs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+	margin: 0 0 1rem;
+}
+
+.llm-scheda-utente__pair {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.32rem 0.7rem;
+	border: 1px solid var(--llm-scheda-line);
+	border-radius: 35px;
+	background: transparent;
+	color: var(--llm-scheda-white);
+	font-family: inherit;
+	font-size: 0.78rem;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.llm-scheda-utente__pair.is-active,
+.llm-scheda-utente__pair:hover,
+.llm-scheda-utente__pair:focus-visible {
+	border-color: var(--llm-scheda-accent);
+	background: color-mix(in srgb, var(--llm-scheda-accent) 18%, transparent);
+}
+
+.llm-scheda-utente__pair-count {
+	font-size: 0.68rem;
+	font-weight: 800;
+	color: var(--llm-scheda-muted);
+}
+
+.llm-scheda-utente__panel-title {
+	margin: 0 0 0.65rem;
+	font-size: 0.78rem;
+	font-weight: 800;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--llm-scheda-muted);
+}
+
+.llm-scheda-utente__block + .llm-scheda-utente__block {
+	margin-top: 1.15rem;
+}
+
+.llm-scheda-utente .llm-scheda-utente__grid {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 0.5rem;
+}
+
+.llm-scheda-utente .llm-ie-stories__card-title {
+	font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+	font-size: 0.85rem;
+	font-weight: 700;
+}
+
+.llm-scheda-utente .llm-ie-stories__cover {
+	min-height: 0;
+	aspect-ratio: 16 / 10;
+}
+
+.llm-scheda-utente__badge,
+.llm-scheda-utente__cefr {
+	position: absolute;
+	z-index: 1;
+	padding: 0.12rem 0.38rem;
+	border-radius: 4px;
+	font-size: 0.62rem;
+	font-weight: 800;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	background: rgba(0, 0, 0, 0.72);
+	color: #fff;
+}
+
+.llm-scheda-utente__badge {
+	top: 0.35rem;
+	left: 0.35rem;
+}
+
+.llm-scheda-utente__cefr {
+	top: 0.35rem;
+	right: 0.35rem;
+}
+
+.llm-scheda-utente__empty,
+.llm-scheda-utente__pairs-empty {
+	margin: 0.4rem 0 0;
+	color: var(--llm-scheda-muted);
+	font-size: 0.9rem;
+}
+
+.llm-scheda-utente__form {
+	display: grid;
+	gap: 0.75rem;
+	max-width: 34rem;
+}
+
+.llm-scheda-utente__field {
+	display: grid;
+	gap: 0.28rem;
+	font-size: 0.78rem;
+	font-weight: 700;
+	color: var(--llm-scheda-muted);
+}
+
+.llm-scheda-utente__field input,
+.llm-scheda-utente__field textarea {
+	width: 100%;
+	padding: 0.5rem 0.65rem;
+	border: 1px solid var(--llm-scheda-line);
+	border-radius: 8px;
+	background: #111;
+	color: var(--llm-scheda-white);
+	font-family: inherit;
+	font-size: 0.92rem;
+	font-weight: 400;
+}
+
+.llm-scheda-utente__form-msg {
+	margin: 0;
+	font-size: 0.82rem;
+}
+
+.llm-scheda-utente__form-msg.is-ok {
+	color: #86efac;
+}
+
+.llm-scheda-utente__form-msg.is-err {
+	color: #fca5a5;
+}
+
+.llm-scheda-utente--empty {
+	padding: 1.2rem;
+}
+
+.elementor-element:has(.llm-scheda-utente),
+.elementor-widget-wrap:has(.llm-scheda-utente),
+.elementor-widget-container:has(.llm-scheda-utente),
+.elementor-shortcode:has(.llm-scheda-utente) {
+	overflow: visible !important;
+}
+
+@media (min-width: 960px) {
+	.llm-scheda-utente .llm-scheda-utente__body {
+		display: grid;
+		grid-template-columns: minmax(0, 30%) minmax(0, 70%);
+		align-items: start;
+	}
+
+	.llm-scheda-utente__id {
+		border-right: 1px solid var(--llm-scheda-line);
+	}
+
+	.llm-scheda-utente__main {
+		padding: 1.35rem 1.5rem 1.6rem 1.7rem;
+	}
+}
+
+@media (max-width: 760px) {
+	.llm-scheda-utente .llm-scheda-utente__grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 420px) {
+	.llm-scheda-utente .llm-scheda-utente__grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}

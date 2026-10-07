@@ -22,6 +22,11 @@ class LLM_Story_Meta {
 	const STORY_CARD_TEXT      = '_llm_story_card_text';
 	const STORY_CEFR_LEVEL     = '_llm_story_cefr_level';
 	const STORY_GRAMMAR_TOPICS = '_llm_story_grammar_topics';
+	/** ID allegato dell'infografica mostrata nel popup dei topic. */
+	const GRAMMAR_INFOGRAPHIC  = '_llm_story_grammar_infographic';
+	/** JSON array di {label,url}, max SOURCES_MAX. */
+	const STORY_SOURCES        = '_llm_story_sources';
+	const SOURCES_MAX          = 3;
 	/** yes | no | none — calcolato dal pulsante in lista storie. */
 	const PHRASE_NOTES_STATUS    = '_llm_phrase_notes_status';
 	const PHRASE_NOTES_AVG_WORDS = '_llm_phrase_notes_avg_words';
@@ -48,6 +53,28 @@ class LLM_Story_Meta {
 		register_post_meta( $pt, self::STORY_CARD_TEXT, array_merge( $scalar_string, array( 'sanitize_callback' => array( __CLASS__, 'sanitize_plot' ) ) ) );
 		register_post_meta( $pt, self::STORY_CEFR_LEVEL, array_merge( $scalar_string, array( 'sanitize_callback' => 'sanitize_text_field' ) ) );
 		register_post_meta( $pt, self::STORY_GRAMMAR_TOPICS, array_merge( $scalar_string, array( 'sanitize_callback' => array( __CLASS__, 'sanitize_plot' ) ) ) );
+		register_post_meta(
+			$pt,
+			self::GRAMMAR_INFOGRAPHIC,
+			array(
+				'type'              => 'integer',
+				'single'            => true,
+				'sanitize_callback' => 'absint',
+				'default'           => 0,
+				'show_in_rest'      => false,
+			)
+		);
+		register_post_meta(
+			$pt,
+			self::STORY_SOURCES,
+			array(
+				'type'              => 'string',
+				'single'            => true,
+				'sanitize_callback' => array( __CLASS__, 'sanitize_sources_meta' ),
+				'show_in_rest'      => false,
+				'default'           => '',
+			)
+		);
 
 		register_post_meta(
 			$pt,
@@ -80,5 +107,88 @@ class LLM_Story_Meta {
 	public static function sanitize_coin( $value ) {
 		$n = is_numeric( $value ) ? (int) $value : 0;
 		return max( 0, $n );
+	}
+
+	/**
+	 * Sanitize raw list of sources for storage (JSON string).
+	 *
+	 * @param mixed $value Array o JSON string.
+	 * @return string JSON (può essere '[]').
+	 */
+	public static function sanitize_sources_meta( $value ) {
+		$list = self::normalize_sources( $value );
+		return wp_json_encode( $list );
+	}
+
+	/**
+	 * @param mixed $value Array, JSON string, o vuoto.
+	 * @return array<int,array{label:string,url:string}>
+	 */
+	public static function normalize_sources( $value ) {
+		if ( is_string( $value ) ) {
+			$value = trim( wp_unslash( $value ) );
+			if ( '' === $value ) {
+				return array();
+			}
+			$decoded = json_decode( $value, true );
+			$value   = is_array( $decoded ) ? $decoded : array();
+		}
+		if ( ! is_array( $value ) ) {
+			return array();
+		}
+
+		$out = array();
+		foreach ( $value as $row ) {
+			if ( count( $out ) >= self::SOURCES_MAX ) {
+				break;
+			}
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$label = isset( $row['label'] ) ? sanitize_text_field( (string) $row['label'] ) : '';
+			$url   = isset( $row['url'] ) ? esc_url_raw( trim( (string) $row['url'] ) ) : '';
+			if ( '' === $label || '' === $url ) {
+				continue;
+			}
+			if ( ! preg_match( '#^https?://#i', $url ) ) {
+				continue;
+			}
+			$out[] = array(
+				'label' => $label,
+				'url'   => $url,
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * @param int $story_id ID storia.
+	 * @return array<int,array{label:string,url:string}>
+	 */
+	public static function get_sources( $story_id ) {
+		$story_id = absint( $story_id );
+		if ( ! $story_id ) {
+			return array();
+		}
+		$raw = get_post_meta( $story_id, self::STORY_SOURCES, true );
+		return self::normalize_sources( $raw );
+	}
+
+	/**
+	 * @param int                                $story_id ID.
+	 * @param array<int,array{label?:string,url?:string}> $sources Fonti.
+	 * @return void
+	 */
+	public static function set_sources( $story_id, $sources ) {
+		$story_id = absint( $story_id );
+		if ( ! $story_id ) {
+			return;
+		}
+		$list = self::normalize_sources( $sources );
+		if ( empty( $list ) ) {
+			delete_post_meta( $story_id, self::STORY_SOURCES );
+			return;
+		}
+		update_post_meta( $story_id, self::STORY_SOURCES, wp_json_encode( $list ) );
 	}
 }

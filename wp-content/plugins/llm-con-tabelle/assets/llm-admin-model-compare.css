@@ -1,0 +1,289 @@
+/**
+ * Confronto modelli — layout admin.
+ */
+
+.llm-mc-wrap {
+	max-width: 1600px;
+}
+
+.llm-mc-page-intro {
+	margin: 0.35rem 0 0.75rem;
+	color: #50575e;
+}
+
+.llm-mc-toc {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin: 0 0 1.25rem;
+}
+
+.llm-mc-story-block {
+	margin: 0 0 2.5rem;
+	padding-bottom: 0.5rem;
+	border-bottom: 2px solid #dcdcde;
+}
+
+.llm-mc-story-block:last-child {
+	border-bottom: 0;
+}
+
+.llm-mc-story-langs {
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+	margin: 0 0 0.55rem;
+	font-size: 0.92rem;
+	color: #50575e;
+}
+
+.llm-mc-story-lang {
+	line-height: 1.35;
+}
+
+.llm-mc-story-title {
+	margin: 0 0 0.2rem;
+	font-size: 1.55rem;
+	line-height: 1.25;
+}
+
+.llm-mc-story-title-target {
+	margin: 0 0 0.75rem;
+	font-size: 1.05rem;
+	color: #646970;
+}
+
+.llm-mc-story-card {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 8px;
+	padding: 1rem 1.25rem 1.1rem;
+	margin: 1rem 0 1.5rem;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.llm-mc-story-card h2 {
+	margin: 0 0 0.6rem;
+	font-size: 1.35rem;
+}
+
+.llm-mc-story-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem 1.25rem;
+	margin: 0 0 0.75rem;
+	padding: 0;
+	list-style: none;
+}
+
+.llm-mc-story-meta li {
+	margin: 0;
+	color: #1d2327;
+}
+
+.llm-mc-excerpt {
+	margin: 0 0 0.5rem;
+	color: #50575e;
+	font-style: italic;
+}
+
+.llm-mc-story-actions {
+	margin: 0.85rem 0 0;
+}
+
+.llm-mc-phrases[hidden] {
+	display: none !important;
+}
+
+.llm-mc-phrase {
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 10px;
+	padding: 1rem 1.1rem 1.25rem;
+	margin: 0 0 1.75rem;
+}
+
+.llm-mc-phrase__head h2 {
+	margin: 0 0 0.25rem;
+	font-size: 1.2rem;
+}
+
+.llm-mc-phrase__pair {
+	display: inline-block;
+	margin-left: 0.35rem;
+	font-weight: 500;
+	color: #1c6830;
+}
+
+.llm-mc-phrase__meta {
+	margin: 0 0 1rem;
+	color: #646970;
+	font-size: 12px;
+}
+
+.llm-mc-block {
+	margin-bottom: 1rem;
+}
+
+.llm-mc-block h3 {
+	margin: 0 0 0.45rem;
+	font-size: 0.95rem;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+}
+
+.llm-mc-block h3 span {
+	font-weight: 400;
+	text-transform: none;
+	color: #646970;
+	letter-spacing: 0;
+}
+
+.llm-mc-model-card {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	padding: 0.65rem 0.75rem 0.75rem;
+	margin-bottom: 0.55rem;
+}
+
+.llm-mc-model-card h3 {
+	margin: 0 0 0.4rem;
+}
+
+.llm-mc-model-meta {
+	margin: 0 0 0.55rem;
+	padding: 0;
+	list-style: none;
+	font-size: 12px;
+	line-height: 1.45;
+	color: #50575e;
+}
+
+.llm-mc-model-meta li {
+	margin: 0 0 0.2rem;
+}
+
+.llm-mc-model-meta code {
+	font-size: 11px;
+	background: #f0f0f1;
+	padding: 0.05rem 0.3rem;
+}
+
+.llm-mc-prompt-btn {
+	margin: 0 !important;
+}
+
+.llm-mc-prompt-dialog {
+	border: 1px solid #c3c4c7;
+	border-radius: 10px;
+	padding: 0;
+	max-width: min(920px, 94vw);
+	width: 920px;
+	max-height: 85vh;
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
+}
+
+.llm-mc-prompt-dialog::backdrop {
+	background: rgba(0, 0, 0, 0.45);
+}
+
+.llm-mc-prompt-dialog__inner {
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	max-height: 85vh;
+}
+
+.llm-mc-prompt-dialog__inner header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 0.75rem 1rem;
+	border-bottom: 1px solid #dcdcde;
+	background: #f6f7f7;
+}
+
+.llm-mc-prompt-pre {
+	margin: 0;
+	padding: 1rem;
+	overflow: auto;
+	white-space: pre-wrap;
+	word-break: break-word;
+	font-size: 12px;
+	line-height: 1.45;
+	background: #fff;
+	color: #1d2327;
+	max-height: calc(85vh - 60px);
+}
+
+
+.llm-mc-block--grok h3 {
+	color: #0a7a3e;
+}
+
+.llm-mc-block--gemini h3 {
+	color: #1a5fb4;
+}
+
+.llm-mc-block--claude h3 {
+	color: #8b4513;
+}
+
+.llm-mc-block--chatgpt h3 {
+	color: #0d7a5f;
+}
+
+.llm-mc-block--opus5 h3 {
+	color: #7a3e12;
+}
+
+.llm-mc-usage {
+	margin-top: 0.35rem !important;
+	color: #1d2327 !important;
+}
+
+.llm-mc-usage-note {
+	font-size: 11px !important;
+	color: #646970 !important;
+	font-style: italic;
+}
+
+.llm-mc-panel {
+	background: #f3f3f3;
+	border: 1px solid #e2e2e2;
+	border-radius: 8px;
+	padding: 0.65rem 0.9rem 0.85rem;
+}
+
+.llm-mc-notes-head {
+	font-weight: 700;
+	color: #1c6830;
+	margin: 0 0 0.35rem;
+	font-size: 0.95rem;
+}
+
+.llm-mc-after-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 0.85rem;
+	align-items: start;
+}
+
+.llm-mc-empty {
+	margin: 0.5rem 0;
+	color: #646970;
+}
+
+.llm-mc-panel .llm-phrase-game__grammar-section-body {
+	font-size: 0.92rem;
+	line-height: 1.45;
+	color: #1c6830;
+}
+
+@media (max-width: 1280px) {
+	.llm-mc-after-grid {
+		grid-template-columns: 1fr;
+	}
+}

@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       LLM CON TABELLE
  * Description:       Storie, utenti e community in tabelle MySQL (no JSON strutturato). Parallelo a LLS, senza migrazione.
- * Version:           2.2.696
+ * Version:           2.2.790
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            LLM CON TABELLE
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'LLM_TABELLE_VERSION', '2.2.696' );
+define( 'LLM_TABELLE_VERSION', '2.2.806' );
 define( 'LLM_TABELLE_FILE', __FILE__ );
 define( 'LLM_TABELLE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LLM_TABELLE_URL', plugin_dir_url( __FILE__ ) );
@@ -60,6 +60,7 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-story-full-import.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-community.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-user-stats.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-story.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-story-checklist.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-users.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-community.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-design-system.php';
@@ -108,6 +109,7 @@ require_once LLM_TABELLE_DIR . 'includes/class-llm-community-feed-i18n.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-community-feed-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-bravo-balance-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-home-redirect.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-not-found-home-redirect.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-lang-cards-shortcode.php';
 if ( file_exists( LLM_TABELLE_DIR . 'includes/class-llm-italian-english-stories-shortcode.php' ) ) {
 	require_once LLM_TABELLE_DIR . 'includes/class-llm-italian-english-stories-shortcode.php';
@@ -118,6 +120,7 @@ if ( file_exists( LLM_TABELLE_DIR . 'includes/class-llm-home-page-uscite-shortco
 require_once LLM_TABELLE_DIR . 'includes/class-llm-change-lang-shortcode.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-home-redirect.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-phrase-feedback.php';
+require_once LLM_TABELLE_DIR . 'includes/class-llm-admin-model-compare.php';
 require_once LLM_TABELLE_DIR . 'includes/class-llm-site-update-log-shortcodes.php';
 
 /**
@@ -170,6 +173,9 @@ function llm_tabelle_boot() {
 	LLM_Community::init();
 	LLM_User_Stats::init();
 	LLM_Admin_Story::init();
+	if ( class_exists( 'LLM_Story_Checklist' ) ) {
+		LLM_Story_Checklist::init();
+	}
 	LLM_Story_Cast::init();
 	LLM_Story_Phrases_Csv::init();
 	LLM_Story_Full_Import::init();
@@ -214,6 +220,7 @@ function llm_tabelle_boot() {
 	LLM_Story_Phrase_Game::init();
 	LLM_Story_Progress_Bar_Shortcode::init();
 	LLM_Home_Redirect::init();
+	LLM_Not_Found_Home_Redirect::init();
 	LLM_Lang_Cards_Shortcode::init();
 	if ( class_exists( 'LLM_Italian_English_Stories_Shortcode' ) ) {
 		LLM_Italian_English_Stories_Shortcode::init();
@@ -225,6 +232,7 @@ function llm_tabelle_boot() {
 	LLM_Guest_Browser_Data_Shortcode::init();
 	LLM_Admin_Home_Redirect::init();
 	LLM_Admin_Phrase_Feedback::init();
+	LLM_Admin_Model_Compare::init();
 	LLM_Site_Update_Log_Shortcodes::init();
 }
 add_action( 'plugins_loaded', 'llm_tabelle_boot', 5 );
@@ -323,6 +331,35 @@ add_action(
 		remove_action( 'login_head', 'wp_site_icon', 99 );
 	}
 );
+
+/**
+ * CSS critico early: riduce FOUC senza nascondere la pagina (niente schermata bianca).
+ * Preconnect font + regole minime header/logo + preload CSS chiave.
+ */
+function llm_tabelle_print_critical_css() {
+	if ( is_admin() ) {
+		return;
+	}
+	$ver = rawurlencode( LLM_TABELLE_VERSION );
+	$nav = esc_url( LLM_TABELLE_URL . 'assets/llm-nav-menu.css?ver=' . $ver );
+	$ui  = esc_url( LLM_TABELLE_URL . 'assets/llm-ui.css?ver=' . $ver );
+	?>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="preload" href="<?php echo $nav; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>" as="style" />
+<link rel="preload" href="<?php echo $ui; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>" as="style" />
+<style id="llm-critical">
+html{background-color:#fafafa}
+body{margin:0;background-color:#fafafa;color:#18181b;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.45;-webkit-text-size-adjust:100%}
+body.llm-ui-theme-dark,html.llm-ui-theme-dark body{background-color:#0b0b0b;color:#f4f4f5}
+.llm-nav-menu{display:flex;align-items:center;justify-content:space-between;gap:.85rem 1.1rem;box-sizing:border-box;width:100%;max-width:100%;margin:0;color:#fff;font-family:"Manrope",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.llm-nav-menu__brand{display:flex;flex-direction:column;align-items:flex-start;text-decoration:none!important;color:inherit;line-height:1.12}
+.llm-nav-menu__logo{display:block;margin:0;padding:0;color:#e50914!important;font-family:"Playfair Display",Georgia,"Times New Roman",serif!important;font-size:52px!important;font-weight:900!important;letter-spacing:0!important;line-height:1.1!important;text-decoration:none!important;text-shadow:1px 1px 0 #42b4d4,2px 2px 0 #42b4d4;-webkit-font-smoothing:antialiased}
+img,svg,video{max-width:100%;height:auto}
+</style>
+	<?php
+}
+add_action( 'wp_head', 'llm_tabelle_print_critical_css', 0 );
 
 /**
  * Elementor carica prima (ordine alfabetico): l’hook elementor/loaded è già scattato

@@ -43,6 +43,9 @@ class LLM_Learning_Modes {
 	/** Evidenzia negli appunti e ascolta il testo selezionato. */
 	const OPTION_LISTEN_NOTES_SEL = 'listen_notes_sel';
 
+	/** Nasconde per sempre il popup «Ragiona un po’…» prima di ascoltare. */
+	const OPTION_HIDE_LISTEN_THINK = 'hide_listen_think';
+
 	/** Modalità storica a due fasi. */
 	const MODE_LOVEREWRITE = 'loverewrite';
 
@@ -176,6 +179,11 @@ class LLM_Learning_Modes {
 				'id'          => self::OPTION_LISTEN_NOTES_SEL,
 				'label'       => LLM_Phrase_Game_I18n::get( 'option_listen_notes_sel_label' ),
 				'description' => LLM_Phrase_Game_I18n::get( 'option_listen_notes_sel_desc' ),
+			),
+			array(
+				'id'          => self::OPTION_HIDE_LISTEN_THINK,
+				'label'       => LLM_Phrase_Game_I18n::get( 'option_hide_listen_think_label' ),
+				'description' => LLM_Phrase_Game_I18n::get( 'option_hide_listen_think_desc' ),
 			),
 		);
 

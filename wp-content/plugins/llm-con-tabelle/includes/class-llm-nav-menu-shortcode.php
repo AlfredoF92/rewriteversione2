@@ -28,10 +28,16 @@ class LLM_Nav_Menu_Shortcode {
 
 	const CEFR_ORDER = array( 'A1', 'A2', 'B1', 'B2', 'C1', 'C2' );
 
+	/** @var bool Evita doppio tagline (shortcode + wp_footer). */
+	private static $footer_tagline_printed = false;
+
 	public static function init() {
 		add_shortcode( self::SHORTCODE, array( __CLASS__, 'render' ) );
 		add_shortcode( 'menu', array( __CLASS__, 'render' ) );
 		add_shortcode( 'llm_menu', array( __CLASS__, 'render' ) );
+		add_shortcode( 'llm_footer_tagline', array( __CLASS__, 'render_footer_tagline' ) );
+		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ), 25 );
+		add_action( 'wp_footer', array( __CLASS__, 'maybe_print_footer_tagline' ), 25 );
 	}
 
 	/**
@@ -92,9 +98,6 @@ class LLM_Nav_Menu_Shortcode {
 		}
 
 		$home_url = home_url( '/' );
-		$tagline  = class_exists( 'LLM_Hero_Translations' ) ? LLM_Hero_Translations::get_text( 'badge' ) : '';
-		$flags    = class_exists( 'LLM_Hero_Translations' ) ? LLM_Hero_Translations::get_pair_flags() : array();
-		$flags    = is_array( $flags ) ? $flags : array();
 		$avatar   = self::avatar_html();
 		$is_guest = ! is_user_logged_in();
 		$hello    = self::hello_parts( $ui );
@@ -103,19 +106,7 @@ class LLM_Nav_Menu_Shortcode {
 		?>
 		<div class="llm-nav-menu" data-llm-nav-menu>
 			<a class="llm-nav-menu__brand" href="<?php echo esc_url( $home_url ); ?>">
-				<span class="llm-nav-menu__logo">LoveRewrite</span>
-				<span class="llm-nav-menu__brand-sub">
-					<?php if ( $flags ) : ?>
-						<span class="llm-nav-menu__flags" aria-hidden="true">
-							<?php foreach ( $flags as $flag ) : ?>
-								<span class="llm-nav-menu__flag"><?php echo esc_html( $flag ); ?></span>
-							<?php endforeach; ?>
-						</span>
-					<?php endif; ?>
-					<?php if ( $tagline ) : ?>
-						<span class="llm-nav-menu__tagline"><?php echo esc_html( $tagline ); ?></span>
-					<?php endif; ?>
-				</span>
+				<span class="llm-nav-menu__logo">Lovrite</span>
 			</a>
 			<div class="llm-nav-menu__actions">
 				<p
@@ -136,6 +127,83 @@ class LLM_Nav_Menu_Shortcode {
 		</div>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Bandiere + badge lingua (ex sotto-logo), per footer.
+	 *
+	 * @return string
+	 */
+	public static function footer_tagline_html() {
+		if ( ! class_exists( 'LLM_Hero_Translations' ) ) {
+			return '';
+		}
+		$tagline = LLM_Hero_Translations::get_text( 'badge' );
+		$flags   = LLM_Hero_Translations::get_pair_flags();
+		$flags   = is_array( $flags ) ? $flags : array();
+		if ( '' === trim( (string) $tagline ) && ! $flags ) {
+			return '';
+		}
+		ob_start();
+		?>
+		<div class="llm-site-tagline" data-llm-site-tagline>
+			<?php if ( $flags ) : ?>
+				<span class="llm-site-tagline__flags" aria-hidden="true">
+					<?php foreach ( $flags as $flag ) : ?>
+						<span class="llm-site-tagline__flag"><?php echo esc_html( $flag ); ?></span>
+					<?php endforeach; ?>
+				</span>
+			<?php endif; ?>
+			<?php if ( $tagline ) : ?>
+				<span class="llm-site-tagline__text"><?php echo esc_html( $tagline ); ?></span>
+			<?php endif; ?>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Shortcode [llm_footer_tagline] — badge automatico nel footer Elementor.
+	 *
+	 * @return string
+	 */
+	public static function render_footer_tagline() {
+		self::$footer_tagline_printed = true;
+		self::enqueue_assets();
+		return self::footer_tagline_html();
+	}
+
+	/**
+	 * Fallback: se lo shortcode non è nel footer Elementor, stampa in wp_footer.
+	 */
+	public static function maybe_print_footer_tagline() {
+		if ( self::$footer_tagline_printed || is_admin() ) {
+			return;
+		}
+		$html = self::footer_tagline_html();
+		if ( '' === $html ) {
+			return;
+		}
+		self::enqueue_assets();
+		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	}
+
+	/**
+	 * CSS header (riusato anche dal tagline footer).
+	 */
+	public static function enqueue_assets() {
+		wp_enqueue_style(
+			'llm-nav-menu-font',
+			'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap',
+			array(),
+			null
+		);
+		wp_enqueue_style(
+			'llm-nav-menu',
+			LLM_TABELLE_URL . 'assets/llm-nav-menu.css',
+			array( 'llm-nav-menu-font' ),
+			LLM_TABELLE_VERSION
+		);
 	}
 
 	/**
@@ -339,7 +407,7 @@ class LLM_Nav_Menu_Shortcode {
 			'it' => array(
 				'menu'    => 'Menù',
 				'close'   => 'Chiudi',
-				'kicker'  => 'LoveRewrite',
+				'kicker'  => 'Lovrite',
 				'title'   => 'Scegli le storie',
 				'account' => 'Area personale',
 				'login'   => 'Accedi',
@@ -348,7 +416,7 @@ class LLM_Nav_Menu_Shortcode {
 			'en' => array(
 				'menu'    => 'Menu',
 				'close'   => 'Close',
-				'kicker'  => 'LoveRewrite',
+				'kicker'  => 'Lovrite',
 				'title'   => 'Choose your stories',
 				'account' => 'Your account',
 				'login'   => 'Log in',
@@ -357,7 +425,7 @@ class LLM_Nav_Menu_Shortcode {
 			'pl' => array(
 				'menu'    => 'Menu',
 				'close'   => 'Zamknij',
-				'kicker'  => 'LoveRewrite',
+				'kicker'  => 'Lovrite',
 				'title'   => 'Wybierz historie',
 				'account' => 'Strefa osobista',
 				'login'   => 'Zaloguj się',
@@ -366,7 +434,7 @@ class LLM_Nav_Menu_Shortcode {
 			'es' => array(
 				'menu'    => 'Menú',
 				'close'   => 'Cerrar',
-				'kicker'  => 'LoveRewrite',
+				'kicker'  => 'Lovrite',
 				'title'   => 'Elige las historias',
 				'account' => 'Área personal',
 				'login'   => 'Iniciar sesión',

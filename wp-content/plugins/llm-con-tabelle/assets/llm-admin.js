@@ -595,6 +595,36 @@
 			updatePhrasePreview( $( this ).closest( '.llm-phrase-row' ) );
 		} );
 
+		$( '#llm-pick-grammar-infographic' ).on( 'click', function ( e ) {
+			e.preventDefault();
+			var frame = wp.media( {
+				title:    llmAdmin.selectImage,
+				button:   { text: llmAdmin.selectImage },
+				multiple: false,
+				library:  { type: 'image' },
+			} );
+			frame.on( 'select', function () {
+				var att = frame.state().get( 'selection' ).first().toJSON();
+				if ( ! att || ! att.id ) {
+					return;
+				}
+				$( '#llm_story_grammar_infographic' ).val( att.id );
+				var url = att.sizes && att.sizes.medium ? att.sizes.medium.url : att.url;
+				var $thumb = $( '#llm-grammar-infographic .llm-media-thumb' );
+				$thumb.empty();
+				if ( url ) {
+					$thumb.append( $( '<img />' ).attr( 'src', url ).attr( 'alt', '' ) );
+				}
+			} );
+			frame.open();
+		} );
+
+		$( '#llm-clear-grammar-infographic' ).on( 'click', function ( e ) {
+			e.preventDefault();
+			$( '#llm_story_grammar_infographic' ).val( '0' );
+			$( '#llm-grammar-infographic .llm-media-thumb' ).empty();
+		} );
+
 		$( '#llm-media-list .llm-media-row' ).each( function () {
 			bindMediaRow( $( this ) );
 		} );
@@ -1307,13 +1337,20 @@
 			return;
 		}
 		stopAdminPhraseAudio();
+		var urlMale = $btn.attr( 'data-audio-url-male' ) || '';
 		var seq = llmNotesListenSeq;
-		function playAt( rate, onEnded ) {
+		function playAt( src, rate, onEnded ) {
 			if ( seq !== llmNotesListenSeq ) {
 				return;
 			}
-			llmAdminPhraseAudio = new Audio( url );
+			llmAdminPhraseAudio = new Audio( src );
 			llmAdminPhraseAudio.playbackRate = rate;
+			if ( 'preservesPitch' in llmAdminPhraseAudio ) {
+				llmAdminPhraseAudio.preservesPitch = true;
+			}
+			if ( 'mozPreservesPitch' in llmAdminPhraseAudio ) {
+				llmAdminPhraseAudio.mozPreservesPitch = true;
+			}
 			llmAdminPhraseAudio.addEventListener( 'ended', function () {
 				if ( seq !== llmNotesListenSeq ) {
 					return;
@@ -1330,16 +1367,16 @@
 			}
 		}
 		$btn.addClass( 'is-playing' );
-		playAt( 1, function () {
+		playAt( url, 1, function () {
 			llmNotesListenTimer = window.setTimeout( function () {
 				llmNotesListenTimer = null;
-				playAt( 0.7, function () {
+				playAt( urlMale || url, 0.7, function () {
 					if ( seq === llmNotesListenSeq ) {
 						$btn.removeClass( 'is-playing' );
 						llmAdminPhraseAudio = null;
 					}
 				} );
-			}, 1000 );
+			}, 0 );
 		} );
 	} );
 

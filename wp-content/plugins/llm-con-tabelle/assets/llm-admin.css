@@ -279,15 +279,63 @@
 	border: 1px solid #c3c4c7;
 	border-radius: 4px;
 	background: #fff;
+	pointer-events: none;
+	user-select: text;
 }
 
 .llm-notes-listen-admin__title {
-	margin: 0 0 0.55em;
+	margin: 0 0 0.35em;
 	font-size: 12px;
 	font-weight: 700;
 	letter-spacing: 0.02em;
 	text-transform: uppercase;
 	color: #1d2327;
+}
+
+.llm-notes-listen-admin__hint {
+	margin: 0 0 0.65em;
+	font-size: 12px;
+	line-height: 1.35;
+	color: #646970;
+}
+
+.llm-notes-listen-admin__preview {
+	font-size: 13px;
+	line-height: 1.55;
+	color: #1d2327;
+}
+
+.llm-notes-listen-admin__preview p {
+	margin: 0 0 0.75em;
+}
+
+.llm-notes-listen-admin__preview p:last-child {
+	margin-bottom: 0;
+}
+
+.llm-notes-listen-admin__mark {
+	display: inline-block;
+	width: 1.1em;
+	height: 1.1em;
+	margin: 0 0.18em 0 0.04em;
+	font-size: 15px;
+	line-height: 1.1em;
+	vertical-align: -0.18em;
+	color: #8c8f94;
+	opacity: 0.95;
+}
+
+.llm-notes-listen-admin__mark:before {
+	font-size: 15px;
+	width: 1em;
+	height: 1em;
+}
+
+.llm-notes-listen-admin__sel {
+	text-decoration: underline;
+	text-decoration-style: dotted;
+	text-underline-offset: 0.18em;
+	font-style: italic;
 }
 
 .llm-notes-listen-admin__list {
@@ -754,4 +802,91 @@ body.llm-csv-modal-open {
 	.llm-story-cw__lists {
 		grid-template-columns: 1fr;
 	}
+}
+
+/* Checklist pubblicazione */
+.llm-story-checklist {
+	margin: 0.75rem 0 0;
+	padding: 0.65rem 0.75rem;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #fff;
+	font-size: 12px;
+	line-height: 1.35;
+}
+
+.llm-story-checklist__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0.5rem;
+	margin-bottom: 0.25rem;
+}
+
+.llm-story-checklist__title {
+	font-size: 13px;
+}
+
+.llm-story-checklist__score {
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.llm-story-checklist__updated {
+	margin: 0 0 0.45rem;
+	color: #646970;
+	font-size: 11px;
+}
+
+.llm-story-checklist__table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.llm-story-checklist__table th,
+.llm-story-checklist__table td {
+	padding: 0.28rem 0.2rem;
+	border-top: 1px solid #dcdcde;
+	text-align: left;
+	vertical-align: top;
+}
+
+.llm-story-checklist__table th {
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.llm-story-checklist__row.is-ok .llm-story-checklist__status {
+	color: #007017;
+}
+
+.llm-story-checklist__row.is-partial .llm-story-checklist__status {
+	color: #996800;
+}
+
+.llm-story-checklist__row.is-missing .llm-story-checklist__status {
+	color: #b32d2e;
+}
+
+.llm-story-checklist__row.is-optional .llm-story-checklist__status {
+	color: #e07a00;
+	font-weight: 600;
+}
+
+.llm-story-checklist--admin {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+}
+
+.llm-story-checklist--admin .llm-story-checklist__table th:nth-child(4),
+.llm-story-checklist--admin .llm-story-checklist__table td:nth-child(4) {
+	display: none;
+}
+
+#llm_story_checklist .inside {
+	margin: 0;
+	padding: 8px 10px 10px;
 }

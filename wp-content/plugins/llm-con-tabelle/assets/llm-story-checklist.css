@@ -1,0 +1,210 @@
+/* Checklist pubblicazione — pulsanti compatti + popup */
+
+.llm-story-checklist__row.is-optional .llm-story-checklist__status {
+	color: #e07a00;
+	font-weight: 600;
+}
+
+.llm-story-checklist__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	align-items: center;
+}
+
+.llm-story-checklist__action-btn.llm-game-theme__btn,
+.llm-story-checklist .llm-game-theme__btn {
+	-webkit-appearance: none;
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0;
+	padding: 0.18rem 0.5rem !important;
+	min-height: 0 !important;
+	height: auto !important;
+	border: 1px solid var(--llm-chip-border, #c3c4c7) !important;
+	border-radius: 6px !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	color: var(--llm-chip-ink, #1d2327) !important;
+	font-family: inherit !important;
+	font-size: 0.62rem !important;
+	font-weight: 600 !important;
+	letter-spacing: 0.01em;
+	line-height: 1.2 !important;
+	text-decoration: none !important;
+	text-transform: uppercase;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.llm-story-checklist__action-btn--wide.llm-game-theme__btn {
+	white-space: normal;
+	max-width: 11rem;
+	text-align: center;
+}
+
+.llm-story-checklist__action-btn.llm-game-theme__btn:hover,
+.llm-story-checklist__action-btn.llm-game-theme__btn:focus-visible,
+.llm-story-checklist .llm-game-theme__btn:hover,
+.llm-story-checklist .llm-game-theme__btn:focus-visible {
+	background: var(--llm-chip-hover, rgba(0, 0, 0, 0.08)) !important;
+	outline: none;
+}
+
+.llm-phrase-game--theme-dark .llm-story-checklist__action-btn.llm-game-theme__btn {
+	border-color: rgba(255, 255, 255, 0.28) !important;
+	color: #f0f0f1 !important;
+}
+
+.llm-phrase-game--theme-dark .llm-story-checklist__action-btn.llm-game-theme__btn:hover,
+.llm-phrase-game--theme-dark .llm-story-checklist__action-btn.llm-game-theme__btn:focus-visible {
+	background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.llm-story-checklist__prompt-empty {
+	opacity: 0.55;
+}
+
+.llm-story-checklist__cat th {
+	margin: 0;
+	padding: 0.55rem 0.5rem 0.35rem;
+	border-top: 1px solid var(--llm-chip-border, #c3c4c7);
+	background: var(--llm-chip-hover, rgba(0, 0, 0, 0.05));
+	color: var(--llm-chip-ink, #1d2327);
+	font-size: 0.72rem;
+	font-weight: 800;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	text-align: left;
+}
+
+.llm-story-checklist__cat:first-child th {
+	border-top: none;
+}
+
+.llm-phrase-game--theme-dark .llm-story-checklist__cat th {
+	border-top-color: rgba(255, 255, 255, 0.14);
+	background: rgba(255, 255, 255, 0.06);
+	color: #f0f0f1;
+}
+
+.llm-story-checklist--front .llm-story-checklist__table {
+	min-width: 560px;
+}
+
+body.llm-checklist-prompt-open {
+	overflow: hidden;
+}
+
+.llm-checklist-prompt-modal[hidden] {
+	display: none !important;
+}
+
+.llm-checklist-prompt-modal:not([hidden]) {
+	position: fixed;
+	inset: 0;
+	z-index: 100000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 1rem;
+}
+
+.llm-checklist-prompt-modal__backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(10, 12, 16, 0.62);
+}
+
+.llm-checklist-prompt-modal__dialog {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	flex-direction: column;
+	width: min(960px, 100%);
+	height: min(88vh, 900px);
+	max-height: 88vh;
+	background: #fff;
+	color: #1d2327;
+	border-radius: 10px;
+	box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+	overflow: hidden;
+}
+
+.llm-checklist-prompt-modal__head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 0.75rem;
+	padding: 0.85rem 1rem;
+	border-bottom: 1px solid #dcdcde;
+	background: #f6f7f7;
+}
+
+.llm-checklist-prompt-modal__title {
+	margin: 0;
+	font-size: 1.05rem;
+	line-height: 1.3;
+}
+
+.llm-checklist-prompt-modal__file {
+	margin: 0.2rem 0 0;
+	font-size: 0.78rem;
+	color: #646970;
+	word-break: break-all;
+}
+
+.llm-checklist-prompt-modal__actions {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	flex-shrink: 0;
+}
+
+.llm-checklist-prompt-modal__copy.llm-game-theme__btn,
+.llm-checklist-prompt-modal__close.llm-game-theme__btn {
+	-webkit-appearance: none;
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0;
+	padding: 0.22rem 0.55rem !important;
+	min-height: 0 !important;
+	border: 1px solid #c3c4c7 !important;
+	border-radius: 6px !important;
+	background: #fff !important;
+	box-shadow: none !important;
+	color: #1d2327 !important;
+	font-size: 0.68rem !important;
+	font-weight: 600 !important;
+	text-transform: uppercase;
+	cursor: pointer;
+}
+
+.llm-checklist-prompt-modal__copy.llm-game-theme__btn:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+
+.llm-checklist-prompt-modal__close.llm-game-theme__btn {
+	font-size: 1.1rem !important;
+	line-height: 1 !important;
+	padding: 0.1rem 0.4rem !important;
+	text-transform: none;
+}
+
+.llm-checklist-prompt-modal__body {
+	margin: 0;
+	padding: 1rem 1.1rem 1.25rem;
+	flex: 1 1 auto;
+	overflow: auto;
+	white-space: pre-wrap;
+	word-break: break-word;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+	font-size: 0.82rem;
+	line-height: 1.45;
+	background: #fff;
+}

@@ -51,16 +51,19 @@
 	display: block;
 	margin: 0;
 	padding: 0;
-	color: #d10000 !important;
+	color: #e50914 !important;
 	font-family: "Playfair Display", Georgia, "Times New Roman", serif !important;
-	font-size: 38px !important;
+	font-size: 52px !important;
 	font-weight: 900 !important;
 	font-style: normal !important;
 	font-synthesis: none;
 	letter-spacing: 0 !important;
-	line-height: 1.2 !important;
+	line-height: 1.1 !important;
 	text-transform: none !important;
 	text-decoration: none !important;
+	text-shadow:
+		1px 1px 0 #42b4d4,
+		2px 2px 0 #42b4d4;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 }
@@ -509,20 +512,7 @@ body.llm-nav-menu-open {
 	}
 
 	.llm-nav-menu__logo {
-		font-size: 28px !important;
-	}
-
-	.llm-nav-menu__brand-sub {
-		max-width: 13.5rem;
-		gap: 0.2rem;
-	}
-
-	.llm-nav-menu__flags {
-		font-size: 0.68rem;
-	}
-
-	.llm-nav-menu__tagline {
-		font-size: 12px !important;
+		font-size: 40px !important;
 	}
 
 	.llm-nav-menu__hello {
@@ -542,4 +532,36 @@ body.llm-nav-menu-open {
 	.llm-nav-menu__popup.is-front {
 		width: min(22.5rem, calc(100vw - 1.25rem));
 	}
+}
+
+/* Tagline automatico (ex sotto-logo) — footer */
+.llm-site-tagline {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 0.4rem 0.55rem;
+	box-sizing: border-box;
+	width: 100%;
+	margin: 0;
+	padding: 0.85rem 1rem 1.1rem;
+	background: #0b0b0b;
+	color: #fff;
+	font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+	text-align: center;
+}
+
+.llm-site-tagline__flags {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.15rem;
+	font-size: 0.95rem;
+	line-height: 1;
+}
+
+.llm-site-tagline__text {
+	font-size: 0.95rem;
+	font-weight: 700;
+	line-height: 1.3;
+	color: #fff;
 }

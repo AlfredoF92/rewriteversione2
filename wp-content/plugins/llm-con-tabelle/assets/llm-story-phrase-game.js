@@ -1654,6 +1654,8 @@
 		var listenThinkEl = qs(root, '.llm-phrase-game__listen-think');
 		var listenThinkBackdrop = qs(root, '.llm-phrase-game__listen-think-backdrop');
 		var listenThinkText = qs(root, '.llm-phrase-game__listen-think-text');
+		var listenThinkSkipBtn = qs(root, '.llm-phrase-game__listen-think-skip');
+		var listenThinkDismissedThisTurn = false;
 		var storyNotesPopEl = qs(root, '.llm-phrase-game__story-notes-pop');
 		var storyNotesPopBackdrop = qs(root, '.llm-phrase-game__story-notes-pop-backdrop');
 		var storyNotesPopBody = qs(root, '.llm-phrase-game__story-notes-pop-body');
@@ -3083,6 +3085,136 @@
 		});
 	}
 
+	(function initAdminPublishBar() {
+		if (!cfg.canEditNotes) {
+			return;
+		}
+		var bar = qs(root, '.llm-story-admin-pub');
+		if (!bar) {
+			return;
+		}
+		var form = qs(bar, '[data-llm-pub-form]');
+		var editBtn = qs(bar, '[data-llm-pub-edit]');
+		var cancelBtn = qs(bar, '[data-llm-pub-cancel]');
+		var statusSel = qs(bar, '[data-llm-pub-status]');
+		var dateWrap = qs(bar, '[data-llm-pub-date-wrap]');
+		var dateInput = qs(bar, '[data-llm-pub-date]');
+		var labelEl = qs(bar, '[data-llm-pub-label]');
+		var msgEl = qs(bar, '[data-llm-pub-msg]');
+		if (!form || !editBtn || !statusSel) {
+			return;
+		}
+
+		function syncDateVisibility() {
+			if (!dateWrap) {
+				return;
+			}
+			var st = String(statusSel.value || 'draft');
+			if (st === 'draft') {
+				dateWrap.setAttribute('hidden', 'hidden');
+			} else {
+				dateWrap.removeAttribute('hidden');
+			}
+		}
+
+		function setMsg(text, ok) {
+			if (!msgEl) {
+				return;
+			}
+			if (!text) {
+				msgEl.textContent = '';
+				msgEl.setAttribute('hidden', 'hidden');
+				msgEl.classList.remove('is-ok');
+				return;
+			}
+			msgEl.textContent = text;
+			msgEl.removeAttribute('hidden');
+			if (ok) {
+				msgEl.classList.add('is-ok');
+			} else {
+				msgEl.classList.remove('is-ok');
+			}
+		}
+
+		function openForm() {
+			form.removeAttribute('hidden');
+			setMsg('');
+			syncDateVisibility();
+		}
+
+		function closeForm() {
+			form.setAttribute('hidden', 'hidden');
+			setMsg('');
+		}
+
+		editBtn.addEventListener('click', function (e) {
+			e.preventDefault();
+			if (form.hasAttribute('hidden')) {
+				openForm();
+			} else {
+				closeForm();
+			}
+		});
+		if (cancelBtn) {
+			cancelBtn.addEventListener('click', function (e) {
+				e.preventDefault();
+				closeForm();
+			});
+		}
+		statusSel.addEventListener('change', syncDateVisibility);
+		syncDateVisibility();
+
+		form.addEventListener('submit', function (e) {
+			e.preventDefault();
+			var saveBtn = qs(form, '.llm-story-admin-pub__save');
+			if (saveBtn) {
+				saveBtn.disabled = true;
+			}
+			setMsg('');
+			var body = new URLSearchParams();
+			body.set('action', 'llm_fe_admin_set_story_status');
+			body.set('nonce', String(cfg.editNotesNonce || ''));
+			body.set('story_id', String(bar.getAttribute('data-story-id') || storyId));
+			body.set('status', String(statusSel.value || 'draft'));
+			body.set('post_date', dateInput ? String(dateInput.value || '') : '');
+			fetch(ajaxUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+				body: body.toString()
+			})
+				.then(function (res) { return res.json(); })
+				.then(function (json) {
+					if (saveBtn) {
+						saveBtn.disabled = false;
+					}
+					if (!json || !json.success || !json.data) {
+						setMsg((json && json.data && json.data.message) || (i18n.ajaxError || 'Errore'), false);
+						return;
+					}
+					var st = String(json.data.status || 'draft');
+					bar.setAttribute('data-status', st);
+					if (labelEl) {
+						labelEl.textContent = String(json.data.label || '');
+						labelEl.className = 'llm-story-admin-pub__label is-' + st;
+					}
+					statusSel.value = st;
+					if (dateInput && json.data.post_date) {
+						dateInput.value = String(json.data.post_date);
+					}
+					setMsg(String(json.data.message || 'Salvato'), true);
+					syncDateVisibility();
+					window.setTimeout(closeForm, 700);
+				})
+				.catch(function () {
+					if (saveBtn) {
+						saveBtn.disabled = false;
+					}
+					setMsg(i18n.ajaxError || 'Errore', false);
+				});
+		});
+	})();
+
 	if (canEditNotes()) {
 		notesEditBtns.forEach(function (btn) {
 			btn.addEventListener('click', function (e) {
@@ -3464,6 +3596,10 @@
 			return isLearningOptionOn((cfg && cfg.optionStoryTargetOnly) || 'story_target_only');
 		}
 
+		function isListenThinkHiddenForever() {
+			return isLearningOptionOn((cfg && cfg.optionHideListenThink) || 'hide_listen_think');
+		}
+
 		function storyLineAsideText(iface, notes) {
 			var it = stripTagsHtml(iface || '').replace(/\s+/g, ' ').trim();
 			var nt = stripTagsHtml(notes || '').replace(/\s+/g, ' ').trim();
@@ -3597,6 +3733,7 @@
 				return;
 			}
 			var url = btn.getAttribute('data-audio-url') || '';
+			var urlMale = btn.getAttribute('data-audio-url-male') || '';
 			if (!url) {
 				return;
 			}
@@ -3620,14 +3757,17 @@
 			} catch (e3) {
 				/* ignore */
 			}
-			function playAt(rate, onEnded) {
+			function playAt(src, rate, onEnded) {
 				if (seq !== notesListenSeq) {
 					return;
 				}
-				notesListenAudio = new Audio(url);
+				notesListenAudio = new Audio(src);
 				notesListenAudio.playbackRate = rate;
 				if ('preservesPitch' in notesListenAudio) {
 					notesListenAudio.preservesPitch = true;
+				}
+				if ('mozPreservesPitch' in notesListenAudio) {
+					notesListenAudio.mozPreservesPitch = true;
 				}
 				notesListenAudio.addEventListener('ended', function () {
 					if (seq !== notesListenSeq) {
@@ -3644,15 +3784,15 @@
 					});
 				}
 			}
-			playAt(1, function () {
+			playAt(url, 1, function () {
 				notesListenTimer = window.setTimeout(function () {
 					notesListenTimer = null;
-					playAt(0.7, function () {
+					playAt(urlMale || url, 0.7, function () {
 						if (seq === notesListenSeq) {
 							stopNotesListenAudio();
 						}
 					});
-				}, 1000);
+				}, 0);
 			});
 		}
 
@@ -4158,23 +4298,6 @@
 	}
 
 	/**
-	 * Data l'intestazione in grassetto di una sezione "coppia" (es. "I'm fine"
-	 * → "<em>Sto bene</em>"), costruisce la frase generica che la sostituisce
-	 * nel pannello (il titolo resta visibile solo sul bottone dell'accordion,
-	 * qui sotto non va ripetuto in grassetto). Ritorna l'HTML originale
-	 * invariato se il formato non è quello atteso (rete di sicurezza).
-	 */
-	function buildPairIntroSentence(headingHtml) {
-		var h = String(headingHtml || '').trim();
-		var m = /^"([^"]*)"\s*(?:→|->)\s*"([\s\S]*)"$/.exec(h);
-		if (!m) {
-			return h;
-		}
-		var tpl = (i18n && i18n.notesPairIntroTemplate) || '"%NOTE%" can be translated as "%TARGET%".';
-		return tpl.replace('%NOTE%', m[1]).replace('%TARGET%', m[2]);
-	}
-
-	/**
 	 * Nome del tempo verbale nella lingua identificata dal codice passato,
 	 * per tipo di tempo (present/past/future). Usata sia per il nome nella
 	 * lingua target (nell'intro della coniugazione) sia per il nome nella
@@ -4432,8 +4555,9 @@
 			var label = firstStrong.innerHTML.replace(/\s+$/, '').replace(/:\s*$/, '');
 			var firstPartHtml = innerHtml;
 			if (headingType === 'pair') {
-				var introSentence = buildPairIntroSentence(firstStrong.innerHTML);
-				firstPartHtml = innerHtml.replace(firstStrong.outerHTML, introSentence);
+				/* Il titolo della coppia resta solo sul bottone. Nel pannello
+				 * non si ripete e non si aggiunge la frase "si può tradurre". */
+				firstPartHtml = innerHtml.replace(firstStrong.outerHTML, '').replace(/^\s*(?:<br\s*\/?>\s*)+/i, '');
 			} else if (headingType === 'conjugation') {
 				var headingText = firstStrong.textContent;
 				var verbMatch = /"([^"]+)"\s*:?\s*$/.exec(String(headingText || '').trim());
@@ -4767,7 +4891,7 @@
 			return true;
 		}
 		return !!el.closest(
-			'.llm-notes-listen, button, a, textarea, input, script, style, ' +
+			'.llm-notes-listen, button, a, textarea, input, script, style, strong, ' +
 			'.llm-phrase-game__grammar-section-toggle, ' +
 			'.llm-notes-inline-edit, ' +
 			'.llm-notes-inline-edit__open-wrap, ' +
@@ -4779,8 +4903,118 @@
 		);
 	}
 
-	function wrapOneNotesListen(container, needle, url) {
+	function notesListenIsWordChar(ch) {
+		return !!ch && /[\p{L}\p{N}_]/u.test(ch);
+	}
+
+	/**
+	 * Riga testuale (split su <br>) che contiene il text node, e contesto Esempio/Approfondimento.
+	 */
+	function notesListenLineContext(textNode) {
+		var block = textNode && textNode.parentElement
+			? textNode.parentElement.closest('p, li, .llm-phrase-game__grammar-section-body, td, div')
+			: null;
+		if (!block) {
+			return null;
+		}
+		var lines = [];
+		var cur = { text: '', nodes: [] };
+		function flush() {
+			lines.push(cur);
+			cur = { text: '', nodes: [] };
+		}
+		function walk(el) {
+			var c;
+			for (c = el.firstChild; c; c = c.nextSibling) {
+				if (c.nodeType === 3) {
+					cur.text += String(c.nodeValue || '').replace(/\u00a0/g, ' ');
+					cur.nodes.push(c);
+				} else if (c.nodeType === 1) {
+					var tag = String(c.tagName || '').toLowerCase();
+					if (tag === 'br') {
+						flush();
+					} else if (tag === 'script' || tag === 'style') {
+						continue;
+					} else if (c.classList && c.classList.contains('llm-notes-listen')) {
+						cur.text += String(c.textContent || '').replace(/\u00a0/g, ' ');
+					} else {
+						walk(c);
+					}
+				}
+			}
+		}
+		walk(block);
+		if (cur.text || cur.nodes.length) {
+			flush();
+		}
+		var idx = -1;
+		var i;
+		for (i = 0; i < lines.length; i++) {
+			if (lines[i].nodes.indexOf(textNode) >= 0) {
+				idx = i;
+				break;
+			}
+		}
+		if (idx < 0) {
+			return null;
+		}
+		return { lines: lines, index: idx, line: lines[idx].text };
+	}
+
+	function notesListenIsQuoteChar(ch) {
+		return !!ch && /["“”«»]/.test(ch);
+	}
+
+	function notesListenContextAllowed(textNode, conjOnly) {
+		var info = notesListenLineContext(textNode);
+		if (!info) {
+			return false;
+		}
+		var line = String(info.line || '');
+		if (/[❌➡️⚠]/.test(line)) {
+			return false;
+		}
+		if (/💬\s*Esempio|(?:^|\s)Esempio\s*:/i.test(line)) {
+			return !conjOnly;
+		}
+		var inApp = false;
+		var i;
+		for (i = 0; i <= info.index; i++) {
+			var L = String(info.lines[i].text || '');
+			if (/[❌⚠]/.test(L)) {
+				inApp = false;
+				continue;
+			}
+			if (/(?:📌|💡)\s*(?:Approfondimento|Deep dive)|(?:^|\s)(?:Approfondimento|Deep dive)\s*:/i.test(L)) {
+				inApp = true;
+			}
+			if (/💬\s*Esempio|(?:^|\s)Esempio\s*:/i.test(L)) {
+				inApp = false;
+			}
+		}
+		if (inApp) {
+			return !conjOnly;
+		}
+		if (conjOnly) {
+			return /\(/.test(line);
+		}
+		return false;
+	}
+
+	function notesListenMatchInsideEm(parts, idx) {
+		var i;
+		for (i = 0; i < parts.length; i++) {
+			if (idx >= parts[i].start && idx < parts[i].end) {
+				var el = parts[i].node.parentElement;
+				return !!(el && el.closest && el.closest('em'));
+			}
+		}
+		return false;
+	}
+
+	function wrapOneNotesListen(container, needle, url, urlMale, conjOnly) {
 		needle = String(needle || '');
+		conjOnly = !!conjOnly;
 		if (!needle || !container || !url) {
 			return false;
 		}
@@ -4803,53 +5037,107 @@
 			parts.push({ node: n, start: concat.length, end: concat.length + t.length });
 			concat += t;
 		}
-		var idx = concat.indexOf(needle);
-		if (idx < 0) {
-			return false;
-		}
-		var end = idx + needle.length;
-		var startPart = null;
-		var endPart = null;
-		var i;
-		for (i = 0; i < parts.length; i++) {
-			if (!startPart && idx >= parts[i].start && idx < parts[i].end) {
-				startPart = parts[i];
+		var searchFrom = 0;
+		while (searchFrom <= concat.length) {
+			var idx = concat.indexOf(needle, searchFrom);
+			if (idx < 0) {
+				return false;
 			}
-			if (end > parts[i].start && end <= parts[i].end) {
-				endPart = parts[i];
+			var end = idx + needle.length;
+			var before = idx === 0 ? '' : concat.charAt(idx - 1);
+			var after = end >= concat.length ? '' : concat.charAt(end);
+			if (notesListenIsWordChar(before) || notesListenIsWordChar(after)) {
+				searchFrom = idx + 1;
+				continue;
+			}
+			// Non-coniugazioni: solo citazioni. In pagina le virgolette diventano <em>.
+			var quoted = notesListenIsQuoteChar(before) && notesListenIsQuoteChar(after);
+			if (!conjOnly && !quoted && !notesListenMatchInsideEm(parts, idx)) {
+				searchFrom = idx + 1;
+				continue;
+			}
+			if (conjOnly) {
+				var rest = concat.slice(end).replace(/^\s+/, '');
+				if (rest.charAt(0) !== '(') {
+					searchFrom = idx + 1;
+					continue;
+				}
+			}
+			var startPart = null;
+			var endPart = null;
+			var i;
+			for (i = 0; i < parts.length; i++) {
+				if (!startPart && idx >= parts[i].start && idx < parts[i].end) {
+					startPart = parts[i];
+				}
+				if (end > parts[i].start && end <= parts[i].end) {
+					endPart = parts[i];
+				}
+			}
+			if (!startPart || !endPart) {
+				searchFrom = idx + 1;
+				continue;
+			}
+			if (!notesListenContextAllowed(startPart.node, conjOnly)) {
+				searchFrom = idx + 1;
+				continue;
+			}
+			var range = document.createRange();
+			try {
+				range.setStart(startPart.node, idx - startPart.start);
+				range.setEnd(endPart.node, end - endPart.start);
+			} catch (e) {
+				searchFrom = idx + 1;
+				continue;
+			}
+			var span = document.createElement('span');
+			span.className = 'llm-notes-listen';
+			var btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'llm-notes-listen__play';
+			btn.setAttribute('data-audio-url', url);
+			if (urlMale) {
+				btn.setAttribute('data-audio-url-male', urlMale);
+			}
+			var label = (i18n.notesSelPlay || i18n.notesAudioPlay || 'Ascolta') + ': ' + needle;
+			btn.setAttribute('aria-label', label);
+			btn.setAttribute('title', label);
+			btn.innerHTML = notesPlayerIconPlay();
+			var textSpan = document.createElement('span');
+			textSpan.className = 'llm-notes-listen__text';
+			try {
+				textSpan.appendChild(range.extractContents());
+				span.appendChild(btn);
+				span.appendChild(textSpan);
+				range.insertNode(span);
+			} catch (e2) {
+				searchFrom = idx + 1;
+				continue;
+			}
+			return true;
+		}
+		return false;
+	}
+
+	function notesListenDecorateScopes(container) {
+		if (!container) {
+			return [];
+		}
+		var bodies = container.querySelectorAll('.llm-phrase-game__grammar-section-body');
+		if (bodies && bodies.length) {
+			return Array.prototype.slice.call(bodies);
+		}
+		var topPs = [];
+		var c;
+		for (c = container.firstChild; c; c = c.nextSibling) {
+			if (c.nodeType === 1 && String(c.tagName || '').toLowerCase() === 'p') {
+				topPs.push(c);
 			}
 		}
-		if (!startPart || !endPart) {
-			return false;
+		if (topPs.length) {
+			return topPs;
 		}
-		var range = document.createRange();
-		try {
-			range.setStart(startPart.node, idx - startPart.start);
-			range.setEnd(endPart.node, end - endPart.start);
-		} catch (e) {
-			return false;
-		}
-		var span = document.createElement('span');
-		span.className = 'llm-notes-listen';
-		var btn = document.createElement('button');
-		btn.type = 'button';
-		btn.className = 'llm-notes-listen__play';
-		btn.setAttribute('data-audio-url', url);
-		var label = (i18n.notesSelPlay || i18n.notesAudioPlay || 'Ascolta') + ': ' + needle;
-		btn.setAttribute('aria-label', label);
-		btn.setAttribute('title', label);
-		btn.innerHTML = notesPlayerIconPlay();
-		var textSpan = document.createElement('span');
-		textSpan.className = 'llm-notes-listen__text';
-		try {
-			textSpan.appendChild(range.extractContents());
-			span.appendChild(btn);
-			span.appendChild(textSpan);
-			range.insertNode(span);
-		} catch (e2) {
-			return false;
-		}
-		return true;
+		return [container];
 	}
 
 	function decorateNotesListenIn(container, phrase) {
@@ -4862,11 +5150,27 @@
 		}).sort(function (a, b) {
 			return String(b.text).length - String(a.text).length;
 		});
+		var scopes = notesListenDecorateScopes(container);
 		var n;
 		for (n = 0; n < items.length; n++) {
-			var guard = 0;
-			while (guard < 40 && wrapOneNotesListen(container, items[n].text, items[n].url)) {
-				guard += 1;
+			var text = String(items[n].text || '');
+			var url = items[n].url;
+			var urlMale = items[n].urlMale || '';
+			var isConj = /^(I|You|He\s*\/\s*She\s*\/\s*It|We|They|io|tu|lui\/lei|noi|voi|loro|ja|ty|on\/ona\/ono|my|wy|oni\/one|yo|tú|él\/ella\/usted|nosotros\/nosotras|vosotros\/vosotras|ellos\/ellas\/ustedes)\s+\S+$/i.test(text);
+			if (isConj) {
+				var guard = 0;
+				while (guard < 8 && wrapOneNotesListen(container, text, url, urlMale, true)) {
+					guard += 1;
+				}
+			} else {
+				// Ogni occorrenza nel riquadro (es. "your" tuo e "your" vostro).
+				var s;
+				for (s = 0; s < scopes.length; s++) {
+					var again = 0;
+					while (again < 8 && wrapOneNotesListen(scopes[s], text, url, urlMale, false)) {
+						again += 1;
+					}
+				}
 			}
 		}
 	}
@@ -7434,10 +7738,159 @@
 				topicsBody.appendChild(wrap);
 			});
 			topicsDialog.appendChild(topicsClose);
-			topicsDialog.appendChild(topicsHead);
-			topicsDialog.appendChild(topicsBody);
+			var infographicUrl = String(cfg.grammarInfographicUrl || '').trim();
+			var closeTopicsZoom = null;
+			if (infographicUrl) {
+				topicsDialog.classList.add('llm-grammar-topics-dialog--with-image');
+				var topicsLayout = document.createElement('div');
+				topicsLayout.className = 'llm-grammar-topics-dialog__layout';
+				var topicsPoster = document.createElement('div');
+				topicsPoster.className = 'llm-grammar-topics-dialog__poster';
+				var topicsPosterScroll = document.createElement('div');
+				topicsPosterScroll.className = 'llm-grammar-topics-dialog__poster-scroll';
+				var topicsPosterImg = document.createElement('img');
+				topicsPosterImg.className = 'llm-grammar-topics-dialog__poster-img';
+				topicsPosterImg.src = infographicUrl;
+				topicsPosterImg.alt = topicsHead.textContent || '';
+				topicsPosterScroll.appendChild(topicsPosterImg);
+				var topicsActions = document.createElement('div');
+				topicsActions.className = 'llm-grammar-topics-dialog__actions';
+				var topicsZoomOpen = document.createElement('button');
+				topicsZoomOpen.type = 'button';
+				topicsZoomOpen.className = 'llm-grammar-topics-dialog__zoom-open';
+				topicsZoomOpen.textContent = i18n.grammarTopicsZoom || 'Ingrandisci';
+				var topicsDownload = document.createElement('a');
+				topicsDownload.className = 'llm-grammar-topics-dialog__download';
+				topicsDownload.href = infographicUrl;
+				topicsDownload.setAttribute('download', String(cfg.grammarInfographicFile || 'infografica.jpg'));
+				topicsDownload.textContent = i18n.grammarTopicsDownload || 'Scarica';
+				topicsActions.appendChild(topicsZoomOpen);
+				topicsActions.appendChild(topicsDownload);
+				topicsPoster.appendChild(topicsPosterScroll);
+				topicsPoster.appendChild(topicsActions);
+				var topicsMain = document.createElement('div');
+				topicsMain.className = 'llm-grammar-topics-dialog__main';
+				topicsMain.appendChild(topicsHead);
+				topicsMain.appendChild(topicsBody);
+				topicsLayout.appendChild(topicsPoster);
+				topicsLayout.appendChild(topicsMain);
+				topicsDialog.appendChild(topicsLayout);
+
+				var zoomLayer = document.createElement('div');
+				zoomLayer.className = 'llm-grammar-topics-zoom';
+				zoomLayer.hidden = true;
+				var zoomClose = document.createElement('button');
+				zoomClose.type = 'button';
+				zoomClose.className = 'llm-grammar-topics-zoom__close';
+				zoomClose.setAttribute('aria-label', i18n.close || 'Chiudi');
+				zoomClose.textContent = '×';
+				var zoomStage = document.createElement('div');
+				zoomStage.className = 'llm-grammar-topics-zoom__stage';
+				var zoomImg = document.createElement('img');
+				zoomImg.className = 'llm-grammar-topics-zoom__img';
+				zoomImg.src = infographicUrl;
+				zoomImg.alt = topicsHead.textContent || '';
+				zoomImg.draggable = false;
+				zoomStage.appendChild(zoomImg);
+				var zoomBar = document.createElement('div');
+				zoomBar.className = 'llm-grammar-topics-zoom__bar';
+				var zoomOutBtn = document.createElement('button');
+				zoomOutBtn.type = 'button';
+				zoomOutBtn.className = 'llm-grammar-topics-zoom__btn';
+				zoomOutBtn.setAttribute('aria-label', i18n.grammarTopicsZoomOut || 'Riduci');
+				zoomOutBtn.textContent = '−';
+				var zoomInBtn = document.createElement('button');
+				zoomInBtn.type = 'button';
+				zoomInBtn.className = 'llm-grammar-topics-zoom__btn';
+				zoomInBtn.setAttribute('aria-label', i18n.grammarTopicsZoom || 'Ingrandisci');
+				zoomInBtn.textContent = '+';
+				zoomBar.appendChild(zoomOutBtn);
+				zoomBar.appendChild(zoomInBtn);
+				zoomLayer.appendChild(zoomClose);
+				zoomLayer.appendChild(zoomStage);
+				zoomLayer.appendChild(zoomBar);
+				topicsOverlay.appendChild(zoomLayer);
+
+				var zoomScale = 1;
+				var zoomX = 0;
+				var zoomY = 0;
+				var zoomDrag = null;
+				function applyTopicsZoom() {
+					zoomImg.style.transform = 'translate(' + zoomX + 'px,' + zoomY + 'px) scale(' + zoomScale + ')';
+					zoomStage.classList.toggle('is-zoomed', zoomScale > 1);
+				}
+				function setTopicsZoom(next) {
+					zoomScale = Math.max(1, Math.min(4, next));
+					if (zoomScale === 1) {
+						zoomX = 0;
+						zoomY = 0;
+					}
+					applyTopicsZoom();
+				}
+				function openTopicsZoom() {
+					zoomScale = 1;
+					zoomX = 0;
+					zoomY = 0;
+					applyTopicsZoom();
+					zoomLayer.hidden = false;
+					zoomClose.focus();
+				}
+				closeTopicsZoom = function () {
+					if (zoomLayer.hidden) {
+						return false;
+					}
+					zoomLayer.hidden = true;
+					zoomDrag = null;
+					return true;
+				};
+				topicsPosterImg.addEventListener('click', openTopicsZoom);
+				topicsZoomOpen.addEventListener('click', openTopicsZoom);
+				zoomClose.addEventListener('click', closeTopicsZoom);
+				zoomInBtn.addEventListener('click', function () {
+					setTopicsZoom(zoomScale + 0.5);
+				});
+				zoomOutBtn.addEventListener('click', function () {
+					setTopicsZoom(zoomScale - 0.5);
+				});
+				zoomStage.addEventListener('wheel', function (event) {
+					event.preventDefault();
+					setTopicsZoom(zoomScale + (event.deltaY < 0 ? 0.25 : -0.25));
+				}, { passive: false });
+				zoomStage.addEventListener('pointerdown', function (event) {
+					if (event.target === zoomInBtn || event.target === zoomOutBtn) {
+						return;
+					}
+					zoomDrag = { x: event.clientX, y: event.clientY, moved: false, ox: zoomX, oy: zoomY };
+					zoomStage.setPointerCapture(event.pointerId);
+				});
+				zoomStage.addEventListener('pointermove', function (event) {
+					if (!zoomDrag || zoomScale <= 1) {
+						return;
+					}
+					var dx = event.clientX - zoomDrag.x;
+					var dy = event.clientY - zoomDrag.y;
+					if (Math.abs(dx) + Math.abs(dy) > 4) {
+						zoomDrag.moved = true;
+					}
+					zoomX = zoomDrag.ox + dx;
+					zoomY = zoomDrag.oy + dy;
+					applyTopicsZoom();
+				});
+				zoomStage.addEventListener('pointerup', function () {
+					if (zoomDrag && !zoomDrag.moved) {
+						setTopicsZoom(zoomScale >= 4 ? 1 : zoomScale + 0.75);
+					}
+					zoomDrag = null;
+				});
+			} else {
+				topicsDialog.appendChild(topicsHead);
+				topicsDialog.appendChild(topicsBody);
+			}
 			topicsOverlay.appendChild(topicsDialog);
 			function closeGrammarTopicsPopup() {
+				if (closeTopicsZoom) {
+					closeTopicsZoom();
+				}
 				topicsOverlay.hidden = true;
 				topicsBtn.setAttribute('aria-expanded', 'false');
 				document.body.classList.remove('llm-grammar-topics-open');
@@ -7467,9 +7920,13 @@
 				}
 			});
 			document.addEventListener('keydown', function (event) {
-				if (event.key === 'Escape' && !topicsOverlay.hidden) {
-					closeGrammarTopicsPopup();
+				if (event.key !== 'Escape' || topicsOverlay.hidden) {
+					return;
 				}
+				if (closeTopicsZoom && closeTopicsZoom()) {
+					return;
+				}
+				closeGrammarTopicsPopup();
 			});
 			topicsAcc.appendChild(topicsBtn);
 			topicsAcc.appendChild(topicsOverlay);
@@ -10989,12 +11446,30 @@
 		if (!listenThinkEl || listenInputsHaveCharAndSpace()) {
 			return false;
 		}
+		if (listenThinkDismissedThisTurn || isListenThinkHiddenForever()) {
+			return false;
+		}
 		var msg = (cfg.listenThinkFirst || i18n.listenThinkFirst || '').trim();
 		if (listenThinkText && msg) {
 			listenThinkText.textContent = msg;
 		}
+		if (listenThinkSkipBtn) {
+			var skipLbl = (cfg.listenThinkDontKnow || i18n.listenThinkDontKnow || '').trim();
+			if (skipLbl) {
+				listenThinkSkipBtn.textContent = skipLbl;
+			}
+		}
 		listenThinkEl.hidden = false;
 		return true;
+	}
+
+	if (listenThinkSkipBtn) {
+		listenThinkSkipBtn.addEventListener('click', function (e) {
+			e.preventDefault();
+			e.stopPropagation();
+			listenThinkDismissedThisTurn = true;
+			hideListenThinkPopup();
+		});
 	}
 
 	if (listenThinkBackdrop) {
@@ -11033,6 +11508,7 @@
 
 	function loadPhrase(resumeStep2) {
 		micWordsThisPhrase = 0;
+		listenThinkDismissedThisTurn = false;
 		hideAllAzurePronPanels();
 		hideListenThinkPopup();
 		closeStoryGrammarPopup();
@@ -12483,13 +12959,26 @@
 	syncCaretNavButtons();
 
 	(function initMobileStickyTranslate() {
-		if (!stickyTranslateOn) {
-			return;
-		}
 		var stickyEl = qs(root, '.llm-phrase-game__sticky-translate');
 		var phaseEl = qs(root, '.llm-phrase-game__phase--1');
+		var pinBtn = qs(root, '.llm-phrase-game__card-pin');
 		if (!stickyEl || !phaseEl || !stickyEl.parentNode) {
 			return;
+		}
+
+		var storageKey = 'llm_phrase_card_sticky';
+		var userLocked = false;
+		try {
+			var stored = window.localStorage.getItem(storageKey);
+			if (stored === '1') {
+				userLocked = true;
+			} else if (stored === '0') {
+				userLocked = false;
+			} else {
+				userLocked = !!stickyTranslateOn;
+			}
+		} catch (e) {
+			userLocked = !!stickyTranslateOn;
 		}
 
 		var placeholder = document.createElement('div');
@@ -12502,6 +12991,35 @@
 
 		function isMobile() {
 			return window.matchMedia('(max-width: 782px)').matches;
+		}
+
+		function stickyWanted() {
+			/* Sticky/pin disattivato temporaneamente: riquadro scorre normalmente come prima. */
+			return false;
+		}
+
+		function syncPinButton() {
+			if (!pinBtn) {
+				return;
+			}
+			pinBtn.setAttribute('aria-pressed', userLocked ? 'true' : 'false');
+			pinBtn.classList.toggle('is-locked', !!userLocked);
+			root.classList.toggle('llm-phrase-game--card-pinned', !!userLocked);
+			var openIc = pinBtn.querySelector('.llm-phrase-game__card-pin-icon--open');
+			var lockedIc = pinBtn.querySelector('.llm-phrase-game__card-pin-icon--locked');
+			if (openIc) {
+				openIc.hidden = !!userLocked;
+			}
+			if (lockedIc) {
+				lockedIc.hidden = !userLocked;
+			}
+			var label = userLocked
+				? pinBtn.getAttribute('data-label-on') || pinBtn.getAttribute('data-label-off')
+				: pinBtn.getAttribute('data-label-off');
+			if (label) {
+				pinBtn.setAttribute('aria-label', label);
+				pinBtn.setAttribute('title', label);
+			}
 		}
 
 		function headerOffset() {
@@ -12558,7 +13076,7 @@
 
 		function update() {
 			raf = 0;
-			if (!isMobile() || root.classList.contains('llm-phrase-game--phase2-active') || phaseEl.hidden) {
+			if (!stickyWanted() || root.classList.contains('llm-phrase-game--phase2-active') || phaseEl.hidden) {
 				unpin();
 				return;
 			}
@@ -12594,6 +13112,24 @@
 			raf = window.requestAnimationFrame(update);
 		}
 
+		if (pinBtn) {
+			pinBtn.addEventListener('click', function (ev) {
+				ev.preventDefault();
+				userLocked = !userLocked;
+				try {
+					window.localStorage.setItem(storageKey, userLocked ? '1' : '0');
+				} catch (err) {
+					/* ignore */
+				}
+				syncPinButton();
+				if (!userLocked) {
+					unpin();
+				}
+				schedule();
+			});
+		}
+
+		syncPinButton();
 		window.addEventListener('scroll', schedule, { passive: true });
 		window.addEventListener('resize', schedule);
 		window.addEventListener('orientationchange', schedule);

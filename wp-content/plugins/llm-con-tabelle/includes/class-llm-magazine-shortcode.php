@@ -451,7 +451,7 @@ class LLM_Magazine_Shortcode {
 						<?php if ( $known_flag ) : ?>
 							<span class="llm-magazine__welcome-flag" aria-hidden="true"><?php echo esc_html( $known_flag ); ?></span>
 						<?php endif; ?>
-						<span class="llm-magazine__welcome-brand"><?php esc_html_e( 'Bentornato su LoveRewrite', 'llm-con-tabelle' ); ?></span>
+						<span class="llm-magazine__welcome-brand"><?php esc_html_e( 'Bentornato su Lovrite', 'llm-con-tabelle' ); ?></span>
 					</p>
 					<a class="llm-magazine__welcome-change" href="<?php echo esc_url( $change_lang_url ); ?>"><?php esc_html_e( 'Cambia lingua', 'llm-con-tabelle' ); ?></a>
 				</div>
@@ -464,11 +464,11 @@ class LLM_Magazine_Shortcode {
 				<aside class="llm-magazine__sidebar">
 					<?php
 					$brand_aria = $issue_num > 0
-						? sprintf( /* translators: %d: magazine issue number */ __( 'LoveRewrite, edizione %d', 'llm-con-tabelle' ), $issue_num )
-						: 'LoveRewrite';
+						? sprintf( /* translators: %d: magazine issue number */ __( 'Lovrite, edizione %d', 'llm-con-tabelle' ), $issue_num )
+						: 'Lovrite';
 					?>
 					<div class="llm-magazine__sidebar-brand" aria-label="<?php echo esc_attr( $brand_aria ); ?>">
-						<p class="llm-magazine__sidebar-brand-name">LoveRewrite</p>
+						<p class="llm-magazine__sidebar-brand-name">Lovrite</p>
 						<?php if ( $issue_num > 0 ) : ?>
 							<p class="llm-magazine__sidebar-brand-label"><?php esc_html_e( 'Edizione n:', 'llm-con-tabelle' ); ?></p>
 							<p class="llm-magazine__sidebar-num"><?php echo esc_html( sprintf( '%02d', $issue_num ) ); ?></p>

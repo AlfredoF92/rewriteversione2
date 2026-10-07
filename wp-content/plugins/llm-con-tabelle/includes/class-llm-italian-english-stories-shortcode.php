@@ -1,7 +1,8 @@
 <?php
 /**
  * Shortcode catalogo riviste e storie per coppia:
- * [italian-english-stories], [italian-polish-stories], [english-polish-stories], [polish-italian-stories].
+ * [italian-english-stories], [english-italian-stories], [italian-polish-stories],
+ * [english-polish-stories], [polish-italian-stories], [italian-spanish-stories], [spanish-italian-stories].
  *
  * @package LLM_Tabelle
  */
@@ -29,9 +30,12 @@ class LLM_Italian_English_Stories_Shortcode {
 	private static function catalogs() {
 		return array(
 			'italian-english-stories' => array( 'it', 'en' ),
+			'english-italian-stories' => array( 'en', 'it' ),
 			'italian-polish-stories'  => array( 'it', 'pl' ),
 			'english-polish-stories'  => array( 'en', 'pl' ),
 			'polish-italian-stories'  => array( 'pl', 'it' ),
+			'italian-spanish-stories' => array( 'it', 'es' ),
+			'spanish-italian-stories' => array( 'es', 'it' ),
 		);
 	}
 
@@ -184,8 +188,9 @@ class LLM_Italian_English_Stories_Shortcode {
 				<?php
 				$grid_mod = isset( $section['grid'] ) ? sanitize_key( (string) $section['grid'] ) : '';
 				$grid_cls = 'llm-ie-stories__grid' . ( $grid_mod ? ' llm-ie-stories__grid--' . $grid_mod : '' );
+				$sec_cls  = 'llm-ie-stories__section' . ( $grid_mod ? ' llm-ie-stories__section--' . $grid_mod : '' );
 				?>
-				<section class="llm-ie-stories__section" id="<?php echo esc_attr( $section['anchor'] ); ?>">
+				<section class="<?php echo esc_attr( $sec_cls ); ?>" id="<?php echo esc_attr( $section['anchor'] ); ?>">
 					<h3 class="llm-ie-stories__title"><?php echo esc_html( $section['title'] ); ?></h3>
 					<div class="<?php echo esc_attr( $grid_cls ); ?>">
 						<?php foreach ( $section['cards'] as $card ) : ?>
@@ -203,31 +208,19 @@ class LLM_Italian_English_Stories_Shortcode {
 	 * @return array<int,array{title:string,anchor:string,cards:array<int,array<string,mixed>>}>
 	 */
 	private static function build_sections() {
-		$sections = array();
+		$sections   = array();
 		$sections[] = array(
 			'title'  => self::ui( 'latest' ),
 			'anchor' => 'llm-ie-ultime',
 			'grid'   => 'latest',
 			'cards'  => self::pad_cards( self::latest_cards(), 4, 2 ),
 		);
-		$mag_cards = self::magazine_cards();
-		if ( ! empty( $mag_cards ) ) {
-			$sections[] = array(
-				'title'  => self::ui( 'magazines' ),
-				'anchor' => 'llm-ie-riviste',
-				'cards'  => self::pad_cards( $mag_cards ),
-			);
-		}
-
-		$grouped = self::stories_grouped();
-		foreach ( $grouped as $group ) {
-			$sections[] = array(
-				'title'  => $group['title'],
-				'anchor' => $group['anchor'],
-				'cards'  => self::pad_cards( $group['cards'] ),
-			);
-		}
-
+		$sections[] = array(
+			'title'  => self::ui( 'upcoming' ),
+			'anchor' => 'llm-ie-in-arrivo',
+			'grid'   => 'upcoming',
+			'cards'  => self::pad_cards( self::upcoming_cards(), 6, 1 ),
+		);
 		return $sections;
 	}
 
@@ -469,6 +462,59 @@ class LLM_Italian_English_Stories_Shortcode {
 	}
 
 	/**
+	 * Categoria visibile sulla scheda (figlio della coppia, brani, oppure «Altre storie»).
+	 *
+	 * @param int $story_id ID storia.
+	 * @return string
+	 */
+	private static function story_category_label( $story_id ) {
+		$ctx = self::pair_content_context();
+		$term = self::primary_content_term( (int) $story_id, $ctx['child_ids'], $ctx['music_id'] );
+		if ( $term ) {
+			return self::term_title( $term );
+		}
+		return self::ui( 'other_stories' );
+	}
+
+	/**
+	 * Sottocategorie della coppia corrente + brani musicali.
+	 *
+	 * @return array{child_ids:int[],music_id:int}
+	 */
+	private static function pair_content_context() {
+		static $cache = array();
+		$key          = self::$known . '_' . self::$target;
+		if ( isset( $cache[ $key ] ) ) {
+			return $cache[ $key ];
+		}
+		$child_ids = array();
+		$root      = class_exists( 'LLM_Magazine' ) ? LLM_Magazine::pair_root_category( self::$known, self::$target ) : null;
+		if ( $root ) {
+			$children = get_terms(
+				array(
+					'taxonomy'   => 'category',
+					'hide_empty' => false,
+					'parent'     => (int) $root->term_id,
+					'orderby'    => 'name',
+					'order'      => 'ASC',
+				)
+			);
+			if ( ! is_wp_error( $children ) ) {
+				foreach ( $children as $child ) {
+					$child_ids[] = (int) $child->term_id;
+				}
+			}
+		}
+		$music    = get_term_by( 'slug', 'brani-musicali', 'category' );
+		$music_id = ( $music && ! is_wp_error( $music ) ) ? (int) $music->term_id : 0;
+		$cache[ $key ] = array(
+			'child_ids' => $child_ids,
+			'music_id'  => $music_id,
+		);
+		return $cache[ $key ];
+	}
+
+	/**
 	 * @param int $story_id  ID.
 	 * @param int[] $child_ids Figli it-english.
 	 * @param int $music_id  ID brani-musicali.
@@ -547,25 +593,94 @@ class LLM_Italian_English_Stories_Shortcode {
 				$plot = trim( (string) get_post_meta( $id, LLM_Story_Meta::STORY_PLOT, true ) );
 			}
 
+			$cat_label = self::story_category_label( $id );
+			if ( '' === $cat_label ) {
+				$cat_label = (string) $category;
+			}
+
+			$status_raw = (string) $story->post_status;
+			$status_ui  = self::status_ui( $status_raw );
+			$is_admin   = self::viewer_is_admin();
+			$can_open   = ( 'publish' === $status_ui ) || $is_admin;
+			$sched_lbl  = '';
+			if ( 'future' === $status_ui ) {
+				$ts = strtotime( (string) $story->post_date );
+				if ( $ts ) {
+					$sched_lbl = sprintf(
+						self::ui( 'scheduled_for' ),
+						date_i18n( 'd/m/Y H:i', $ts )
+					);
+				} else {
+					$sched_lbl = self::ui( 'scheduled' );
+				}
+			}
+
 			$cards[] = array(
-				'soon'         => false,
-				'url'          => (string) get_permalink( $id ),
-				'title'        => $english,
-				'subtitle'     => $translated,
-				'kicker'       => '',
-				'cover'        => (string) $cover,
-				'kind'         => 'story',
-				'cefr'         => $cefr_code,
-				'phrase_count' => $n,
-				'unit'         => $unit,
-				'preview'      => isset( $previews[ $id ] ) ? $previews[ $id ] : array(),
-				'excerpt'      => '',
-				'plot'         => $plot,
-				'category'     => (string) $category,
-				'date_label'   => '',
+				'soon'             => false,
+				'url'              => (string) get_permalink( $id ),
+				'title'            => $english,
+				'subtitle'         => $translated,
+				'kicker'           => '',
+				'cover'            => (string) $cover,
+				'kind'             => 'story',
+				'cefr'             => $cefr_code,
+				'phrase_count'     => $n,
+				'unit'             => $unit,
+				'preview'          => isset( $previews[ $id ] ) ? $previews[ $id ] : array(),
+				'excerpt'          => '',
+				'plot'             => $plot,
+				'category'         => $cat_label,
+				'date_label'       => '',
+				'status'           => $status_ui,
+				'status_label'     => self::status_badge_label( $status_ui ),
+				'scheduled_label'  => $sched_lbl,
+				'can_open'         => $can_open,
+				'show_status'      => $is_admin,
+				'target'           => self::$target,
 			);
 		}
 		return $cards;
+	}
+
+	/**
+	 * @return bool
+	 */
+	private static function viewer_is_admin() {
+		if ( ! is_user_logged_in() ) {
+			return false;
+		}
+		$user = wp_get_current_user();
+		return ( $user instanceof WP_User ) && in_array( 'administrator', (array) $user->roles, true );
+	}
+
+	/**
+	 * @param string $status Raw WP status.
+	 * @return string draft|future|publish
+	 */
+	private static function status_ui( $status ) {
+		$status = sanitize_key( (string) $status );
+		if ( 'publish' === $status ) {
+			return 'publish';
+		}
+		if ( 'future' === $status ) {
+			return 'future';
+		}
+		return 'draft';
+	}
+
+	/**
+	 * @param string $status_ui draft|future|publish.
+	 * @return string
+	 */
+	private static function status_badge_label( $status_ui ) {
+		$status_ui = self::status_ui( $status_ui );
+		if ( 'publish' === $status_ui ) {
+			return self::ui( 'status_publish' );
+		}
+		if ( 'future' === $status_ui ) {
+			return self::ui( 'status_future' );
+		}
+		return self::ui( 'status_draft' );
 	}
 
 	/**
@@ -658,7 +773,7 @@ class LLM_Italian_English_Stories_Shortcode {
 	}
 
 	/**
-	 * Ultime 8 storie pubblicate della coppia corrente.
+	 * Ultime storie pubblicate della coppia corrente (una sola griglia).
 	 *
 	 * @return array<int,array<string,mixed>>
 	 */
@@ -667,7 +782,7 @@ class LLM_Italian_English_Stories_Shortcode {
 			array(
 				'post_type'              => LLM_STORY_CPT,
 				'post_status'            => 'publish',
-				'posts_per_page'         => 8,
+				'posts_per_page'         => 400,
 				'orderby'                => 'date',
 				'order'                  => 'DESC',
 				'no_found_rows'          => true,
@@ -690,11 +805,45 @@ class LLM_Italian_English_Stories_Shortcode {
 				continue;
 			}
 			$out[] = $post;
-			if ( count( $out ) >= 8 ) {
-				break;
-			}
 		}
-		return self::story_cards( $out, self::ui( 'latest' ) );
+		return self::story_cards( $out );
+	}
+
+	/**
+	 * Storie programmate (future) della coppia corrente.
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function upcoming_cards() {
+		$q = new WP_Query(
+			array(
+				'post_type'              => LLM_STORY_CPT,
+				'post_status'            => 'future',
+				'posts_per_page'         => 80,
+				'orderby'                => 'date',
+				'order'                  => 'ASC',
+				'no_found_rows'          => true,
+				'meta_query'             => array(
+					'relation' => 'AND',
+					array(
+						'key'   => LLM_Story_Meta::KNOWN_LANG,
+						'value' => self::$known,
+					),
+					array(
+						'key'   => LLM_Story_Meta::TARGET_LANG,
+						'value' => self::$target,
+					),
+				),
+			)
+		);
+		$out = array();
+		foreach ( $q->posts as $post ) {
+			if ( self::belongs_to_other_pair( (int) $post->ID ) ) {
+				continue;
+			}
+			$out[] = $post;
+		}
+		return self::story_cards( $out );
 	}
 
 	/**
@@ -713,21 +862,26 @@ class LLM_Italian_English_Stories_Shortcode {
 		$need     = max( 0, $target - $n );
 		for ( $i = 0; $i < $need; $i++ ) {
 			$cards[] = array(
-				'soon'         => true,
-				'url'          => '',
-				'title'        => '',
-				'subtitle'     => '',
-				'kicker'       => '',
-				'cover'        => '',
-				'kind'         => 'placeholder',
-				'cefr'         => '',
-				'phrase_count' => 0,
-				'unit'         => '',
-				'preview'      => array(),
-				'excerpt'      => '',
-				'plot'         => '',
-				'category'     => '',
-				'date_label'   => '',
+				'soon'             => true,
+				'url'              => '',
+				'title'            => '',
+				'subtitle'         => '',
+				'kicker'           => '',
+				'cover'            => '',
+				'kind'             => 'placeholder',
+				'cefr'             => '',
+				'phrase_count'     => 0,
+				'unit'             => '',
+				'preview'          => array(),
+				'excerpt'          => '',
+				'plot'             => '',
+				'category'         => '',
+				'date_label'       => '',
+				'status'           => 'draft',
+				'status_label'     => '',
+				'scheduled_label'  => '',
+				'can_open'         => false,
+				'show_status'      => false,
 			);
 		}
 		return $cards;
@@ -750,6 +904,10 @@ class LLM_Italian_English_Stories_Shortcode {
 		$unit         = isset( $card['unit'] ) ? (string) $card['unit'] : '';
 		$date_label   = isset( $card['date_label'] ) ? (string) $card['date_label'] : '';
 		$category     = isset( $card['category'] ) ? (string) $card['category'] : '';
+		$status_ui    = isset( $card['status'] ) ? self::status_ui( (string) $card['status'] ) : 'publish';
+		$show_status  = ! empty( $card['show_status'] ) && ! $soon;
+		$status_label = isset( $card['status_label'] ) ? (string) $card['status_label'] : '';
+		$can_open     = array_key_exists( 'can_open', $card ) ? ! empty( $card['can_open'] ) : true;
 		$interactive  = ( ! $soon && $url !== '' );
 		$pop_id       = $interactive ? 'llm-ie-pop-' . wp_unique_id() : '';
 
@@ -763,6 +921,9 @@ class LLM_Italian_English_Stories_Shortcode {
 		if ( $interactive ) {
 			$class .= ' llm-ie-stories__card--openable';
 		}
+		if ( 'future' === $status_ui && ! $soon ) {
+			$class .= ' llm-ie-stories__card--future';
+		}
 
 		$cta_label = self::ui( 'open_story' );
 		if ( 'magazine' === $kind ) {
@@ -772,6 +933,9 @@ class LLM_Italian_English_Stories_Shortcode {
 			if ( $cefr ) {
 				$cta_label .= ' [' . $cefr . ']';
 			}
+		}
+		if ( ! $can_open && ! empty( $card['scheduled_label'] ) ) {
+			$cta_label = (string) $card['scheduled_label'];
 		}
 
 		$show_clock    = ( $phrase_count > 0 && $unit );
@@ -802,22 +966,14 @@ class LLM_Italian_English_Stories_Shortcode {
 						aria-hidden="true"
 					<?php endif; ?>
 				>
+					<?php if ( $show_status && $status_label ) : ?>
+						<span class="llm-ie-stories__pub-status is-<?php echo esc_attr( $status_ui ); ?>"><?php echo esc_html( $status_label ); ?></span>
+					<?php endif; ?>
 					<?php if ( ! $soon ) : ?>
-						<?php echo self::cover_badges( $cefr, $duration_text, $show_clock, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+						<?php echo self::cover_badges( $cefr, '', false, isset( $card['target'] ) ? (string) $card['target'] : '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 					<?php endif; ?>
 					<?php if ( $soon ) : ?>
 						<span class="llm-ie-stories__soon"><?php echo esc_html( self::ui( 'soon' ) ); ?></span>
-					<?php endif; ?>
-				</div>
-				<div class="llm-ie-stories__body">
-					<?php if ( $kicker ) : ?>
-						<p class="llm-ie-stories__card-kicker"><?php echo esc_html( $kicker ); ?></p>
-					<?php endif; ?>
-					<?php if ( $title ) : ?>
-						<h4 class="llm-ie-stories__card-title"><?php echo esc_html( $title ); ?></h4>
-					<?php endif; ?>
-					<?php if ( $subtitle ) : ?>
-						<p class="llm-ie-stories__card-sub"><?php echo esc_html( $subtitle ); ?></p>
 					<?php endif; ?>
 				</div>
 			</div>
@@ -884,10 +1040,18 @@ class LLM_Italian_English_Stories_Shortcode {
 					?>
 					<p class="llm-ie-stories__plot"><?php echo esc_html( $plot ); ?></p>
 				<?php endif; ?>
+				<?php
+				$can_open = array_key_exists( 'can_open', $card ) ? ! empty( $card['can_open'] ) : true;
+				$sched    = isset( $card['scheduled_label'] ) ? trim( (string) $card['scheduled_label'] ) : '';
+				if ( $can_open && $url ) :
+					?>
 				<a class="llm-ie-stories__cta" href="<?php echo esc_url( $url ); ?>">
 					<span class="llm-ie-stories__cta-icon" aria-hidden="true"></span>
 					<span><?php echo esc_html( $cta ); ?></span>
 				</a>
+				<?php elseif ( $sched ) : ?>
+				<span class="llm-ie-stories__cta llm-ie-stories__cta--scheduled"><?php echo esc_html( $sched ); ?></span>
+				<?php endif; ?>
 				<?php if ( 'story' === $kind && ! empty( $preview ) ) : ?>
 					<ol class="llm-ie-stories__preview">
 						<?php foreach ( $preview as $row ) : ?>
@@ -930,7 +1094,7 @@ class LLM_Italian_English_Stories_Shortcode {
 		if ( '' !== $category ) {
 			$bits[] = '<span class="llm-ie-stories__cat">' . esc_html( $category ) . '</span>';
 		}
-		$level = self::level_badge( $cefr, true );
+		$level = self::level_badge( $cefr, true, '' );
 		if ( '' !== $level ) {
 			$bits[] = $level;
 		}
@@ -952,41 +1116,52 @@ class LLM_Italian_English_Stories_Shortcode {
 	 * @param string $cefr          Livello.
 	 * @param string $duration_text Durata.
 	 * @param bool   $show_clock    Icona orologio.
-	 * @param string $category      Categoria.
+	 * @param string $target_lang   Lingua obiettivo (codice).
 	 * @return string
 	 */
-	private static function cover_badges( $cefr, $duration_text, $show_clock, $category = '' ) {
-		$cat = '';
-		$category = trim( (string) $category );
-		if ( '' !== $category ) {
-			$cat = '<span class="llm-ie-stories__cat">' . esc_html( $category ) . '</span>';
-		}
-		$level = self::level_badge( $cefr );
+	private static function cover_badges( $cefr, $duration_text, $show_clock, $target_lang = '' ) {
+		$level = self::level_badge( $cefr, true, $target_lang );
 		$dur   = '';
 		if ( $duration_text ) {
 			$dur  = '<span class="llm-ie-stories__duration llm-ie-stories__duration--cover">';
 			$dur .= $show_clock ? self::clock_icon() : '';
 			$dur .= '<span>' . esc_html( $duration_text ) . '</span></span>';
 		}
-		if ( '' === $cat && '' === $level && '' === $dur ) {
+		$end = $level . $dur;
+		if ( '' === $end ) {
 			return '';
 		}
-		return '<div class="llm-ie-stories__cover-badges">' . $cat . $level . $dur . '</div>';
+		$html  = '<div class="llm-ie-stories__cover-badges">';
+		$html .= '<span class="llm-ie-stories__cover-badges-end">' . $end . '</span>';
+		$html .= '</div>';
+		return $html;
 	}
 
 	/**
-	 * @param string $cefr       A1–C2.
-	 * @param bool   $with_label Prefisso «Livello».
+	 * @param string $cefr        A1–C2.
+	 * @param bool   $with_label  Prefisso «Lvl.».
+	 * @param string $target_lang Codice lingua obiettivo.
 	 * @return string
 	 */
-	private static function level_badge( $cefr, $with_label = false ) {
+	private static function level_badge( $cefr, $with_label = false, $target_lang = '' ) {
 		$cefr = strtoupper( trim( (string) $cefr ) );
 		if ( ! preg_match( '/^[ABC][12]$/', $cefr ) ) {
 			return '';
 		}
-		$band = strtolower( $cefr[0] );
-		$text = $with_label ? ( self::ui( 'level' ) . ' ' . $cefr ) : $cefr;
-		return '<span class="llm-ie-stories__level llm-ie-stories__level--' . esc_attr( $band ) . '">' . esc_html( $text ) . '</span>';
+		$code = strtolower( $cefr );
+		$bits = array();
+		$bits[] = '<strong class="llm-ie-stories__level-code">' . esc_html( $cefr ) . '</strong>';
+		$target_lang = sanitize_key( (string) $target_lang );
+		if ( '' === $target_lang && ! empty( self::$target ) ) {
+			$target_lang = sanitize_key( (string) self::$target );
+		}
+		if ( $target_lang && class_exists( 'LLM_Languages' ) ) {
+			$lang_lbl = LLM_Languages::label( $target_lang );
+			if ( $lang_lbl ) {
+				$bits[] = '<span class="llm-ie-stories__level-lang">' . esc_html( $lang_lbl ) . '</span>';
+			}
+		}
+		return '<span class="llm-ie-stories__level llm-ie-stories__level--' . esc_attr( $code ) . '">' . implode( ' ', $bits ) . '</span>';
 	}
 
 	/**
@@ -1067,64 +1242,88 @@ class LLM_Italian_English_Stories_Shortcode {
 		$lang = self::$known;
 		$all  = array(
 			'it' => array(
-				'latest'        => 'Ultime uscite',
-				'magazines'     => 'Riviste',
-				'other_stories' => 'Altre storie',
-				'open_story'    => 'Apri storia',
-				'open_magazine' => 'Apri rivista',
-				'learn_n'       => 'Impara %d %s',
-				'soon'          => 'In arrivo',
-				'close'         => 'Chiudi',
-				'level'         => 'Livello',
-				'phrase'        => 'frase',
-				'phrases'       => 'frasi',
-				'verse'         => 'verso',
-				'verses'        => 'versi',
+				'latest'         => 'Ultime uscite',
+				'upcoming'       => 'In arrivo (prossime uscite)',
+				'magazines'      => 'Riviste',
+				'other_stories'  => 'Altre storie',
+				'open_story'     => 'Apri storia',
+				'open_magazine'  => 'Apri rivista',
+				'learn_n'        => 'Impara %d %s',
+				'soon'           => 'In arrivo',
+				'scheduled'      => 'Programmata',
+				'scheduled_for'  => 'Programmata per il %s',
+				'status_publish' => 'Pubblicata',
+				'status_future'  => 'Programmata',
+				'status_draft'   => 'Bozza',
+				'close'          => 'Chiudi',
+				'level'          => 'Lvl.',
+				'phrase'         => 'frase',
+				'phrases'        => 'frasi',
+				'verse'          => 'verso',
+				'verses'         => 'versi',
 			),
 			'en' => array(
-				'latest'        => 'Latest releases',
-				'magazines'     => 'Magazines',
-				'other_stories' => 'Other stories',
-				'open_story'    => 'Open story',
-				'open_magazine' => 'Open magazine',
-				'learn_n'       => 'Learn %d %s',
-				'soon'          => 'Coming soon',
-				'close'         => 'Close',
-				'level'         => 'Level',
-				'phrase'        => 'phrase',
-				'phrases'       => 'phrases',
-				'verse'         => 'line',
-				'verses'        => 'lines',
+				'latest'         => 'Latest releases',
+				'upcoming'       => 'Coming soon (upcoming releases)',
+				'magazines'      => 'Magazines',
+				'other_stories'  => 'Other stories',
+				'open_story'     => 'Open story',
+				'open_magazine'  => 'Open magazine',
+				'learn_n'        => 'Learn %d %s',
+				'soon'           => 'Coming soon',
+				'scheduled'      => 'Scheduled',
+				'scheduled_for'  => 'Scheduled for %s',
+				'status_publish' => 'Published',
+				'status_future'  => 'Scheduled',
+				'status_draft'   => 'Draft',
+				'close'          => 'Close',
+				'level'          => 'Lvl.',
+				'phrase'         => 'phrase',
+				'phrases'        => 'phrases',
+				'verse'          => 'line',
+				'verses'         => 'lines',
 			),
 			'pl' => array(
-				'latest'        => 'Ostatnie publikacje',
-				'magazines'     => 'Magazyny',
-				'other_stories' => 'Inne historie',
-				'open_story'    => 'Otwórz historię',
-				'open_magazine' => 'Otwórz magazyn',
-				'learn_n'       => 'Ucz się: %d %s',
-				'soon'          => 'Wkrótce',
-				'close'         => 'Zamknij',
-				'level'         => 'Poziom',
-				'phrase'        => 'zdanie',
-				'phrases'       => 'zdań',
-				'verse'         => 'wers',
-				'verses'        => 'wersów',
+				'latest'         => 'Ostatnie publikacje',
+				'upcoming'       => 'Wkrótce (nadchodzące)',
+				'magazines'      => 'Magazyny',
+				'other_stories'  => 'Inne historie',
+				'open_story'     => 'Otwórz historię',
+				'open_magazine'  => 'Otwórz magazyn',
+				'learn_n'        => 'Ucz się: %d %s',
+				'soon'           => 'Wkrótce',
+				'scheduled'      => 'Zaplanowana',
+				'scheduled_for'  => 'Zaplanowana na %s',
+				'status_publish' => 'Opublikowana',
+				'status_future'  => 'Zaplanowana',
+				'status_draft'   => 'Szkic',
+				'close'          => 'Zamknij',
+				'level'          => 'Lvl.',
+				'phrase'         => 'zdanie',
+				'phrases'        => 'zdań',
+				'verse'          => 'wers',
+				'verses'         => 'wersów',
 			),
 			'es' => array(
-				'latest'        => 'Últimas salidas',
-				'magazines'     => 'Revistas',
-				'other_stories' => 'Otras historias',
-				'open_story'    => 'Abrir historia',
-				'open_magazine' => 'Abrir revista',
-				'learn_n'       => 'Aprende %d %s',
-				'soon'          => 'Próximamente',
-				'close'         => 'Cerrar',
-				'level'         => 'Nivel',
-				'phrase'        => 'frase',
-				'phrases'       => 'frases',
-				'verse'         => 'verso',
-				'verses'        => 'versos',
+				'latest'         => 'Últimas salidas',
+				'upcoming'       => 'Próximamente (próximas salidas)',
+				'magazines'      => 'Revistas',
+				'other_stories'  => 'Otras historias',
+				'open_story'     => 'Abrir historia',
+				'open_magazine'  => 'Abrir revista',
+				'learn_n'        => 'Aprende %d %s',
+				'soon'           => 'Próximamente',
+				'scheduled'      => 'Programada',
+				'scheduled_for'  => 'Programada para el %s',
+				'status_publish' => 'Publicada',
+				'status_future'  => 'Programada',
+				'status_draft'   => 'Borrador',
+				'close'          => 'Cerrar',
+				'level'          => 'Lvl.',
+				'phrase'         => 'frase',
+				'phrases'        => 'frases',
+				'verse'          => 'verso',
+				'verses'         => 'versos',
 			),
 		);
 		if ( isset( $all[ $lang ][ $key ] ) ) {

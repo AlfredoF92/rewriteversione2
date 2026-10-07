@@ -257,10 +257,14 @@ class LLM_Admin_Story {
 		$card_text      = get_post_meta( $post->ID, LLM_Story_Meta::STORY_CARD_TEXT, true );
 		$cefr_level     = get_post_meta( $post->ID, LLM_Story_Meta::STORY_CEFR_LEVEL, true );
 		$grammar_topics = get_post_meta( $post->ID, LLM_Story_Meta::STORY_GRAMMAR_TOPICS, true );
+		$sources        = class_exists( 'LLM_Story_Meta' ) ? LLM_Story_Meta::get_sources( (int) $post->ID ) : array();
 		$cost    = (int) get_post_meta( $post->ID, LLM_Story_Meta::COIN_COST, true );
 		$reward  = (int) get_post_meta( $post->ID, LLM_Story_Meta::COIN_REWARD, true );
 
 		$langs = LLM_Languages::get_codes();
+		while ( count( $sources ) < LLM_Story_Meta::SOURCES_MAX ) {
+			$sources[] = array( 'label' => '', 'url' => '' );
+		}
 		?>
 		<div class="llm-field-row">
 			<label for="llm_known_lang"><strong><?php esc_html_e( 'Lingua interfaccia (nota)', 'llm-con-tabelle' ); ?></strong></label>
@@ -307,6 +311,48 @@ class LLM_Admin_Story {
 			<label for="llm_story_grammar_topics"><strong><?php esc_html_e( 'Topic Grammaticali', 'llm-con-tabelle' ); ?></strong></label>
 			<p class="description"><?php esc_html_e( 'Dieci punti. Per ciascuno: riga titolo (1. Titolo) e riga descrizione. Parole della lingua obiettivo tra virgolette.', 'llm-con-tabelle' ); ?></p>
 			<textarea name="llm_story_grammar_topics" id="llm_story_grammar_topics" class="widefat" rows="16"><?php echo esc_textarea( is_string( $grammar_topics ) ? $grammar_topics : '' ); ?></textarea>
+		</div>
+		<?php
+		$infographic_id  = (int) get_post_meta( $post->ID, LLM_Story_Meta::GRAMMAR_INFOGRAPHIC, true );
+		$infographic_url = ( $infographic_id && wp_attachment_is_image( $infographic_id ) ) ? (string) wp_get_attachment_image_url( $infographic_id, 'medium' ) : '';
+		if ( ! $infographic_url ) {
+			$infographic_id = 0;
+		}
+		?>
+		<div class="llm-field-row" id="llm-grammar-infographic">
+			<label for="llm_story_grammar_infographic"><strong><?php esc_html_e( 'Infografica topic grammaticali', 'llm-con-tabelle' ); ?></strong></label>
+			<p class="description"><?php esc_html_e( 'Compare in grande nel popup dei topic, sopra l’elenco. L’utente può ingrandirla e scaricarla.', 'llm-con-tabelle' ); ?></p>
+			<div class="llm-grammar-infographic-picker">
+				<div class="llm-media-thumb">
+					<?php if ( $infographic_url ) : ?>
+						<img src="<?php echo esc_url( $infographic_url ); ?>" alt="" />
+					<?php endif; ?>
+				</div>
+				<input type="hidden" name="llm_story_grammar_infographic" id="llm_story_grammar_infographic" value="<?php echo esc_attr( (string) $infographic_id ); ?>" />
+				<button type="button" class="button" id="llm-pick-grammar-infographic"><?php esc_html_e( 'Scegli immagine', 'llm-con-tabelle' ); ?></button>
+				<button type="button" class="button-link" id="llm-clear-grammar-infographic"><?php esc_html_e( 'Rimuovi', 'llm-con-tabelle' ); ?></button>
+			</div>
+		</div>
+		<div class="llm-field-row">
+			<strong><?php esc_html_e( 'Fonti per approfondire', 'llm-con-tabelle' ); ?></strong>
+			<p class="description"><?php esc_html_e( 'Massimo 3 link (etichetta + URL). Comparono sotto le categorie nella scheda storia. Es. «Ascolta la canzone» → ricerca Google.', 'llm-con-tabelle' ); ?></p>
+			<?php for ( $i = 0; $i < LLM_Story_Meta::SOURCES_MAX; $i++ ) : ?>
+				<?php
+				$row   = isset( $sources[ $i ] ) && is_array( $sources[ $i ] ) ? $sources[ $i ] : array();
+				$label = isset( $row['label'] ) ? (string) $row['label'] : '';
+				$url   = isset( $row['url'] ) ? (string) $row['url'] : '';
+				?>
+				<div class="llm-field-row llm-field-inline" style="margin-top:8px;gap:8px;align-items:flex-end;">
+					<div style="flex:1;min-width:140px;">
+						<label for="llm_story_sources_<?php echo esc_attr( (string) $i ); ?>_label"><?php echo esc_html( sprintf( /* translators: %d = slot 1-3 */ __( 'Etichetta %d', 'llm-con-tabelle' ), $i + 1 ) ); ?></label>
+						<input type="text" class="widefat" name="llm_story_sources[<?php echo esc_attr( (string) $i ); ?>][label]" id="llm_story_sources_<?php echo esc_attr( (string) $i ); ?>_label" value="<?php echo esc_attr( $label ); ?>" placeholder="<?php esc_attr_e( 'Ascolta la canzone', 'llm-con-tabelle' ); ?>" />
+					</div>
+					<div style="flex:2;min-width:200px;">
+						<label for="llm_story_sources_<?php echo esc_attr( (string) $i ); ?>_url"><?php echo esc_html( sprintf( /* translators: %d = slot 1-3 */ __( 'URL %d', 'llm-con-tabelle' ), $i + 1 ) ); ?></label>
+						<input type="url" class="widefat" name="llm_story_sources[<?php echo esc_attr( (string) $i ); ?>][url]" id="llm_story_sources_<?php echo esc_attr( (string) $i ); ?>_url" value="<?php echo esc_attr( $url ); ?>" placeholder="https://" />
+					</div>
+				</div>
+			<?php endfor; ?>
 		</div>
 		<div class="llm-field-row">
 			<label for="llm_story_card_text"><strong><?php esc_html_e( 'Breve testo per la scheda della storia', 'llm-con-tabelle' ); ?></strong></label>
@@ -562,8 +608,35 @@ class LLM_Admin_Story {
 					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][notes]" class="widefat" rows="2"><?php echo esc_textarea( isset( $p['notes'] ) ? $p['notes'] : '' ); ?></textarea>
 					<label><?php esc_html_e( 'Note della storia (lingua da imparare)', 'llm-con-tabelle' ); ?></label>
 					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][notes_target]" class="widefat" rows="2"><?php echo esc_textarea( isset( $p['notes_target'] ) ? $p['notes_target'] : '' ); ?></textarea>
-					<label><?php esc_html_e( 'Analisi grammaticale', 'llm-con-tabelle' ); ?></label>
-					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][grammar]" class="widefat" rows="3"><?php echo esc_textarea( isset( $p['grammar'] ) ? $p['grammar'] : '' ); ?></textarea>
+					<?php
+					$slots = isset( $p['grammar_slots'] ) && is_array( $p['grammar_slots'] ) ? $p['grammar_slots'] : array();
+					for ( $si = 1; $si <= LLM_Story_Repository::GRAMMAR_SLOTS_MAX; $si++ ) {
+						if ( ! isset( $slots[ $si ] ) ) {
+							$slots[ $si ] = array( 'title' => '', 'body' => '' );
+						}
+					}
+					?>
+					<details class="llm-phrase-grammar-slots" open>
+						<summary><strong><?php esc_html_e( 'Appunti grammaticali (10 slot: titolo + testo)', 'llm-con-tabelle' ); ?></strong></summary>
+						<p class="description"><?php esc_html_e( 'Titolo = coppia da tradurre (es. Mi piace → Disfruto). Testo = spiegazione. Slot vuoti ignorati. Gli accordion in frontend usano questi campi.', 'llm-con-tabelle' ); ?></p>
+						<?php for ( $si = 1; $si <= LLM_Story_Repository::GRAMMAR_SLOTS_MAX; $si++ ) : ?>
+							<?php
+							$st = isset( $slots[ $si ]['title'] ) ? (string) $slots[ $si ]['title'] : '';
+							$sb = isset( $slots[ $si ]['body'] ) ? (string) $slots[ $si ]['body'] : '';
+							?>
+							<div class="llm-grammar-slot" style="margin:10px 0;padding:8px;border:1px solid #dcdcde;border-radius:4px;background:#f6f7f7;">
+								<label><?php echo esc_html( sprintf( /* translators: %d slot number */ __( 'Slot %d — titolo', 'llm-con-tabelle' ), $si ) ); ?></label>
+								<input type="text" class="widefat" name="llm_phrases[<?php echo esc_attr( $i ); ?>][grammar_slots][<?php echo esc_attr( (string) $si ); ?>][title]" value="<?php echo esc_attr( $st ); ?>" placeholder="<?php esc_attr_e( 'parola/frase → traduzione', 'llm-con-tabelle' ); ?>" />
+								<label style="margin-top:6px;display:block;"><?php echo esc_html( sprintf( /* translators: %d slot number */ __( 'Slot %d — testo', 'llm-con-tabelle' ), $si ) ); ?></label>
+								<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][grammar_slots][<?php echo esc_attr( (string) $si ); ?>][body]" class="widefat" rows="3"><?php echo esc_textarea( $sb ); ?></textarea>
+							</div>
+						<?php endfor; ?>
+					</details>
+					<details class="llm-phrase-grammar-legacy">
+						<summary><?php esc_html_e( 'Analisi grammaticale HTML (legacy)', 'llm-con-tabelle' ); ?></summary>
+						<p class="description"><?php esc_html_e( 'Usato solo se tutti gli slot sopra sono vuoti. Se compili gli slot, questo campo viene rigenerato automaticamente al salvataggio.', 'llm-con-tabelle' ); ?></p>
+						<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][grammar]" class="widefat" rows="3"><?php echo esc_textarea( isset( $p['grammar'] ) ? $p['grammar'] : '' ); ?></textarea>
+					</details>
 					<label><?php esc_html_e( 'Ricorda', 'llm-con-tabelle' ); ?></label>
 					<textarea name="llm_phrases[<?php echo esc_attr( $i ); ?>][remember]" class="widefat" rows="3"><?php echo esc_textarea( isset( $p['remember'] ) ? $p['remember'] : '' ); ?></textarea>
 					<label><?php esc_html_e( 'Traduzione alternativa', 'llm-con-tabelle' ); ?></label>
@@ -578,21 +651,16 @@ class LLM_Admin_Story {
 					$listen_items = ( $phrase_id && class_exists( 'LLM_Notes_Listen' ) )
 						? LLM_Notes_Listen::get_for_phrase( $phrase_id )
 						: array();
-					if ( $listen_items ) :
+					$grammar_html = isset( $p['grammar'] ) ? (string) $p['grammar'] : '';
+					if ( $listen_items && '' !== trim( wp_strip_all_tags( $grammar_html ) ) ) :
+						$preview = LLM_Notes_Listen::admin_preview_html( $grammar_html, $listen_items );
 						?>
 					<div class="llm-notes-listen-admin">
-						<p class="llm-notes-listen-admin__title"><?php esc_html_e( 'Frasi selezionate che hanno un audio', 'llm-con-tabelle' ); ?></p>
-						<ul class="llm-notes-listen-admin__list">
-							<?php foreach ( $listen_items as $item ) : ?>
-								<li class="llm-notes-listen-admin__item">
-									<button type="button" class="button llm-notes-listen-play"<?php echo $item['url'] ? ' data-audio-url="' . esc_url( $item['url'] ) . '"' : ' disabled="disabled"'; ?> aria-label="<?php echo esc_attr( sprintf( __( 'Ascolta: %s', 'llm-con-tabelle' ), $item['text'] ) ); ?>">Play</button>
-									<span class="llm-notes-listen-admin__text"><?php echo esc_html( $item['text'] ); ?></span>
-									<?php if ( ! $item['url'] ) : ?>
-										<span class="llm-notes-listen-admin__miss"><?php esc_html_e( 'manca', 'llm-con-tabelle' ); ?></span>
-									<?php endif; ?>
-								</li>
-							<?php endforeach; ?>
-						</ul>
+						<p class="llm-notes-listen-admin__title"><?php esc_html_e( 'Consigli della traduzione — parole selezionate per l’audio', 'llm-con-tabelle' ); ?></p>
+						<p class="llm-notes-listen-admin__hint"><?php esc_html_e( 'Anteprima non cliccabile: l’icona indica le parole/frasi scelte dall’algoritmo (una sola volta ciascuna).', 'llm-con-tabelle' ); ?></p>
+						<div class="llm-notes-listen-admin__preview">
+							<?php echo wp_kses_post( $preview ); ?>
+						</div>
 					</div>
 						<?php
 					endif;
@@ -894,6 +962,17 @@ class LLM_Admin_Story {
 			LLM_Story_Meta::STORY_GRAMMAR_TOPICS,
 			isset( $_POST['llm_story_grammar_topics'] ) ? LLM_Story_Meta::sanitize_plot( wp_unslash( $_POST['llm_story_grammar_topics'] ) ) : ''
 		);
+
+		$infographic_id = isset( $_POST['llm_story_grammar_infographic'] ) ? absint( wp_unslash( $_POST['llm_story_grammar_infographic'] ) ) : 0;
+		if ( $infographic_id && ! wp_attachment_is_image( $infographic_id ) ) {
+			$infographic_id = 0;
+		}
+		update_post_meta( $post_id, LLM_Story_Meta::GRAMMAR_INFOGRAPHIC, $infographic_id );
+
+		$raw_sources = isset( $_POST['llm_story_sources'] ) && is_array( $_POST['llm_story_sources'] )
+			? wp_unslash( $_POST['llm_story_sources'] )
+			: array();
+		LLM_Story_Meta::set_sources( $post_id, $raw_sources );
 
 		update_post_meta(
 			$post_id,

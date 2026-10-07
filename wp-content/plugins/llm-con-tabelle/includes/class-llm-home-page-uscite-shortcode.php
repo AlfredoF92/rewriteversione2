@@ -122,6 +122,7 @@ class LLM_Home_Page_Uscite_Shortcode {
 			data-today="<?php echo esc_attr( current_time( 'Y-m-d' ) ); ?>"
 			data-i18n="<?php echo esc_attr( wp_json_encode( self::js_i18n( $from ) ) ); ?>"
 			data-guest="<?php echo $is_guest ? '1' : '0'; ?>"
+			data-is-admin="<?php echo self::viewer_is_admin() ? '1' : '0'; ?>"
 			data-hello-name="<?php echo esc_attr( $hello_name ); ?>"
 			data-greetings="<?php echo esc_attr( wp_json_encode( self::greeting_cycle() ) ); ?>"
 		>
@@ -158,42 +159,46 @@ class LLM_Home_Page_Uscite_Shortcode {
 				<div class="llm-uscite__head">
 					<div class="llm-uscite__head-main">
 						<h2 id="llm-uscite-latest-title" class="llm-uscite__title"><?php echo esc_html( self::month_releases_title( $from ) ); ?></h2>
-						<?php echo self::render_pair_chip( $sel_known, $sel_target, $sel_url ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML escapato nel metodo. ?>
 					</div>
-					<div class="llm-uscite__nav" role="group" aria-label="<?php echo esc_attr( self::t( $from, 'carousel_nav' ) ); ?>">
-						<button type="button" class="llm-uscite__arrow" data-llm-uscite-prev aria-label="<?php echo esc_attr( self::t( $from, 'prev' ) ); ?>">
+				</div>
+				<div class="llm-uscite__carousel-wrap">
+					<div class="llm-uscite__nav llm-uscite__nav--carousel" role="group" aria-label="<?php echo esc_attr( self::t( $from, 'carousel_nav' ) ); ?>">
+						<button type="button" class="llm-uscite__arrow llm-uscite__arrow--carousel is-hidden" data-llm-uscite-prev aria-label="<?php echo esc_attr( self::t( $from, 'prev' ) ); ?>">
 							<span aria-hidden="true">&#8249;</span>
 						</button>
-						<button type="button" class="llm-uscite__arrow" data-llm-uscite-next aria-label="<?php echo esc_attr( self::t( $from, 'next' ) ); ?>">
+						<button type="button" class="llm-uscite__arrow llm-uscite__arrow--carousel" data-llm-uscite-next aria-label="<?php echo esc_attr( self::t( $from, 'next' ) ); ?>">
 							<span aria-hidden="true">&#8250;</span>
 						</button>
 					</div>
-				</div>
-				<div class="llm-uscite__carousel" data-llm-uscite-track tabindex="0">
-					<?php
-					if ( empty( $latest ) ) {
-						echo '<p class="llm-uscite__empty">' . esc_html( self::t( $from, 'no_stories' ) ) . '</p>';
-					} else {
-						foreach ( $latest as $card ) {
-							echo self::render_story_card( $card, $ui, 'carousel' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+					<div class="llm-uscite__carousel" data-llm-uscite-track tabindex="0">
+						<?php
+						if ( empty( $latest ) ) {
+							echo '<p class="llm-uscite__empty">' . esc_html( self::t( $from, 'no_stories' ) ) . '</p>';
+						} else {
+							foreach ( $latest as $card ) {
+								echo self::render_story_card( $card, $ui, 'carousel' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+							}
 						}
-					}
-					?>
+						?>
+					</div>
 				</div>
+				<?php echo self::render_all_stories_cta( $from, $sel_url ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 			</section>
 
 			<section class="llm-uscite__section" aria-labelledby="llm-uscite-cal-title">
 				<div class="llm-uscite__head">
 					<div class="llm-uscite__head-main">
 						<h2 id="llm-uscite-cal-title" class="llm-uscite__title"><?php echo esc_html( self::t( $from, 'calendar' ) ); ?></h2>
-						<?php echo self::render_pair_chip( $sel_known, $sel_target, $sel_url ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML escapato nel metodo. ?>
 					</div>
 				</div>
 				<div class="llm-uscite__cal-box">
 					<div class="llm-uscite__cal-grid-wrap">
 						<div class="llm-uscite__cal-toolbar">
 							<button type="button" class="llm-uscite__cal-shift" data-llm-uscite-cal-prev></button>
-							<p class="llm-uscite__cal-month" data-llm-uscite-cal-label></p>
+							<div class="llm-uscite__cal-month-block">
+								<p class="llm-uscite__cal-month" data-llm-uscite-cal-label></p>
+								<p class="llm-uscite__cal-pair" data-llm-uscite-cal-pair><?php echo esc_html( self::pair_card_title( $from, $sel_known, $sel_target ) ); ?></p>
+							</div>
 							<button type="button" class="llm-uscite__cal-shift" data-llm-uscite-cal-next></button>
 						</div>
 						<div class="llm-uscite__cal" data-llm-uscite-cal></div>
@@ -204,6 +209,22 @@ class LLM_Home_Page_Uscite_Shortcode {
 					</div>
 				</div>
 			</section>
+			<div class="llm-uscite__story-pop" data-llm-uscite-story-pop hidden>
+				<div class="llm-uscite__story-pop-backdrop" data-llm-uscite-story-pop-close></div>
+				<div class="llm-uscite__story-pop-dialog" role="dialog" aria-modal="true" aria-labelledby="llm-uscite-story-pop-title">
+					<button type="button" class="llm-uscite__story-pop-close" data-llm-uscite-story-pop-close aria-label="<?php echo esc_attr( self::t( $from, 'close' ) ); ?>">&times;</button>
+					<div class="llm-uscite__story-pop-cover" data-llm-uscite-story-pop-cover aria-hidden="true"></div>
+					<div class="llm-uscite__story-pop-body">
+						<p class="llm-uscite__story-pop-meta" data-llm-uscite-story-pop-meta></p>
+						<h3 id="llm-uscite-story-pop-title" class="llm-uscite__story-pop-title" data-llm-uscite-story-pop-title></h3>
+						<p class="llm-uscite__story-pop-sub" data-llm-uscite-story-pop-sub></p>
+						<p class="llm-uscite__story-pop-plot" data-llm-uscite-story-pop-plot></p>
+						<a class="llm-uscite__story-pop-cta" data-llm-uscite-story-pop-cta hidden></a>
+						<a class="llm-uscite__story-pop-cta llm-uscite__story-pop-cta--admin" data-llm-uscite-story-pop-admin hidden></a>
+						<span class="llm-uscite__story-pop-cta llm-uscite__story-pop-cta--scheduled" data-llm-uscite-story-pop-scheduled hidden></span>
+					</div>
+				</div>
+			</div>
 		</div>
 		<?php
 		return (string) ob_get_clean();
@@ -358,24 +379,59 @@ class LLM_Home_Page_Uscite_Shortcode {
 			$n     = isset( $counts[ $id ] ) ? (int) $counts[ $id ] : 0;
 			$day   = substr( (string) $post->post_date, 0, 10 );
 			$time  = substr( (string) $post->post_date, 11, 5 );
+			$status_raw = (string) $post->post_status;
+			$status_ui  = ( 'publish' === $status_raw ) ? 'publish' : ( ( 'future' === $status_raw ) ? 'future' : 'draft' );
+			$is_admin   = self::viewer_is_admin();
+			$can_open   = ( 'publish' === $status_ui ) || $is_admin;
+			$ui_lang    = self::ui_lang();
+			$sched_lbl  = '';
+			$status_lbl = '';
+			if ( 'future' === $status_ui ) {
+				$ts = strtotime( (string) $post->post_date );
+				$sched_lbl = $ts
+					? sprintf( self::t( $ui_lang, 'scheduled_for' ), date_i18n( 'd/m/Y H:i', $ts ) )
+					: self::t( $ui_lang, 'scheduled' );
+				$status_lbl = self::t( $ui_lang, 'status_future' );
+			} elseif ( 'publish' === $status_ui ) {
+				$status_lbl = self::t( $ui_lang, 'status_publish' );
+			} else {
+				$status_lbl = self::t( $ui_lang, 'status_draft' );
+			}
 			$out[] = array(
-				'id'        => $id,
-				'title'     => $title,
-				'subtitle'  => $subtitle,
-				'url'       => (string) get_permalink( $id ),
-				'cover'     => $thumb ? (string) $thumb : '',
-				'category'  => self::story_category( $id ),
-				'cefr'      => $cefr,
-				'phrases'   => $n,
-				'day'       => $day,
-				'dateLabel' => self::date_meta_label( (string) $post->post_date ),
-				'timeLabel' => $time,
-				'pair'      => self::pair_line( $known, $target ),
-				'known'     => $known,
-				'target'    => $target,
+				'id'             => $id,
+				'title'          => $title,
+				'subtitle'       => $subtitle,
+				'url'            => (string) get_permalink( $id ),
+				'cover'          => $thumb ? (string) $thumb : '',
+				'category'       => self::story_category( $id ),
+				'cefr'           => $cefr,
+				'phrases'        => $n,
+				'day'            => $day,
+				'dateLabel'      => self::date_meta_label( (string) $post->post_date ),
+				'timeLabel'      => $time,
+				'pair'           => self::pair_line( $known, $target ),
+				'known'          => $known,
+				'target'         => $target,
+				'targetLabel'    => ( $target && class_exists( 'LLM_Languages' ) ) ? LLM_Languages::label( $target ) : '',
+				'status'         => $status_ui,
+				'statusLabel'    => $status_lbl,
+				'scheduledLabel' => $sched_lbl,
+				'canOpen'        => $can_open,
+				'plot'           => class_exists( 'LLM_Story_Meta' ) ? trim( (string) get_post_meta( $id, LLM_Story_Meta::STORY_PLOT, true ) ) : '',
 			);
 		}
 		return $out;
+	}
+
+	/**
+	 * @return bool
+	 */
+	private static function viewer_is_admin() {
+		if ( ! is_user_logged_in() ) {
+			return false;
+		}
+		$user = wp_get_current_user();
+		return ( $user instanceof WP_User ) && in_array( 'administrator', (array) $user->roles, true );
 	}
 
 	/**
@@ -501,16 +557,12 @@ class LLM_Home_Page_Uscite_Shortcode {
 	private static function render_story_card( array $card, $ui, $kind = 'carousel' ) {
 		$url      = isset( $card['url'] ) ? (string) $card['url'] : '';
 		$title    = isset( $card['title'] ) ? (string) $card['title'] : '';
-		$subtitle = isset( $card['subtitle'] ) ? (string) $card['subtitle'] : '';
 		$cover    = isset( $card['cover'] ) ? (string) $card['cover'] : '';
-		$cat      = isset( $card['category'] ) ? (string) $card['category'] : '';
 		$cefr     = isset( $card['cefr'] ) ? (string) $card['cefr'] : '';
-		$phrases  = isset( $card['phrases'] ) ? (int) $card['phrases'] : 0;
-		$date_l   = isset( $card['dateLabel'] ) ? (string) $card['dateLabel'] : '';
-		$pair     = isset( $card['pair'] ) ? (string) $card['pair'] : '';
-		$cls      = 'llm-uscite__card llm-uscite__card--' . $kind;
+		$lang_lbl = isset( $card['targetLabel'] ) ? trim( (string) $card['targetLabel'] ) : '';
+		$cls      = 'llm-uscite__card llm-uscite__card--' . $kind . ' is-enter';
 		$tag      = $url ? 'a' : 'article';
-		$unit     = 1 === $phrases ? self::t( $ui, 'phrase' ) : self::t( $ui, 'phrases' );
+		$cefr_mod = preg_match( '/^[ABC][12]$/i', $cefr ) ? strtolower( $cefr ) : '';
 
 		ob_start();
 		?>
@@ -518,6 +570,9 @@ class LLM_Home_Page_Uscite_Shortcode {
 			class="<?php echo esc_attr( $cls ); ?>"
 			<?php if ( $url ) : ?>
 				href="<?php echo esc_url( $url ); ?>"
+			<?php endif; ?>
+			<?php if ( $title ) : ?>
+				aria-label="<?php echo esc_attr( $title ); ?>"
 			<?php endif; ?>
 		>
 			<div
@@ -527,32 +582,14 @@ class LLM_Home_Page_Uscite_Shortcode {
 				<?php endif; ?>
 				aria-hidden="true"
 			>
-				<?php if ( $cat ) : ?>
-					<span class="llm-uscite__badge"><?php echo esc_html( $cat ); ?></span>
+				<?php if ( $cefr_mod ) : ?>
+					<span class="llm-uscite__level llm-uscite__level--<?php echo esc_attr( $cefr_mod ); ?>">
+						<strong class="llm-uscite__level-code"><?php echo esc_html( strtoupper( $cefr ) ); ?></strong>
+						<?php if ( $lang_lbl ) : ?>
+							<span class="llm-uscite__level-lang"><?php echo esc_html( $lang_lbl ); ?></span>
+						<?php endif; ?>
+					</span>
 				<?php endif; ?>
-				<?php if ( $phrases > 0 ) : ?>
-					<span class="llm-uscite__duration">🕒 <?php echo esc_html( $phrases . ' ' . $unit ); ?></span>
-				<?php endif; ?>
-			</div>
-			<div class="llm-uscite__body">
-				<?php if ( $date_l ) : ?>
-					<p class="llm-uscite__meta"><?php echo esc_html( $date_l ); ?></p>
-				<?php endif; ?>
-				<h3 class="llm-uscite__card-title"><?php echo esc_html( $title ); ?></h3>
-				<?php if ( $subtitle ) : ?>
-					<p class="llm-uscite__card-sub"><?php echo esc_html( $subtitle ); ?></p>
-				<?php endif; ?>
-				<?php if ( $pair ) : ?>
-					<p class="llm-uscite__pair"><?php echo esc_html( $pair ); ?></p>
-				<?php endif; ?>
-				<div class="llm-uscite__foot">
-					<?php if ( $cefr ) : ?>
-						<span class="llm-uscite__cefr"><?php echo esc_html( $cefr ); ?></span>
-					<?php endif; ?>
-					<?php if ( $url ) : ?>
-						<span class="llm-uscite__more"><?php echo esc_html( self::t( $ui, 'more' ) ); ?></span>
-					<?php endif; ?>
-				</div>
 			</div>
 		</<?php echo $tag; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 		<?php
@@ -777,6 +814,23 @@ class LLM_Home_Page_Uscite_Shortcode {
 	}
 
 	/**
+	 * Titolo card con a capo dopo «per» / «to».
+	 *
+	 * @param string $title Titolo.
+	 * @return string HTML escapato.
+	 */
+	private static function pair_card_title_html( $title ) {
+		$title = (string) $title;
+		if ( preg_match( '/^(Storie per)\s+(.+)$/u', $title, $m ) ) {
+			return esc_html( $m[1] ) . '<br>' . esc_html( $m[2] );
+		}
+		if ( preg_match( '/^(Stories to)\s+(.+)$/u', $title, $m ) ) {
+			return esc_html( $m[1] ) . '<br>' . esc_html( $m[2] );
+		}
+		return esc_html( $title );
+	}
+
+	/**
 	 * @param array{known:string,target:string,url:string} $pair      Coppia.
 	 * @param string                                       $ui        Lingua UI.
 	 * @param bool                                         $is_active Selezionata.
@@ -787,10 +841,9 @@ class LLM_Home_Page_Uscite_Shortcode {
 		$target = $pair['target'];
 		$url    = $pair['url'];
 		$title  = self::pair_card_title( $ui, $known, $target );
-		$flag_t = class_exists( 'LLM_Languages' ) ? LLM_Languages::flag_emoji( $target ) : '';
 		$cover  = self::pair_cover_url( $target );
 		$is_soon = ( '' === $url );
-		$cls     = 'llm-uscite__pair-card' . ( $is_soon ? ' llm-uscite__pair-card--soon' : '' );
+		$cls     = 'llm-uscite__pair-card is-enter' . ( $is_soon ? ' llm-uscite__pair-card--soon' : '' );
 		if ( $cover ) {
 			$cls .= ' llm-uscite__pair-card--has-cover';
 		}
@@ -813,19 +866,56 @@ class LLM_Home_Page_Uscite_Shortcode {
 			data-known="<?php echo esc_attr( $known ); ?>"
 			data-target="<?php echo esc_attr( $target ); ?>"
 			data-url="<?php echo esc_attr( $url ); ?>"
+			data-pair-title="<?php echo esc_attr( $title ); ?>"
 			<?php if ( $cover ) : ?>
 				style="background-image: url('<?php echo esc_url( $cover ); ?>')"
 			<?php endif; ?>
 		>
-			<span class="llm-uscite__pair-flag llm-uscite__pair-flag--to" aria-hidden="true"><?php echo esc_html( $flag_t ); ?></span>
 			<div class="llm-uscite__pair-copy">
-				<h3 class="llm-uscite__pair-title"><?php echo esc_html( $title ); ?></h3>
+				<h3 class="llm-uscite__pair-title"><?php echo self::pair_card_title_html( $title ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- già escapato. ?></h3>
 				<?php if ( $url ) : ?>
-					<a class="llm-uscite__pair-cta" href="<?php echo esc_url( $url ); ?>" data-llm-uscite-pair-link><?php echo esc_html( self::t( $ui, 'all_stories' ) ); ?></a>
+					<a class="llm-uscite__pair-cta" href="<?php echo esc_url( $url ); ?>" data-llm-uscite-pair-link>
+						<span class="llm-uscite__pair-cta-label"><?php echo esc_html( self::t( $ui, 'all_stories' ) ); ?></span>
+						<svg class="llm-uscite__pair-cta-arrow" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+							<path d="M4 12h13.2M12.4 5.8 19 12l-6.6 6.2" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+						</svg>
+					</a>
 				<?php else : ?>
 					<span class="llm-uscite__soon"><?php echo esc_html( self::t( $ui, 'soon' ) ); ?></span>
 				<?php endif; ?>
 			</div>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Link «Vai a tutte le storie» sotto il carosello ultime uscite.
+	 *
+	 * @param string $ui  Lingua UI.
+	 * @param string $url URL catalogo coppia.
+	 * @return string
+	 */
+	private static function render_all_stories_cta( $ui, $url ) {
+		$url = (string) $url;
+		$cls = 'llm-uscite__pair-cta llm-uscite__all-stories' . ( '' === $url ? ' is-disabled' : '' );
+		ob_start();
+		?>
+		<div class="llm-uscite__carousel-foot">
+			<a
+				class="<?php echo esc_attr( $cls ); ?>"
+				data-llm-uscite-all-stories
+				<?php if ( '' !== $url ) : ?>
+					href="<?php echo esc_url( $url ); ?>"
+				<?php else : ?>
+					aria-disabled="true"
+				<?php endif; ?>
+			>
+				<span class="llm-uscite__pair-cta-label"><?php echo esc_html( self::t( $ui, 'all_stories' ) ); ?></span>
+				<svg class="llm-uscite__pair-cta-arrow" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+					<path d="M4 12h13.2M12.4 5.8 19 12l-6.6 6.2" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+				</svg>
+			</a>
 		</div>
 		<?php
 		return (string) ob_get_clean();
@@ -912,7 +1002,7 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'from_en'      => 'Inglese',
 				'from_know_it' => 'Conosco l\'Italiano',
 				'from_know_en' => 'I know English',
-				'all_stories'  => 'Vai a tutte le storie →',
+				'all_stories'  => 'Vai a tutte le storie',
 				'latest'       => 'Ultime aggiunte',
 				'latest_month' => 'Storie uscite negli ultimi 30 giorni',
 				'calendar'     => 'Calendario prossime uscite',
@@ -928,7 +1018,15 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'at_time'      => 'ore',
 				'phrase'       => 'frase',
 				'phrases'      => 'frasi',
+				'level'        => 'Lvl.',
 				'soon'         => 'Coming soon',
+				'scheduled'      => 'Programmata',
+				'scheduled_for'  => 'Programmata per il %s',
+				'admin_access'   => 'Accedi da admin',
+				'status_publish' => 'Pubblicata',
+				'status_future'  => 'Programmata',
+				'status_draft'   => 'Bozza',
+				'close'          => 'Chiudi',
 			),
 			'en' => array(
 				'hello'        => 'Hello',
@@ -939,7 +1037,7 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'from_en'      => 'English',
 				'from_know_it' => 'Conosco l\'Italiano',
 				'from_know_en' => 'I know English',
-				'all_stories'  => 'Go to all stories →',
+				'all_stories'  => 'Go to all stories',
 				'latest'       => 'Latest additions',
 				'latest_month' => 'Stories released in the last 30 days',
 				'calendar'     => 'Upcoming releases calendar',
@@ -955,7 +1053,15 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'at_time'      => 'at',
 				'phrase'       => 'phrase',
 				'phrases'      => 'phrases',
+				'level'        => 'Lvl.',
 				'soon'         => 'Coming soon',
+				'scheduled'      => 'Scheduled',
+				'scheduled_for'  => 'Scheduled for %s',
+				'admin_access'   => 'Open as admin',
+				'status_publish' => 'Published',
+				'status_future'  => 'Scheduled',
+				'status_draft'   => 'Draft',
+				'close'          => 'Close',
 			),
 			'pl' => array(
 				'hello'        => 'Cześć',
@@ -966,7 +1072,7 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'from_en'      => 'Angielski',
 				'from_know_it' => 'Conosco l\'Italiano',
 				'from_know_en' => 'I know English',
-				'all_stories'  => 'Przejdź do wszystkich historii →',
+				'all_stories'  => 'Przejdź do wszystkich historii',
 				'latest'       => 'Ostatnio dodane',
 				'latest_month' => 'Historie z ostatnich 30 dni',
 				'calendar'     => 'Kalendarz najbliższych publikacji',
@@ -982,6 +1088,7 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'at_time'      => 'godz.',
 				'phrase'       => 'zdanie',
 				'phrases'      => 'zdania',
+				'level'        => 'Lvl.',
 				'soon'         => 'Wkrótce',
 			),
 			'es' => array(
@@ -993,7 +1100,7 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'from_en'      => 'Inglés',
 				'from_know_it' => 'Conosco l\'Italiano',
 				'from_know_en' => 'I know English',
-				'all_stories'  => 'Ir a todas las historias →',
+				'all_stories'  => 'Ir a todas las historias',
 				'latest'       => 'Últimas añadiduras',
 				'latest_month' => 'Historias publicadas en los últimos 30 días',
 				'calendar'     => 'Calendario de próximas salidas',
@@ -1009,6 +1116,7 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'at_time'      => 'a las',
 				'phrase'       => 'frase',
 				'phrases'      => 'frases',
+				'level'        => 'Lvl.',
 				'soon'         => 'Próximamente',
 			),
 			'de' => array(
@@ -1020,7 +1128,7 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'from_en'      => 'Englisch',
 				'from_know_it' => 'Conosco l\'Italiano',
 				'from_know_en' => 'I know English',
-				'all_stories'  => 'Zu allen Geschichten →',
+				'all_stories'  => 'Zu allen Geschichten',
 				'latest'       => 'Neueste Ergänzungen',
 				'latest_month' => 'Geschichten der letzten 30 Tage',
 				'calendar'     => 'Kalender der nächsten Veröffentlichungen',
@@ -1036,6 +1144,7 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'at_time'      => 'um',
 				'phrase'       => 'Satz',
 				'phrases'      => 'Sätze',
+				'level'        => 'Lvl.',
 				'soon'         => 'Demnächst',
 			),
 			'fr' => array(
@@ -1047,7 +1156,7 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'from_en'      => 'Anglais',
 				'from_know_it' => 'Conosco l\'Italiano',
 				'from_know_en' => 'I know English',
-				'all_stories'  => 'Voir toutes les histoires →',
+				'all_stories'  => 'Voir toutes les histoires',
 				'latest'       => 'Derniers ajouts',
 				'latest_month' => 'Histoires sorties ces 30 derniers jours',
 				'calendar'     => 'Calendrier des prochaines sorties',
@@ -1063,6 +1172,7 @@ class LLM_Home_Page_Uscite_Shortcode {
 				'at_time'      => 'à',
 				'phrase'       => 'phrase',
 				'phrases'      => 'phrases',
+				'level'        => 'Lvl.',
 				'soon'         => 'Bientôt',
 			),
 			'pt' => array(
@@ -1184,10 +1294,14 @@ class LLM_Home_Page_Uscite_Shortcode {
 			'noStories' => self::t( $lang, 'no_stories' ),
 			'phrase'    => self::t( $lang, 'phrase' ),
 			'phrases'   => self::t( $lang, 'phrases' ),
+			'level'     => self::t( $lang, 'level' ),
 			'prevMonth' => self::t( $lang, 'prev' ),
 			'nextMonth' => self::t( $lang, 'next' ),
 			'helloName' => self::t( $lang, 'hello_name' ),
 			'hello'     => self::t( $lang, 'hello' ),
+			'scheduled' => self::t( $lang, 'scheduled' ),
+			'adminAccess' => self::t( $lang, 'admin_access' ),
+			'close'     => self::t( $lang, 'close' ),
 		);
 	}
 

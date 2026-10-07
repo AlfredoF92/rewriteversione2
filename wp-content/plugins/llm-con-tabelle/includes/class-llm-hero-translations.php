@@ -59,23 +59,23 @@ class LLM_Hero_Translations {
 		return array(
 			'it' => array(
 				'badge'    => 'Impara {lingua-selezionata} una frase alla volta',
-				'title'    => 'Bentornato in LoveRewrite...',
-				'subtitle' => 'Imparare {lingua-selezionata} utilizzando LoveRewrite, significa imparare una nuova lingua traducendo frasi, analizzando l\'analisi grammaticale e ripetendo la frase con la giusta pronuncia. Hai tutto ciò che ti serve per imparare una nuova lingua.',
+				'title'    => 'Bentornato in Lovrite...',
+				'subtitle' => 'Imparare {lingua-selezionata} utilizzando Lovrite, significa imparare una nuova lingua traducendo frasi, analizzando l\'analisi grammaticale e ripetendo la frase con la giusta pronuncia. Hai tutto ciò che ti serve per imparare una nuova lingua.',
 			),
 			'en' => array(
 				'badge'    => 'Learn {lingua-selezionata} one phrase at a time',
-				'title'    => 'Welcome back to LoveRewrite...',
-				'subtitle' => 'Learning {lingua-selezionata} with LoveRewrite means learning a new language by translating phrases, analysing grammar, and repeating each sentence with the right pronunciation. You have everything you need to learn a new language.',
+				'title'    => 'Welcome back to Lovrite...',
+				'subtitle' => 'Learning {lingua-selezionata} with Lovrite means learning a new language by translating phrases, analysing grammar, and repeating each sentence with the right pronunciation. You have everything you need to learn a new language.',
 			),
 			'pl' => array(
 				'badge'    => 'Ucz sie {lingua-selezionata} zdanie po zdaniu',
-				'title'    => 'Witaj ponownie w LoveRewrite...',
-				'subtitle' => 'Nauka {lingua-selezionata} z LoveRewrite to nauka nowego jezyka przez tlumaczenie zdan, analize gramatyki i powtarzanie zdan z wlasciwa wymowa. Masz wszystko, czego potrzebujesz, aby nauczyc sie nowego jezyka.',
+				'title'    => 'Witaj ponownie w Lovrite...',
+				'subtitle' => 'Nauka {lingua-selezionata} z Lovrite to nauka nowego jezyka przez tlumaczenie zdan, analize gramatyki i powtarzanie zdan z wlasciwa wymowa. Masz wszystko, czego potrzebujesz, aby nauczyc sie nowego jezyka.',
 			),
 			'es' => array(
 				'badge'    => 'Aprende {lingua-selezionata} una frase a la vez',
-				'title'    => 'Bienvenido de nuevo a LoveRewrite...',
-				'subtitle' => 'Aprender {lingua-selezionata} con LoveRewrite significa aprender un nuevo idioma traduciendo frases, analizando la gramatica y repitiendo cada frase con la pronunciacion correcta. Tienes todo lo que necesitas para aprender un nuevo idioma.',
+				'title'    => 'Bienvenido de nuevo a Lovrite...',
+				'subtitle' => 'Aprender {lingua-selezionata} con Lovrite significa aprender un nuevo idioma traduciendo frases, analizando la gramatica y repitiendo cada frase con la pronunciacion correcta. Tienes todo lo que necesitas para aprender un nuevo idioma.',
 			),
 		);
 	}

@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class LLM_Tabelle_Database {
 
-	const DB_VERSION = '2.9.8';
+	const DB_VERSION = '2.10.0';
 
 	const OPT_VERSION = 'llm_tabelle_db_version';
 
@@ -68,6 +68,26 @@ class LLM_Tabelle_Database {
 			phrase_pronunciation longtext NOT NULL,
 			phrase_ipa longtext NOT NULL,
 			phrase_approx longtext NOT NULL,
+			grammar_title_1 text NOT NULL,
+			grammar_body_1 longtext NOT NULL,
+			grammar_title_2 text NOT NULL,
+			grammar_body_2 longtext NOT NULL,
+			grammar_title_3 text NOT NULL,
+			grammar_body_3 longtext NOT NULL,
+			grammar_title_4 text NOT NULL,
+			grammar_body_4 longtext NOT NULL,
+			grammar_title_5 text NOT NULL,
+			grammar_body_5 longtext NOT NULL,
+			grammar_title_6 text NOT NULL,
+			grammar_body_6 longtext NOT NULL,
+			grammar_title_7 text NOT NULL,
+			grammar_body_7 longtext NOT NULL,
+			grammar_title_8 text NOT NULL,
+			grammar_body_8 longtext NOT NULL,
+			grammar_title_9 text NOT NULL,
+			grammar_body_9 longtext NOT NULL,
+			grammar_title_10 text NOT NULL,
+			grammar_body_10 longtext NOT NULL,
 			audio_male_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			audio_female_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			audio_azure_male_id bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -216,6 +236,7 @@ class LLM_Tabelle_Database {
 			sort_order int(11) NOT NULL DEFAULT 0,
 			listen_text varchar(255) NOT NULL,
 			audio_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			audio_male_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			PRIMARY KEY  (id),
 			KEY phrase_sort (phrase_id, sort_order),
 			KEY story_id (story_id)
@@ -255,10 +276,36 @@ class LLM_Tabelle_Database {
 		self::ensure_phrase_pronunciation_column();
 		self::ensure_phrase_ipa_approx_columns();
 		self::ensure_phrase_audio_columns();
+		self::ensure_listen_audio_male_column();
 		self::ensure_display_phrase_index_columns();
+		self::ensure_grammar_slot_columns();
 		self::seed_default_cast_roles();
 
 		update_option( self::OPT_VERSION, self::DB_VERSION );
+	}
+
+	/**
+	 * 10 slot titolo+testo per appunti grammaticali (niente JSON).
+	 */
+	private static function ensure_grammar_slot_columns() {
+		global $wpdb;
+		$table = self::table( 'llm_story_phrases' );
+		for ( $i = 1; $i <= 10; $i++ ) {
+			$title_col = 'grammar_title_' . $i;
+			$body_col  = 'grammar_body_' . $i;
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$has_title = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", $title_col ) );
+			if ( ! $has_title ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$wpdb->query( "ALTER TABLE {$table} ADD COLUMN {$title_col} text NOT NULL" );
+			}
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$has_body = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", $body_col ) );
+			if ( ! $has_body ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$wpdb->query( "ALTER TABLE {$table} ADD COLUMN {$body_col} longtext NOT NULL" );
+			}
+		}
 	}
 
 	/**
@@ -353,6 +400,21 @@ class LLM_Tabelle_Database {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE {$table} ADD COLUMN {$col_name} bigint(20) unsigned NOT NULL DEFAULT 0" );
 		}
+	}
+
+	/**
+	 * Voce maschile Azure sulle frasi da ascoltare negli appunti.
+	 */
+	private static function ensure_listen_audio_male_column() {
+		global $wpdb;
+		$table = self::table( 'llm_story_phrase_listen' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$col = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'audio_male_id' ) );
+		if ( $col ) {
+			return;
+		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "ALTER TABLE {$table} ADD COLUMN audio_male_id bigint(20) unsigned NOT NULL DEFAULT 0" );
 	}
 
 	/**
